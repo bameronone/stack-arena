@@ -41,7 +41,8 @@ if (existsSync(spriteDir)) {
     const uri = (f) => `data:image/png;base64,${readFileSync(join(dir, f)).toString('base64')}`;
     sprites[id] = { base: uri('base.png') };
     for (const clip of ['idle', 'attack', 'cast', 'hurt', 'death']) {
-      const frames = [0, 1, 2, 3].map((i) => `${clip}_${i}.png`).filter((f) => existsSync(join(dir, f)));
+      const frames = readdirSync(dir).filter((f) => new RegExp(`^${clip}_\\d+\\.png$`).test(f))
+        .sort((a, b) => parseInt(a.split('_')[1], 10) - parseInt(b.split('_')[1], 10));
       if (frames.length) sprites[id][clip] = frames.map(uri);
     }
   }

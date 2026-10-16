@@ -20,8 +20,8 @@ function spriteSet(charId) {
   const set = spriteCache[charId];
   return set.base?.[0]?.complete && set.base[0].naturalWidth ? set : null;
 }
-// One-shot animations: seconds for the whole 4-frame clip.
-const CLIP = { attack: 0.36, cast: 0.6, hurt: 0.3, death: 0.8 };
+// One-shot animations: seconds for the whole clip, however many frames it has.
+const CLIP = { attack: 0.45, cast: 0.7, hurt: 0.35, death: 0.9 };
 let tintCanvas = null;
 function tinted(img, color, alpha) {
   tintCanvas ??= document.createElement('canvas');
@@ -235,13 +235,14 @@ export function createArena(canvas) {
   function drawSprite(u, set, a, x, y, r) {
     const frames = set[a.clip] || set.idle || set.base;
     const n = frames.length;
-    const i = a.clip === 'idle' ? Math.floor(clock * 6) % n
+    const i = a.clip === 'idle' ? Math.floor(clock * 8) % n
       : Math.min(n - 1, Math.floor((a.clipT / (CLIP[a.clip] || 0.4)) * n));
     const img = frames[i]?.complete && frames[i].naturalWidth ? frames[i] : set.base[0];
     let src = img;
     if (u.frozen > 0) src = tinted(img, '#6cc4f0', 0.45);
     else if (a.flash > 0) src = tinted(img, '#ff4a5a', a.flash * 0.55);
-    const size = r * 2.8;
+    // PixelLab characters stand on a canvas ~40% larger than the figure.
+    const size = r * 3.7;
     const feet = y + r * 1.05;
     ctx.save();
     ctx.imageSmoothingEnabled = false;
