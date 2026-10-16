@@ -5,6 +5,38 @@ import { TAGS } from '../data/tags.js';
 // gladiators or plays a Fight forward in real time at the chosen speed.
 
 const SELF_STACKS = ['fire', 'shield', 'regen', 'arcane', 'armor'];
+
+// Pixel-art sprites embedded by the build from assets/sprites (made with
+// tools/pixellab.mjs). Gladiators without sprites are drawn as medallions.
+const SPRITE_DATA = typeof SPRITES !== 'undefined' ? SPRITES : {};
+const spriteCache = {};
+function spriteSet(charId) {
+  const data = SPRITE_DATA[charId];
+  if (!data) return null;
+  if (!spriteCache[charId]) {
+    const load = (src) => { const img = new Image(); img.src = src; return img; };
+    spriteCache[charId] = Object.fromEntries(Object.entries(data).map(([k, v]) => [k, (Array.isArray(v) ? v : [v]).map(load)]));
+  }
+  const set = spriteCache[charId];
+  return set.base?.[0]?.complete && set.base[0].naturalWidth ? set : null;
+}
+// One-shot animations: seconds for the whole 4-frame clip.
+const CLIP = { attack: 0.36, cast: 0.6, hurt: 0.3, death: 0.8 };
+let tintCanvas = null;
+function tinted(img, color, alpha) {
+  tintCanvas ??= document.createElement('canvas');
+  tintCanvas.width = img.naturalWidth; tintCanvas.height = img.naturalHeight;
+  const t = tintCanvas.getContext('2d');
+  t.clearRect(0, 0, tintCanvas.width, tintCanvas.height);
+  t.globalCompositeOperation = 'source-over';
+  t.drawImage(img, 0, 0);
+  t.globalCompositeOperation = 'source-atop';
+  t.globalAlpha = alpha;
+  t.fillStyle = color;
+  t.fillRect(0, 0, tintCanvas.width, tintCanvas.height);
+  t.globalAlpha = 1;
+  return tintCanvas;
+}
 const ON_ME = ['frost', 'poison', 'bleed'];
 
 export function createArena(canvas) {
@@ -19,7 +51,9 @@ export function createArena(canvas) {
   let last = 0;
   let raf = 0;
   let floaters = [];
-  const anim = [{ lunge: 0, flash: 0, cast: 0 }, { lunge: 0, flash: 0, cast: 0 }];
+  const anim = [0, 1].map(() => ({ lunge: 0, flash: 0, cast: 0, clip: 'idle', clipT: 0 }));
+  let clock = 0;
+  const startClip = (a, clip) => { if (a.clip !== 'death') { a.clip = clip; a.clipT = 0; } };
   let dotSeen = [{ poison: 0, bleed: 0 }, { poison: 0, bleed: 0 }];
   let dotTimer = 0;
   let embers = Array.from({ length: 40 }, () => ({ x: Math.random(), y: Math.random(), v: 0.02 + Math.random() * 0.04, r: Math.random() * 1.6 + 0.4 }));
@@ -50,15 +84,16 @@ export function createArena(canvas) {
   function onEvent(ev) {
     const a = anim[ev.side];
     switch (ev.type) {
-      case 'attack': a.lunge = 1; break;
+      case 'attack': a.lunge = 1; startClip(a, 'attack'); break;
       case 'dmg':
         anim[ev.side].flash = 1;
+        if (anim[ev.side].clip === 'idle') startClip(anim[ev.side], 'hurt');
         float(ev.side, Math.round(ev.amt) + (ev.crit ? '!' : ''), ev.crit ? '#f2d16b' : ev.kind === 'ability' ? '#b59cf0' : ev.kind === 'thorns' ? '#a8a39a' : '#e9dcc0', ev.crit ? 22 : ev.kind === 'ability' ? 19 : 15);
         break;
       case 'dodge': float(ev.side, 'DODGE', TAGS.evasion.color, 15, -10); break;
       case 'freeze': float(ev.side, 'FROZEN', TAGS.frost.color, 18, -18); break;
-      case 'cast': a.cast = 1; float(ev.side, ev.name, TAGS.spell.color, 16, -32); break;
-      case 'revive': float(ev.side, 'REVIVED', TAGS.fire.color, 20, -24); break;
+      case 'cast': a.cast = 1; startClip(a, 'cast'); float(ev.side, ev.name, TAGS.spell.color, 16, -32); break;
+      case 'revive': a.clip = 'idle'; float(ev.side, 'REVIVED', TAGS.fire.color, 20, -24); break;
       case 'resist': float(ev.side, 'RESISTED', '#a8a39a', 14, -18); break;
       case 'immune': float(ev.side, 'IMMUNE', '#e9eef5', 14, -18); break;
       case 'burst': float(ev.side, 'PANDEMIC', TAGS.poison.color, 18, -18); break;
@@ -119,7 +154,13 @@ export function createArena(canvas) {
       if (dotTimer > 0.6) { dotTimer = 0; dotFloaters(); }
       if (fight.over) setTimeout(finish, 650);
     }
-    for (const a of anim) {
+    clock += dt;
+    for (const [side, a] of anim.entries()) {
+      const u = units?.[side];
+      if (u?.dead && a.clip !== 'death') { a.clip = 'death'; a.clipT = 0; }
+      if (u && !u.dead && a.clip === 'death') a.clip = 'idle';
+      a.clipT += dt * (fight ? Math.max(1, speed / 2) : 1);
+      if (CLIP[a.clip] && a.clip !== 'death' && a.clipT >= CLIP[a.clip]) { a.clip = 'idle'; a.clipT = 0; }
       a.lunge = Math.max(0, a.lunge - dt * 6 * Math.max(1, speed / 2));
       a.flash = Math.max(0, a.flash - dt * 5);
       a.cast = Math.max(0, a.cast - dt * 2);
@@ -191,6 +232,26 @@ export function createArena(canvas) {
     }
   }
 
+  function drawSprite(u, set, a, x, y, r) {
+    const frames = set[a.clip] || set.idle || set.base;
+    const n = frames.length;
+    const i = a.clip === 'idle' ? Math.floor(clock * 6) % n
+      : Math.min(n - 1, Math.floor((a.clipT / (CLIP[a.clip] || 0.4)) * n));
+    const img = frames[i]?.complete && frames[i].naturalWidth ? frames[i] : set.base[0];
+    let src = img;
+    if (u.frozen > 0) src = tinted(img, '#6cc4f0', 0.45);
+    else if (a.flash > 0) src = tinted(img, '#ff4a5a', a.flash * 0.55);
+    const size = r * 2.8;
+    const feet = y + r * 1.05;
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    if (u.dead && a.clip === 'death' && a.clipT > CLIP.death) ctx.globalAlpha = 0.55;
+    ctx.translate(x, 0);
+    if (u.side === 1) ctx.scale(-1, 1);
+    ctx.drawImage(src, -size / 2, feet - size * 0.95, size, size);
+    ctx.restore();
+  }
+
   function drawUnit(u) {
     const r = radius();
     const p = pos(u.side);
@@ -222,6 +283,10 @@ export function createArena(canvas) {
       ctx.lineWidth = 3;
       ctx.beginPath(); ctx.arc(x, y, r + 14, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (u.focus / 1)); ctx.stroke();
     }
+    const sprites = spriteSet(u.char.id);
+    if (sprites) {
+      drawSprite(u, sprites, a, x, y, r);
+    } else {
     // medallion
     const mg = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, 2, x, y, r);
     mg.addColorStop(0, '#3b3442');
@@ -252,6 +317,7 @@ export function createArena(canvas) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(u.char.name.split(' ').map((s) => s[0]).join(''), x, y + 2);
+    }
 
     // bars
     const bw = Math.max(110, r * 2.6), bx = p.x - bw / 2, by = y - r - 34;
