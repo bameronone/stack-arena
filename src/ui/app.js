@@ -1,7 +1,8 @@
 import { TAGS, TRIGGERS, RESOURCES, TIER_UNLOCK, TIER_NAMES, HYBRID_REQ } from '../data/tags.js';
 import { CARDS, CARD_BY_ID, cardResources } from '../data/cards.js';
 import { CHARACTERS, CHAR_BY_ID, characterStatus } from '../data/characters.js';
-import { tagCounts, cardCost, REROLL_COST } from '../engine/shop.js';
+import { tagCounts, cardCost, REROLL_COST, SHOP_SIZE } from '../engine/shop.js';
+import { hpScale } from '../engine/combat.js';
 import {
   visibleCharacters, makeFight, loadout, income, interest, START_HP, SIGNATURE_ROUND,
   opponentOf, standings, MAX_PLAYERS, BAN_COUNT,
@@ -70,8 +71,9 @@ function foe() {
 }
 function foeLoadout() {
   const f = foe();
-  return f ? loadout(f.p) : loadout(M().players.find((p) => p.id !== ME()));
+  return loadout(f ? f.p : M().players.find((p) => p.id !== ME()), M().round);
 }
+const myLoadout = () => loadout(M().players[ME()], M().round);
 
 // ---------------------------------------------------------------- card text
 
@@ -548,6 +550,7 @@ function renderGame() {
         <section class="arena-wrap" aria-label="Arena">
           <canvas id="arena" aria-label="Fight view"></canvas>
           <div class="speed" id="speed"></div>
+          <div id="preview"></div>
           <div id="banner"></div>
         </section>
         <aside class="side foe" id="foe" aria-label="Opponent"></aside>
@@ -558,7 +561,7 @@ function renderGame() {
     arena = createArena(root.querySelector('#arena'));
     arena.setSpeed(ui.speed);
   }
-  if (!ui.fighting) arena.setPreview(loadout(M().players[ME()]), foeLoadout());
+  if (!ui.fighting) arena.setPreview(myLoadout(), foeLoadout());
   updateGame();
 }
 
@@ -570,6 +573,7 @@ function updateGame() {
   renderSide('foe', (foe() || { p: m.players.find((p) => p.id !== ME()) }).p, false);
   renderTray();
   renderSpeed();
+  renderPreview();
   renderBanner();
   renderModal();
   renderTabs();
@@ -581,17 +585,63 @@ function renderHud() {
   const life = (p, cls, ghost) => `
     <div class="life ${cls}">
       <div class="top"><span>${ghost ? 'Ghost of ' : ''}${esc(nameOf(p))} · ${esc(CHAR_BY_ID[p.charId].name)}</span><span class="num">${hpOf(p)} / ${START_HP}</span></div>
-      <div class="bar"><i style="width:${(hpOf(p) / START_HP) * 100}%"></i></div>
+      <div class="bar hp-dashes"><i style="width:${(hpOf(p) / START_HP) * 100}%"></i></div>
     </div>`;
   root.querySelector('#hud').innerHTML = `
     <div class="logo">Stack <span>Arena</span></div>
-    <div class="round"><span class="eyebrow">Round</span><b class="num">${m.round}</b></div>
-    <div class="clock">${m.phase === 'shop' || m.phase === 'signature' ? timerHtml() : ''}</div>
     <div class="eyebrow">Bans: ${m.bans.map((b) => chip(b, true)).join(' ')}</div>
+    ${roundsStrip()}
     <div class="vs">${life(me, 'me')}${f ? life(f.p, 'foe', f.ghost) : ''}</div>
     <div class="tools"><button class="btn" id="codex">Tags</button><button class="btn" id="quit">${S.mode === 'solo' ? 'Quit' : 'Leave'}</button></div>`;
   root.querySelector('#codex').onclick = () => { ui.modal = 'codex'; renderModal(); };
   root.querySelector('#quit').onclick = () => { ui.modal = 'quit'; renderModal(); };
+}
+
+// The road through the match, TFT style: one node per fight (won, lost, or
+// still to come) plus milestone nodes such as the signature pick. Item
+// choices can be added later as another milestone kind in stages().
+function stages(upTo) {
+  const out = [];
+  for (let r = 1; r <= upTo; r++) {
+    if (r === SIGNATURE_ROUND) out.push({ kind: 'signature', round: r });
+    out.push({ kind: 'fight', round: r });
+  }
+  return out;
+}
+const glyphOf = (charId) => CHAR_BY_ID[charId].name.replace(/^The /, '').slice(0, 2);
+
+function roundsStrip() {
+  const m = M(), me = ME(), p = m.players[me];
+  const mine = {};
+  for (const r of m.history) if (r.a === me || (!r.ghost && r.b === me)) mine[r.round] = r;
+  const now = m.round;
+  // Your fight this round is a mystery in a free-for-all until it starts.
+  const reveal = isDuel() || m.phase === 'fight';
+  const nodes = stages(now + 3).filter((s) => s.round >= now - 6).map((s) => {
+    if (s.kind === 'signature') {
+      const sig = p.sig && CHAR_BY_ID[p.charId].signatures.find((x) => x.id === p.sig);
+      const state = sig ? 'done' : s.round === now ? 'now' : 'later';
+      return `<li class="node milestone ${state}" data-tip="${esc(`<b>Round ${s.round} milestone</b><br>${sig ? `Signature: ${esc(sig.name)}` : 'Choose a signature upgrade'}`)}"><small>Sig</small><b>&#9733;</b></li>`;
+    }
+    const res = mine[s.round];
+    const finished = s.round < now || (s.round === now && m.phase === 'fight' && !ui.fighting);
+    if (finished && res) {
+      const oppId = res.a === me ? res.b : res.a;
+      const opp = m.players[oppId];
+      const out = res.winner === null ? 'draw' : res.winner === me ? 'win' : 'loss';
+      const word = { win: 'Won', loss: 'Lost', draw: 'Drew' }[out];
+      const dmg = out === 'win' ? (res.ghost ? 'ghosts lose no HP' : `they lost ${res.damage} HP`) : out === 'loss' ? `you lost ${res.damage} HP` : `-${res.damage} HP`;
+      return `<li class="node ${out}" data-tip="${esc(`<b>Round ${s.round}: ${word}</b><br>vs ${res.ghost ? 'a ghost of ' : ''}${esc(nameOf(opp))} (${esc(CHAR_BY_ID[opp.charId].name)}), ${dmg}`)}"><small>${s.round}</small><b>${esc(glyphOf(opp.charId))}</b></li>`;
+    }
+    if (s.round < now || (finished && !res)) return `<li class="node bye" data-tip="${esc(`<b>Round ${s.round}</b><br>No fight`)}"><small>${s.round}</small><b>&ndash;</b></li>`;
+    if (s.round === now) {
+      const f = foe();
+      const known = f && reveal;
+      return `<li class="node now ${m.phase === 'fight' ? 'live' : ''}" data-tip="${esc(`<b>Round ${s.round}: next fight</b><br>${known ? `vs ${f.ghost ? 'a ghost of ' : ''}${esc(nameOf(f.p))} (${esc(CHAR_BY_ID[f.p.charId].name)})` : 'Your opponent is revealed when the fight starts'}`)}"><small>${s.round}</small><b>${known ? esc(glyphOf(f.p.charId)) : '?'}</b></li>`;
+    }
+    return `<li class="node later"><small>${s.round}</small><b></b></li>`;
+  });
+  return `<div class="rounds" aria-label="Rounds"><span class="eyebrow">Round <b class="num">${now}</b></span><ol class="strip">${nodes.join('')}</ol></div>`;
 }
 
 function tierProgress(counts) {
@@ -640,7 +690,7 @@ function standingsPanel() {
       <div class="st ${p.id === ME() ? 'me' : ''} ${p.hp <= 0 && !ui.fighting ? 'out' : ''} ${f && f.p.id === p.id ? 'opp' : ''}">
         <span class="st-n">${p.placement ? ordinal(p.placement) : m.phase === 'shop' && !p.isBot && m.ready?.[p.id] ? '&#10003;' : ''}</span>
         <span class="st-name">${esc(nameOf(p))}${!p.isBot && p.id !== ME() ? ' <em>player</em>' : ''}<small>${esc(CHAR_BY_ID[p.charId].name)}</small></span>
-        <span class="st-bar"><i style="width:${(hpOf(p) / START_HP) * 100}%"></i></span>
+        <span class="st-bar hp-dashes"><i style="width:${(hpOf(p) / START_HP) * 100}%"></i></span>
         <span class="st-hp num">${hpOf(p)}</span>
       </div>`).join('')}
   </div>`;
@@ -662,13 +712,13 @@ function renderTray() {
   }
   el.innerHTML = `
     <div class="purse">
-      <div class="gold"><b class="num">${p.gold}</b><span>gold<br>+${income(m.round + 1) + interest(p.gold)} next round</span></div>
+      ${purseHtml(p, m)}
       <div class="row">
         <button class="btn" id="reroll" ${locked || p.gold < REROLL_COST ? 'disabled' : ''} title="New cards (R)">Reroll ${REROLL_COST}</button>
         <button class="btn ${p.locked ? 'on' : ''}" id="lock" ${locked ? 'disabled' : ''} title="Keep these cards for next round">${p.locked ? 'Locked' : 'Lock'}</button>
       </div>
     </div>
-    <div class="cards" role="list">
+    <div class="cards" role="list" style="--n:${SHOP_SIZE}">
       ${p.shop.map((cid, i) => {
         if (cid) shopGhost[i] = cid;
         if (!cid) return shopGhost[i] ? `<div class="card sold t-${CARD_BY_ID[shopGhost[i]].tier}" aria-hidden="true">${cardBody(CARD_BY_ID[shopGhost[i]], 0)}</div>` : '<div class="card sold t-1" aria-hidden="true"></div>';
@@ -691,12 +741,29 @@ function renderTray() {
   el.querySelector('#fight').onclick = toggleReady;
 }
 
+// Gold and what saving it earns: income plus 1 interest per 10 kept (max 2).
+function purseHtml(p, m) {
+  const inc = income(m.round + 1), bonus = interest(p.gold);
+  const cap = 20;
+  const hint = p.gold < 10 ? `Keep ${10 - p.gold} more for +1 interest`
+    : p.gold < cap ? `Keep ${cap - p.gold} more for +2 interest`
+      : `Max interest. Gold over ${cap} earns nothing more`;
+  const tip = `<b>Next round you get ${inc + bonus} gold</b><div class="tip-rows" style="grid-template-columns:1fr"><span>Income (4 + round, max 10)<b class="num">+${inc}</b></span><span>Interest (1 per 10 kept, max 2)<b class="num">+${bonus}</b></span></div>Interest counts the gold you have left when the fight starts.`;
+  return `<div class="gold"><b class="num">${p.gold}</b><span>gold</span></div>
+    <div class="eco" data-tip="${esc(tip)}" tabindex="0">
+      <div class="eco-line">Next round <b class="num">+${inc + bonus}</b></div>
+      <div class="eco-sub num">${inc} income + ${bonus} interest</div>
+      <div class="eco-bar" aria-hidden="true"><i style="width:${Math.min(1, p.gold / cap) * 100}%"></i><em style="left:50%"></em></div>
+      <div class="eco-hint ${p.gold >= cap ? 'max' : ''}">${hint}</div>
+    </div>`;
+}
+
 function cardBody(card, have) {
   return `<span class="cost num">${cardCost(card)}</span>
     <div class="top">${cardTags(card)}</div>
     <div class="nm">${esc(card.name)}</div>
     <div class="ds">${richDesc(card, Math.min(card.max, have + 1))}</div>
-    <div class="ft"><span>${TIER_NAMES[card.tier]}</span><span class="num">${have ? `Owned ${have}/${card.max}` : `Max ${card.max}`}</span></div>`;
+    <div class="ft"><span class="tier">${TIER_NAMES[card.tier]}</span><span class="num">${have ? `Owned ${have}/${card.max}` : `Max ${card.max}`}</span></div>`;
 }
 
 function doBuy(slot) {
@@ -713,6 +780,21 @@ function toggleReady() {
   const m = M();
   if (m.phase !== 'shop' || ui.fighting) return;
   S.act('ready', !m.ready?.[ME()]);
+}
+
+// Over the arena between fights: when the next fight starts, big.
+function renderPreview() {
+  const el = root.querySelector('#preview');
+  const m = M();
+  const me = m.players[ME()];
+  if (m.phase !== 'shop' || ui.fighting || ui.banner || me.hp <= 0) { el.innerHTML = ''; return; }
+  const timed = S.remaining?.() != null;
+  const scale = hpScale(m.round);
+  el.innerHTML = `<div class="preview">
+    <span class="eyebrow">Fight preview · starting stats</span>
+    ${timed ? `<div class="countdown"><span>Next fight in</span>${timerHtml()}</div>` : '<div class="countdown"><span>Press Fight when you are ready</span></div>'}
+    ${scale > 1 ? `<span class="hp-note">Round ${m.round}: everyone has ${scale.toFixed(2)}x max HP</span>` : ''}
+  </div>`;
 }
 
 function renderSpeed() {
@@ -739,7 +821,7 @@ function startFightAnimation() {
     ui.fighting = false;
     ui.fightStats = { live: false, round, stats: JSON.parse(JSON.stringify(result.stats)) };
     if (M()?.phase === 'fight' && M().fightRound === round) ui.banner = resultsBanner(result);
-    if (screenFor() === 'game' && arena) { arena.setPreview(loadout(M().players[ME()]), foeLoadout()); updateGame(); }
+    if (screenFor() === 'game' && arena) { arena.setPreview(myLoadout(), foeLoadout()); updateGame(); }
   });
   updateGame();
 }

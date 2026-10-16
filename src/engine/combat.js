@@ -15,12 +15,17 @@ export function overtime(t) {
   const over = Math.max(0, t - SUDDEN_DEATH_AT);
   return { damage: 1 + over * 0.08, healing: Math.max(0, 1 - over * 0.03), burn: Math.max(0, t - BURN_AT) * 0.005 };
 }
+// Fighters get tougher every round so late-game damage doesn't end fights in
+// a hit or two. Fitted so fights last about as long in round 14 as in round 1.
+export function hpScale(round = 1) {
+  return 1 + 0.015 * (Math.max(1, round) - 1) ** 2;
+}
 const DEFAULT_SOURCE = { attack: 'Attacks', poison: 'Poison', bleed: 'Bleed', thorns: 'Thorns', true: 'Other' };
 
 const HOOKS = ['onStart', 'onAttack', 'onHit', 'onCrit', 'onEvade', 'onPain', 'onCast', 'onFreeze', 'onHitTaken', 'onShieldBreak', 'bonusDamage'];
 const BASE = { hp: 600, ad: 30, as: 1.0, crit: 0.05, critMult: 1.75, manaMax: 100, manaPerAttack: 10, focusGain: 0 };
 
-// Build a combat unit from a loadout: { charId, cards: {id: copies}, sig }.
+// Build a combat unit from a loadout: { charId, cards: {id: copies}, sig, round }.
 export function buildUnit(loadout, side) {
   const ch = CHAR_BY_ID[loadout.charId];
   const s = { ...BASE, ...ch.stats };
@@ -85,10 +90,13 @@ export function buildUnit(loadout, side) {
     if (src.every) u.timers.push({ interval: src.every[0], fn: src.every[1], n, acc: 0 });
   }
 
-  if (u.flags.titan) { u.maxHp *= 1.6; u.asBase *= 0.8; u.hooks.bonusDamage.push({ fn: (f, x) => x.maxHp * 0.03, n: 1 }); }
+  if (u.flags.titan) { u.maxHp *= 1.6; u.asBase *= 0.8; u.hooks.bonusDamage.push({ fn: (f, x) => x.baseHp * 0.03, n: 1 }); }
   if (u.flags.bullseye) u.crit *= 2;
   u.crit = Math.min(u.crit, 0.95);
-  u.maxHp = Math.round(u.maxHp);
+  // Effects worth "x% of max HP" (bleed, regen, shields...) use baseHp, the
+  // HP before round scaling, so they don't grow faster than everything else.
+  u.baseHp = u.maxHp;
+  u.maxHp = Math.round(u.maxHp * hpScale(loadout.round));
   u.hp = u.maxHp;
   return u;
 }
@@ -366,14 +374,14 @@ export class Fight {
         u.poison = Math.max(0, u.poison - u.poison * 0.02 * dt);
       }
       if (u.bleed > 0.05 && !u.dead) {
-        const d = this.damage(e, u, u.bleed * 0.0025 * u.maxHp * e.m.bleedDmg * dt, 'bleed');
+        const d = this.damage(e, u, u.bleed * 0.0025 * u.baseHp * e.m.bleedDmg * dt, 'bleed');
         if (e.m.bleedLeech) this.heal(e, d * e.m.bleedLeech, 'Bleed lifesteal');
         u.bleed = Math.max(0, u.bleed - u.bleed * 0.08 * e.m.bleedDecay * dt);
       }
       if (u.dead) continue;
       u.frost = Math.max(0, u.frost - 0.6 * e.m.frostDecay * dt);
 
-      if (u.regen > 0) this.heal(u, u.regen * 0.002 * u.maxHp * dt, 'Regen');
+      if (u.regen > 0) this.heal(u, u.regen * 0.002 * u.baseHp * dt, 'Regen');
       const burn = overtime(this.t).burn;
       if (burn > 0) this.damage(e, u, u.maxHp * burn * dt, 'true', { source: 'Arena burn' });
       if (u.dead) continue;

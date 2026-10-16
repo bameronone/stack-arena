@@ -12,6 +12,8 @@
    - Then the auto fights. Pairings are random each round, avoiding last round's opponent where possible. With an odd number alive, one player fights a **ghost**: a copy of another living player's build. Losing to a ghost costs HP; beating one doesn't hurt the player it copies.
    - In the browser, your fight is animated and the others resolve instantly. Once you're knocked out, the bots finish the match instantly and you see the final standings.
    - The loser takes `1 + ceil(0.8 × round) + 4 × winner's HP%` damage. Each player starts with 60 HP.
+   - Gladiators' fight HP grows each round: max HP × `1 + 0.015 × (round − 1)²` (1.24x in round 5, 2.5x in round 11, 3.5x in round 14). Without it, late fights ended in about 4s, often in one cast. Effects worth a percent of max HP (bleed, regen, Juggernaut, shields...) use the HP before scaling, so they don't outgrow everything else.
+   - The shop shows next round's gold: income plus interest, and how much more to keep for the next interest step.
 5. **Round 7:** each player picks one of two signature upgrades for their gladiator.
 
 ## Triggers and resources
@@ -77,7 +79,7 @@ These are 3000-match results between Gladiator-level bots:
 
 - **Characters:** every gladiator wins 42–55%. Poison builds sit a little under par (about 43%) on purpose: human players got more out of poison than the bots do.
 - **Resources:** non-poison resources land between 49% and 53%. Poison decays 2% of its stacks per second so it levels off instead of snowballing.
-- **Average match:** about 11 rounds, with fights of about 12s.
+- **Average match:** about 11 rounds, with fights of about 15s that stay that long into the late game.
 
 After changing cards, re-run `tools/cardvalue.mjs` (so the AI's card values stay accurate), then `npm run sim`.
 

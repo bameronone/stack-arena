@@ -50,7 +50,9 @@ if (existsSync(spriteDir)) {
 const js = '(() => {\n"use strict";\n' + `const SPRITES = ${JSON.stringify(sprites)};\n` + order.map((f) => `// ---- ${f}\n${strip(readFileSync(join(root, f), 'utf8'))}`).join('\n') + '\n})();';
 if (/^\s*(import|export)\s/m.test(js)) throw new Error('unstripped import/export left in bundle');
 const css = readFileSync(join(root, 'src/ui/style.css'), 'utf8');
+const icon = `data:image/svg+xml,${encodeURIComponent(readFileSync(join(root, 'assets/icon.svg'), 'utf8').trim())}`;
 const page = readFileSync(join(root, 'src/ui/index.template.html'), 'utf8')
+  .replace('__ICON__', () => icon)
   .replace('/*__CSS__*/', () => css)
   .replace('/*__JS__*/', () => js.replace(/<\/script/gi, '<\\/script'));
 mkdirSync(join(root, 'dist'), { recursive: true });
