@@ -2,7 +2,7 @@ import { CARD_BY_ID, cardResources } from '../data/cards.js';
 import { CHAR_BY_ID } from '../data/characters.js';
 import { RESOURCES, TRIGGERS, TIER_UNLOCK, HYBRID_REQ } from '../data/tags.js';
 import { cardCost, tagCounts, REROLL_COST } from '../engine/shop.js';
-import { buy, reroll, rngFor, visibleCharacters, submitBan, pickCharacter, chooseSignature, loadout, opponentOf } from '../engine/match.js';
+import { buy, reroll, rngFor, visibleCharacters, submitBan, pickCharacter, chooseSignature, loadout, opponentOf, INTEREST_STEP, INTEREST_MAX } from '../engine/match.js';
 import { Fight } from '../engine/combat.js';
 import { CARD_VALUES } from './cardValues.js';
 
@@ -181,14 +181,14 @@ export function botShop(m, id) {
     }
 
     const best = options[0];
-    const threshold = lv.economy && m.round <= 3 && p.gold - (best ? cardCost(best.card) : 0) < 10 && p.gold >= 8 ? 4.5 : 2.5;
+    const threshold = lv.economy && m.round <= 3 && p.gold - (best ? cardCost(best.card) : 0) < INTEREST_STEP * INTEREST_MAX && p.gold >= INTEREST_STEP * INTEREST_MAX - 2 ? 4.5 : 2.5;
     if (best && best.s > threshold) {
       buy(m, id, best.i);
       if (simulate && best.gain !== undefined) base += best.gain;
       continue;
     }
     // Reroll when nothing fits, but protect interest in the early rounds.
-    const keep = lv.economy && m.round <= 4 ? 10 : 0;
+    const keep = lv.economy && m.round <= 4 ? INTEREST_STEP * INTEREST_MAX : 0;
     if (rerolls < lv.rerolls && p.gold - REROLL_COST >= Math.max(2, keep)) { reroll(m, id); rerolls++; continue; }
     if (rerolls < lv.rerolls && p.gold >= REROLL_COST + 2 && m.round > 4) { reroll(m, id); rerolls++; continue; }
     // Out of rerolls: unspent gold is wasted power, so take the best card

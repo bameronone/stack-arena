@@ -7,10 +7,10 @@
 2. **Pick:** gladiators whose resources are *all* banned are hidden. Two-resource gladiators with one banned stay pickable, with a warning.
 3. **Timers** (online always, solo optional): ban 20s, pick 30s, signature 20s, shop 20/30/45s. Running out picks at random or starts the fight. In multiplayer the fight starts early once every living player has pressed Ready.
 4. **Rounds:**
-   - Gold arrives: `min(10, 4 + round)` plus interest of 1 per 10 banked (max 2).
+   - Gold arrives: `min(10, 4 + round)` plus interest of 1 per 5 banked (max 3, at 15 gold). It was 1 per 10 (max 2), which made saving feel pointless.
    - The shop shows 5 cards. Reroll costs 1 gold and you can lock the shop. There is no selling: every purchase is permanent.
    - Then the auto fights. Pairings are random each round, avoiding last round's opponent where possible. With an odd number alive, one player fights a **ghost**: a copy of another living player's build. Losing to a ghost costs HP; beating one doesn't hurt the player it copies.
-   - In the browser, your fight is animated and the others resolve instantly. Once you're knocked out, the bots finish the match instantly and you see the final standings.
+   - In the browser, your fight is animated and the others resolve instantly. In a free-for-all you can watch any other fight of the round from the results banner (it replays from the shared seed). Once you're knocked out, the bots finish the match instantly and you see the final standings.
    - The loser takes `1 + ceil(0.8 × round) + 4 × winner's HP%` damage. Each player starts with 60 HP.
    - Gladiators' fight HP grows each round: max HP × `1 + 0.015 × (round − 1)²` (1.24x in round 5, 2.5x in round 11, 3.5x in round 14). Without it, late fights ended in about 4s, often in one cast. Effects worth a percent of max HP (bleed, regen, Juggernaut, shields...) use the HP before scaling, so they don't outgrow everything else.
    - The shop shows next round's gold: income plus interest, and how much more to keep for the next interest step.
@@ -18,13 +18,16 @@
 
 ## Triggers and resources
 
-- **Triggers** (Strike, Precision, Evasion, Wounded, Spell) decide when stacks are gained. Owning cards with a trigger tag makes that trigger happen more often:
+- **Triggers** (Strike, Precision, Evasion, Health, Spell) decide when stacks are gained. Owning cards with a trigger tag makes that trigger happen more often:
   - Strike: +1% attack speed per card
   - Precision: +1% crit per card
   - Evasion: +3% Focus per hit taken per card
-  - Wounded (internally `pain`): you become Wounded every 12% of max HP lost, 0.5% sooner per card (min 4%). It used to be a flat 5-6% for everyone, which made these cards good in every build.
+  - Health (internally `pain`, formerly Wounded): +5 max HP per card, and "When hurt" fires every 12% of max HP lost, 0.5% sooner per card (min 4%). The max-HP cards (Hearty, Juggernaut, Titan) are Health cards.
   - Spell: +0.5 mana per attack per card
-- **Resources** (Fire, Frost, Poison, Bleed, Shield, Regen, Mana, Armor) decide what stacks do.
+- **Resources** (Fire, Frost, Toxin, Bleed, Shield, Regen, Mana, Armor) decide what stacks do.
+  - Toxin (internally `poison`, formerly Poison) goes through Armor but Shield blocks it.
+  - Regen heals 0.2% of base max HP per second per stack. Every 5% of base max HP healed, from any source, fires "On heal" (Sap Ward, Bloom Burst, Evergreen).
+  - Gaining Fire melts the same number of Frost stacks on you.
 - **Generator cards** pair a trigger with a resource and always fire. There's one for every one of the 40 trigger-resource pairs. Cards with only a resource tag that make stacks fire 30% of the time, or run on a slow timer.
 
 ## Tiers
@@ -42,10 +45,10 @@
 - Focus is capped at 60%.
 - Counterplay:
   - Dodged attacks still fire the attacker's on-attack (Strike) effects.
-  - Poison, Bleed and abilities can't be dodged.
+  - Toxin, Bleed and abilities can't be dodged.
   - True Sight makes every 4th attack undodgeable.
   - Unsettling Blows drains 10% of the target's Focus per copy.
-  - Wisp Dancer sheds 4 Poison and 4 Bleed on each dodge, so evasion still has an answer to damage over time.
+  - Wisp Dancer sheds 4 Toxin and 4 Bleed on each dodge, so evasion still has an answer to damage over time.
 
 ## Fights
 
@@ -75,10 +78,10 @@ Hand-written card scoring did no better than random buying. Measuring each card'
 
 ## Balance status
 
-These are 3000-match results between Gladiator-level bots:
+These are 1500-match results between Gladiator-level bots:
 
-- **Characters:** every gladiator wins 42–55%. Poison builds sit a little under par (about 43%) on purpose: human players got more out of poison than the bots do.
-- **Resources:** non-poison resources land between 49% and 53%. Poison decays 2% of its stacks per second so it levels off instead of snowballing.
+- **Characters:** every gladiator wins 47–54% (base HP tuned with `tools/autotune.mjs`, which is why base HP now ranges from 260 to 1065).
+- **Resources:** 48–53%. Toxin decays 2% of its stacks per second so it levels off instead of snowballing.
 - **Average match:** about 11 rounds, with fights of about 15s that stay that long into the late game.
 
 After changing cards, re-run `tools/cardvalue.mjs` (so the AI's card values stay accurate), then `npm run sim`.

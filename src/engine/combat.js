@@ -20,9 +20,13 @@ export function overtime(t) {
 export function hpScale(round = 1) {
   return 1 + 0.015 * (Math.max(1, round) - 1) ** 2;
 }
-const DEFAULT_SOURCE = { attack: 'Attacks', poison: 'Poison', bleed: 'Bleed', thorns: 'Thorns', true: 'Other' };
+const DEFAULT_SOURCE = { attack: 'Attacks', poison: 'Toxin', bleed: 'Bleed', thorns: 'Thorns', true: 'Other' };
 
-const HOOKS = ['onStart', 'onAttack', 'onHit', 'onCrit', 'onEvade', 'onPain', 'onCast', 'onFreeze', 'onHitTaken', 'onShieldBreak', 'bonusDamage'];
+const HOOKS = ['onStart', 'onAttack', 'onHit', 'onCrit', 'onEvade', 'onPain', 'onHeal', 'onCast', 'onFreeze', 'onHitTaken', 'onShieldBreak', 'bonusDamage'];
+// Healing this share of base max HP counts as one "On heal".
+export const HEAL_STEP = 0.05;
+// Max HP each Health (pain) card gives.
+export const HEALTH_PER_CARD = 5;
 const BASE = { hp: 600, ad: 30, as: 1.0, crit: 0.05, critMult: 1.75, manaMax: 100, manaPerAttack: 10, focusGain: 0 };
 
 // Build a combat unit from a loadout: { charId, cards: {id: copies}, sig, round }.
@@ -43,7 +47,7 @@ export function buildUnit(loadout, side) {
     // evasion
     focus: 0, focusGain: s.focusGain, focusCap: 0.6, focusReset: 0, focusStart: 0,
     // pain
-    painStep: 0.12, painAcc: 0,
+    painStep: 0.12, painAcc: 0, healAcc: 0,
     // timers and counters
     frozen: 0, immune: 0, bastionCd: 0, attackTimer: 0, attackCount: 0, castCount: 0, forceCrit: 0,
     momentumCap: 0, pendingAttacks: 0, bleedApplied: 0,
@@ -52,7 +56,7 @@ export function buildUnit(loadout, side) {
       poisonTaken: 1, frostTaken: 1, bleedTaken: 1, abilityTaken: 1, enemyHealCut: 0, enemyFireCapCut: 0,
       abilityPower: 1, castCost: 1, frozenBonus: 0, reflect: 0, manaWard: 0, armorPierce: 0,
       focusDrain: 0, trueSight: 0, critMissing: 0, castRefund: 0, berserk: 0, bleedLeech: 0,
-      pandemic: 0, secondWind: 0,
+      pandemic: 0, secondWind: 0, healGain: 1,
     },
     flags: {},
     used: {},
@@ -82,6 +86,7 @@ export function buildUnit(loadout, side) {
   u.crit += 0.01 * (tc.precision || 0);
   u.focusGain += 0.03 * (tc.evasion || 0);
   u.painStep -= 0.005 * (tc.pain || 0);
+  u.maxHp += HEALTH_PER_CARD * (tc.pain || 0);
   u.manaPerAttack += 0.5 * (tc.spell || 0);
 
   for (const { src, n } of sources) {
@@ -134,7 +139,8 @@ export class Fight {
   gain(u, res, k) {
     if (u.dead || !(k > 0)) return;
     switch (res) {
-      case 'fire': u.fire = Math.min(u.fireCap, u.fire + k); u.fireIdle = 0; break;
+      // Fire melts the Frost on you, stack for stack.
+      case 'fire': u.fire = Math.min(u.fireCap, u.fire + k); u.fireIdle = 0; u.frost = Math.max(0, u.frost - k); break;
       case 'shield': u.shield = Math.min(u.maxHp * u.m.shieldCap, u.shield + k * u.m.shieldGain * overtime(this.t).healing); break;
       case 'regen': u.regen += k; break;
       case 'arcane': u.arcane += k; break;
@@ -190,13 +196,19 @@ export class Fight {
 
   heal(u, amt, source = 'Other') {
     if (u.dead || amt <= 0) return 0;
-    amt *= Math.max(0, 1 - this.antiheal(u)) * overtime(this.t).healing;
+    amt *= u.m.healGain * Math.max(0, 1 - this.antiheal(u)) * overtime(this.t).healing;
     const room = u.maxHp - u.hp;
     const healed = Math.min(room, amt);
     u.hp += healed;
     if (u.flags.overhealShield && amt > healed) this.gain(u, 'shield', amt - healed);
     u.stats.healed += healed;
     this.tally(u, 'heal', source, healed);
+    u.healAcc += healed;
+    let guard = 0;
+    while (u.healAcc >= HEAL_STEP * u.baseHp && guard++ < 10 && !u.dead) {
+      u.healAcc -= HEAL_STEP * u.baseHp;
+      this.run(u, 'onHeal');
+    }
     return healed;
   }
 
@@ -225,7 +237,8 @@ export class Fight {
       this.tally(tgt, 'mit', 'Living Mountain', before - amt);
     }
 
-    if (kind !== 'poison' && kind !== 'true' && tgt.shield > 0) {
+    // Toxin goes through Armor (above) but not Shield.
+    if (kind !== 'true' && tgt.shield > 0) {
       const eff = amt * src.m.vsShield;
       const absorbed = Math.min(tgt.shield, eff);
       tgt.shield -= absorbed;

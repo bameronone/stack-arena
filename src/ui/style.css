@@ -108,6 +108,8 @@ h1, h2, h3 { font-family: var(--display); font-weight: 400; margin: 0; text-wrap
 .st.out { opacity: 0.45; }
 
 .others { margin: 0; padding: 0; list-style: none; font-size: 12px; color: var(--dust); display: flex; flex-direction: column; gap: 2px; }
+.others li { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.others .watch { padding: 2px 8px; font-size: 11px; }
 .final { border-collapse: collapse; width: 100%; max-width: 640px; font-size: 14px; }
 .final th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--dust); font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--line); }
 .final td { padding: 6px 8px; border-bottom: 1px solid var(--line); }

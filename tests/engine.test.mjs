@@ -48,12 +48,32 @@ test('dodged attacks still fire the attacker\'s Strike effects', () => {
   assert.ok(f.a.fire >= 2, 'Kindling and Cinder innate still granted Fire');
 });
 
-test('Poison ignores shield', () => {
-  const f = new Fight({ charId: 'ashen', cards: {} }, { charId: 'sage', cards: {} }, 1);
-  f.b.shield = 500; f.b.poison = 10;
-  const hp = f.b.hp;
-  f.step(1);
-  assert.ok(f.b.hp < hp);
+test('Toxin goes through armor but not shield', () => {
+  const shielded = new Fight({ charId: 'ashen', cards: {} }, { charId: 'sage', cards: {} }, 1);
+  shielded.b.shield = 500; shielded.b.poison = 10;
+  const hp = shielded.b.hp;
+  shielded.step(0.05);
+  assert.equal(shielded.b.hp, hp);
+  assert.ok(shielded.b.shield < 500);
+  const armored = new Fight({ charId: 'ashen', cards: {} }, { charId: 'martyr', cards: {} }, 1);
+  armored.b.armor = 100; armored.b.poison = 10;
+  const hp2 = armored.b.hp;
+  armored.step(0.05);
+  assert.ok(Math.abs(hp2 - armored.b.hp - 0.5) < 1e-6);
+});
+
+test('gaining Fire melts Frost on you', () => {
+  const f = new Fight({ charId: 'cinder', cards: {} }, { charId: 'glacia', cards: {} }, 1);
+  f.a.frost = 10;
+  f.gain(f.a, 'fire', 4);
+  assert.equal(f.a.frost, 6);
+});
+
+test('On heal fires every 5% of base max HP healed', () => {
+  const f = new Fight({ charId: 'grove', cards: { sap_ward: 1 } }, { charId: 'cinder', cards: {} }, 1);
+  f.a.hp = 1;
+  f.heal(f.a, f.a.baseHp * 0.11);
+  assert.equal(Math.round(f.a.shield), 12);
 });
 
 test('freezing at the threshold stops attacks', () => {

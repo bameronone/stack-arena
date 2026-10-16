@@ -60,8 +60,11 @@ export function income(round) {
   return Math.min(10, 4 + round);
 }
 
+// Interest: +1 gold per INTEREST_STEP kept at the start of a round, up to INTEREST_MAX.
+export const INTEREST_STEP = 5;
+export const INTEREST_MAX = 3;
 export function interest(gold) {
-  return Math.min(2, Math.floor(gold / 10));
+  return Math.min(INTEREST_MAX, Math.floor(gold / INTEREST_STEP));
 }
 
 export function startRound(m) {

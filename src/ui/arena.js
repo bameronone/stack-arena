@@ -55,6 +55,7 @@ export function createArena(canvas) {
   let raf = 0;
   let floaters = [];
   let fx = [];
+  let names = ['', '']; // player names shown over each fighter
   const anim = [0, 1].map(() => ({ lunge: 0, flash: 0, cast: 0, dodge: 0, dodgeDir: 1, clip: 'idle', clipT: 0, spawn: {} }));
   let clock = 0;
   const startClip = (a, clip) => { if (a.clip !== 'death') { a.clip = clip; a.clipT = 0; } };
@@ -128,7 +129,8 @@ export function createArena(canvas) {
     }
   }
 
-  function setPreview(loadA, loadB) {
+  function setPreview(loadA, loadB, labels = ['', '']) {
+    names = labels;
     fight = null;
     onDone = null;
     floaters = [];
@@ -141,7 +143,8 @@ export function createArena(canvas) {
     start();
   }
 
-  function play(f, done) {
+  function play(f, done, labels = names) {
+    names = labels;
     fight = f;
     fight.onEvent = onEvent;
     units = fight.units;
@@ -578,14 +581,22 @@ export function createArena(canvas) {
       ctx.globalAlpha = 1;
     }
     bar(bx, by + bh + 3, bw, 4, u.mana / (u.manaMax * u.m.castCost), '#5b8cff');
-    ctx.font = '600 12px "Barlow Semi Condensed", system-ui, sans-serif';
-    ctx.fillStyle = '#e9dcc0';
-    ctx.textAlign = 'left';
+    // Player name over gladiator name, with HP on the right.
     ctx.textBaseline = 'alphabetic';
-    ctx.fillText(`${Math.ceil(u.hp)}`, bx, by - 5);
+    ctx.textAlign = 'left';
+    ctx.font = '700 13px "Barlow Semi Condensed", system-ui, sans-serif';
+    ctx.fillStyle = '#e9dcc0';
+    const who = names[u.side] || u.char.name;
+    ctx.fillText(who, bx, by - (names[u.side] ? 18 : 5));
+    if (names[u.side]) {
+      ctx.font = '600 11px "Barlow Semi Condensed", system-ui, sans-serif';
+      ctx.fillStyle = '#a99c87';
+      ctx.fillText(u.char.name, bx, by - 5);
+    }
     ctx.textAlign = 'right';
-    ctx.fillStyle = '#a99c87';
-    ctx.fillText(u.char.name, bx + bw, by - 5);
+    ctx.font = '700 12px "Barlow Semi Condensed", system-ui, sans-serif';
+    ctx.fillStyle = '#e9dcc0';
+    ctx.fillText(`${Math.ceil(u.hp)}`, bx + bw, by - 5);
 
     // stacks
     const chips = [];

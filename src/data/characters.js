@@ -10,7 +10,7 @@ const hit = (f, u, amount) => f.damage(u, u.enemy, amount, 'ability');
 export const CHARACTERS = [
   {
     id: 'cinder', name: 'Cinder', epithet: 'the Kindled', trigger: 'strike', resources: ['fire'],
-    stats: { hp: 550, ad: 30, as: 1.1 },
+    stats: { hp: 685, ad: 30, as: 1.1 },
     innate: { desc: 'On attack, gain 1 Fire.', onAttack: (f, u) => f.gain(u, 'fire', 1) },
     ability: { name: 'Blaze Rush', desc: (u) => `Deal 50 + 5 per Fire (${Math.round(50 + 5 * (u?.fire ?? 0))}).`,
       cast: (f, u, p) => { const d = (50 + 5 * u.fire) * p; hit(f, u, d); if (u.sig === 'cinder_twin') hit(f, u, d * 0.6); } },
@@ -21,7 +21,7 @@ export const CHARACTERS = [
   },
   {
     id: 'glacia', name: 'Glacia', epithet: 'of the Long Winter', trigger: 'spell', resources: ['frost'],
-    stats: { hp: 680, ad: 26, manaMax: 85 },
+    stats: { hp: 650, ad: 26, manaMax: 85 },
     innate: { desc: 'Your casts apply 4 extra Frost.', onCast: (f, u) => f.apply(u, 'frost', 4) },
     ability: { name: 'Hailstorm', desc: () => 'Deal 55 and apply 8 Frost, plus 1 per 3 Frost already on the enemy.',
       cast: (f, u, p) => {
@@ -36,19 +36,19 @@ export const CHARACTERS = [
   },
   {
     id: 'viper', name: 'Viper Saint', epithet: 'Twice-Fanged', trigger: 'precision', resources: ['poison', 'bleed'],
-    stats: { hp: 760, ad: 27, crit: 0.15 },
-    innate: { desc: 'Crits apply 2 Poison and 2 Bleed.', onCrit: (f, u) => { f.apply(u, 'poison', 2); f.apply(u, 'bleed', 2); } },
+    stats: { hp: 855, ad: 27, crit: 0.15 },
+    innate: { desc: 'Crits apply 2 Toxin and 2 Bleed.', onCrit: (f, u) => { f.apply(u, 'poison', 2); f.apply(u, 'bleed', 2); } },
     ability: { name: 'Fang Flurry', desc: () => 'Make 3 quick attacks.',
       cast: (f, u) => { for (let i = 0; i < 3; i++) { if (u.sig === 'viper_lacerate') u.forceCrit += 1; f.queueExtraAttack(u); } } },
     signatures: [
-      { id: 'viper_neuro', name: 'Neurotoxin', desc: 'Poison and Bleed deal +25% damage.', setup: (u) => { u.m.poisonDmg += 0.25; u.m.bleedDmg += 0.25; } },
+      { id: 'viper_neuro', name: 'Neurotoxin', desc: 'Toxin and Bleed deal +25% damage.', setup: (u) => { u.m.poisonDmg += 0.25; u.m.bleedDmg += 0.25; } },
       { id: 'viper_lacerate', name: 'Lacerate', desc: 'Fang Flurry attacks always crit.' },
     ],
   },
   {
     id: 'wisp', name: 'Wisp Dancer', epithet: 'Never Where You Strike', trigger: 'evasion', resources: ['frost', 'fire'],
-    stats: { hp: 615, ad: 28, as: 1.15, focusGain: 0.1 },
-    innate: { desc: 'Gains 10% Focus each time she is hit. Each dodge shakes off 4 Poison and 4 Bleed.',
+    stats: { hp: 525, ad: 28, as: 1.15, focusGain: 0.1 },
+    innate: { desc: 'Gains 10% Focus each time she is hit. Each dodge shakes off 4 Toxin and 4 Bleed.',
       onEvade: (f, u) => { u.poison = Math.max(0, u.poison - 4); u.bleed = Math.max(0, u.bleed - 4); } },
     ability: { name: 'Mirage', desc: (u) => `Deal 40 + 4 per Fire (${Math.round(40 + 4 * (u?.fire ?? 0))}) and apply 4 Frost. Gain 40% Focus; your next 2 attacks crit.`,
       cast: (f, u, p) => { hit(f, u, (40 + 4 * u.fire) * p); f.apply(u, 'frost', 4); f.gain(u, 'focus', 0.4); u.forceCrit += 2; } },
@@ -60,8 +60,8 @@ export const CHARACTERS = [
   },
   {
     id: 'martyr', name: 'Iron Martyr', epithet: 'Who Bleeds for Steel', trigger: 'pain', resources: ['armor', 'shield'],
-    stats: { hp: 440, ad: 27, as: 0.85 },
-    innate: { desc: 'Wounded: gain 1 Armor.', onPain: (f, u) => f.gain(u, 'armor', 1) },
+    stats: { hp: 260, ad: 27, as: 0.85 },
+    innate: { desc: 'When hurt: gain 1 Armor.', onPain: (f, u) => f.gain(u, 'armor', 1) },
     ability: { name: 'Martyrdom', desc: (u) => `Gain 50 Shield + 10 per Armor (${Math.round(50 + 10 * (u?.armor ?? 0))}).`,
       cast: (f, u, p) => { const s = (50 + 10 * u.armor) * p; f.gain(u, 'shield', s); if (u.sig === 'martyr_penance') hit(f, u, s * 0.4); } },
     signatures: [
@@ -71,7 +71,7 @@ export const CHARACTERS = [
   },
   {
     id: 'stormseer', name: 'Stormseer', epithet: 'Speaker of Squalls', trigger: 'spell', resources: ['arcane', 'frost'],
-    stats: { hp: 550, ad: 24, manaMax: 85 },
+    stats: { hp: 610, ad: 24, manaMax: 85 },
     innate: { desc: 'On cast, gain 3 Mana stacks.', onCast: (f, u) => f.gain(u, 'arcane', 3) },
     ability: { name: 'Blizzard', desc: () => 'Deal 75 and apply 5 Frost.',
       cast: (f, u, p) => { hit(f, u, 75 * p); f.apply(u, 'frost', u.sig === 'storm_front' ? 10 : 5); } },
@@ -82,7 +82,7 @@ export const CHARACTERS = [
   },
   {
     id: 'grove', name: 'Grove Keeper', epithet: 'Rooted', trigger: 'pain', resources: ['regen'],
-    stats: { hp: 420, ad: 24, as: 0.9 },
+    stats: { hp: 380, ad: 24, as: 0.9 },
     innate: { desc: 'Start each fight with 1 Regen.', onStart: (f, u) => f.gain(u, 'regen', 1) },
     ability: { name: 'Overgrowth', desc: () => 'Heal 3% of max HP plus 0.5% per Regen.',
       cast: (f, u, p) => {
@@ -97,18 +97,18 @@ export const CHARACTERS = [
   },
   {
     id: 'ashen', name: 'Ashen Witch', epithet: 'Mother of Smoke', trigger: 'spell', resources: ['fire', 'poison'],
-    stats: { hp: 620, ad: 25, manaMax: 90 },
+    stats: { hp: 865, ad: 25, manaMax: 90 },
     innate: { desc: 'On cast, gain 5 Fire.', onCast: (f, u) => f.gain(u, 'fire', 5) },
-    ability: { name: 'Cinderplague', desc: () => 'Deal 40 and apply 12 Poison plus 1 per 2 Fire.',
+    ability: { name: 'Cinderplague', desc: () => 'Deal 40 and apply 12 Toxin plus 1 per 2 Fire.',
       cast: (f, u, p) => { hit(f, u, 40 * p); f.apply(u, 'poison', Math.round((12 + u.fire / 2) * p)); } },
     signatures: [
-      { id: 'ashen_kindled', name: 'Kindled Plague', desc: 'Your Poison deals +30% damage.', setup: (u) => { u.m.poisonDmg += 0.3; } },
+      { id: 'ashen_kindled', name: 'Kindled Plague', desc: 'Your Toxin deals +30% damage.', setup: (u) => { u.m.poisonDmg += 0.3; } },
       { id: 'ashen_pyre', name: 'Pyre', desc: 'Cinderplague costs 25% less mana.', setup: (u) => { u.m.castCost *= 0.75; } },
     ],
   },
   {
     id: 'reaver', name: 'Bloodreaver', epithet: 'the Red Harvest', trigger: 'strike', resources: ['bleed', 'regen'],
-    stats: { hp: 565, ad: 31 },
+    stats: { hp: 520, ad: 31 },
     innate: { desc: 'Heal for 10% of your Bleed damage.', setup: (u) => { u.m.bleedLeech += 0.1; } },
     ability: { name: 'Rupture', desc: (u) => `Deal 20 + 4 per Bleed on the enemy (${Math.round(20 + 4 * (u?.enemy?.bleed ?? 0))}) and heal half of it.`,
       cast: (f, u, p) => {
@@ -122,7 +122,7 @@ export const CHARACTERS = [
   },
   {
     id: 'sage', name: 'Bulwark Sage', epithet: 'Keeper of Wards', trigger: 'spell', resources: ['shield', 'arcane'],
-    stats: { hp: 505, ad: 24, manaMax: 85 },
+    stats: { hp: 485, ad: 24, manaMax: 85 },
     innate: { desc: 'All Shield you gain is increased by 15%.', setup: (u) => { u.m.shieldGain += 0.15; } },
     ability: { name: 'Arcane Barrier', desc: () => 'Gain 45 Shield, then deal 30 plus 30% of your Shield as damage.',
       cast: (f, u, p) => { f.gain(u, 'shield', 45 * p * (u.sig === 'sage_overflow' ? 1.5 : 1)); hit(f, u, 30 * p + u.shield * 0.3 * Math.min(p, 1.6)); } },
@@ -133,7 +133,7 @@ export const CHARACTERS = [
   },
   {
     id: 'duelist', name: 'Brass Duelist', epithet: 'First Blade of the Pit', trigger: 'precision', resources: ['fire', 'armor'],
-    stats: { hp: 565, ad: 33, crit: 0.14 },
+    stats: { hp: 430, ad: 33, crit: 0.14 },
     innate: { desc: 'Crits grant 1 Armor and 3 Fire.', onCrit: (f, u) => { f.gain(u, 'armor', 1); f.gain(u, 'fire', 3); } },
     ability: { name: 'Lunge', desc: (u) => `Deal 70 + 5 per Armor and Fire (${Math.round(70 + 5 * ((u?.armor ?? 0) + (u?.fire ?? 0)))}). Your next attack crits.`,
       cast: (f, u, p) => { hit(f, u, (70 + 5 * (u.armor + u.fire)) * p); u.forceCrit += 1; } },
@@ -144,12 +144,12 @@ export const CHARACTERS = [
   },
   {
     id: 'nightshade', name: 'Nightshade', epithet: 'Smoke and Needles', trigger: 'evasion', resources: ['poison', 'shield'],
-    stats: { hp: 700, ad: 25, as: 1.1, focusGain: 0.045 },
-    innate: { desc: 'Gains 4.5% Focus each time she is hit. Dodges apply 4 Poison.', onEvade: (f, u) => f.apply(u, 'poison', 4) },
-    ability: { name: 'Smoke Veil', desc: () => 'Gain 25% Focus and 30 Shield, and apply 6 Poison.',
+    stats: { hp: 1065, ad: 25, as: 1.1, focusGain: 0.045 },
+    innate: { desc: 'Gains 4.5% Focus each time she is hit. Dodges apply 4 Toxin.', onEvade: (f, u) => f.apply(u, 'poison', 4) },
+    ability: { name: 'Smoke Veil', desc: () => 'Gain 25% Focus and 30 Shield, and apply 6 Toxin.',
       cast: (f, u, p) => { f.gain(u, 'focus', 0.25); f.gain(u, 'shield', 30 * p); f.apply(u, 'poison', Math.round(6 * p)); } },
     signatures: [
-      { id: 'shade_needles', name: 'Needle Rain', desc: 'Dodges apply 4 more Poison.', onEvade: (f, u) => f.apply(u, 'poison', 4) },
+      { id: 'shade_needles', name: 'Needle Rain', desc: 'Dodges apply 4 more Toxin.', onEvade: (f, u) => f.apply(u, 'poison', 4) },
       { id: 'shade_veil', name: 'Thick Smoke', desc: 'Start each fight with 30% Focus.', setup: (u) => { u.focusStart += 0.3; } },
     ],
   },
