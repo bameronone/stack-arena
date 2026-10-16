@@ -1,0 +1,2435 @@
+<title>Stack Arena</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:ital,wght@0,400;0,600;0,700;1,400&family=Grenze+Gotisch:wght@400;600&display=swap">
+<style>
+/* Layout: one-screen arena. HUD on top, the pit in the middle flanked by the
+   two builds, the shop tray along the bottom like a merchant's table. */
+:root {
+  --night: #15131a;        /* page ground */
+  --pit: #1f1b24;          /* panels */
+  --pit-2: #2a2530;        /* raised panels, cards */
+  --line: #3b3442;
+  --sand: #e9dcc0;         /* main text */
+  --dust: #a99c87;         /* muted text */
+  --bronze: #d6a24e;       /* accent: gold, buttons, the crowd's favor */
+  --bronze-ink: #2a1d08;
+  --blood: #d9505e;
+  --life: #7fca6e;
+  --mana: #5b8cff;
+  --display: "Grenze Gotisch", "Palatino Linotype", Georgia, serif;
+  --body: "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif;
+  color-scheme: dark;
+}
+
+html, body { height: 100%; }
+body {
+  background: var(--night);
+  color: var(--sand);
+  font-family: var(--body);
+  font-size: 15px;
+  line-height: 1.35;
+  -webkit-font-smoothing: antialiased;
+}
+#app { height: 100%; display: flex; flex-direction: column; }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--bronze); outline-offset: 2px; }
+.num { font-variant-numeric: tabular-nums; }
+h1, h2, h3 { font-family: var(--display); font-weight: 400; margin: 0; text-wrap: balance; letter-spacing: 0.01em; }
+.eyebrow { text-transform: uppercase; letter-spacing: 0.12em; font-size: 11px; color: var(--dust); font-weight: 600; }
+
+.btn {
+  border: 1px solid var(--line); background: var(--pit-2); border-radius: 6px;
+  padding: 8px 14px; font-weight: 600; letter-spacing: 0.02em;
+}
+.btn:hover:not(:disabled) { border-color: var(--dust); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn.primary { background: var(--bronze); color: var(--bronze-ink); border-color: var(--bronze); }
+.btn.primary:hover:not(:disabled) { filter: brightness(1.08); }
+.btn.on { border-color: var(--bronze); color: var(--bronze); }
+
+/* Tag chips */
+.chip {
+  display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 6px;
+  border-radius: 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
+  color: var(--c); background: color-mix(in srgb, var(--c) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--c) 45%, transparent); white-space: nowrap;
+}
+.chip.trigger { border-style: dashed; }
+.arrow { color: var(--dust); font-size: 11px; }
+
+/* ---------- Title / ban / pick screens ---------- */
+.screen {
+  flex: 1; overflow-y: auto;
+  padding-block: 28px 40px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.screen-inner { max-width: 1060px; margin: 0 auto; display: flex; flex-direction: column; gap: 22px; }
+.brand { font-family: var(--display); font-size: clamp(54px, 11vw, 112px); line-height: 0.9; color: var(--sand); }
+.brand span { color: var(--bronze); }
+.lede { max-width: 62ch; color: var(--dust); font-size: 17px; }
+.rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+.rule { background: var(--pit); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.rule h3 { font-size: 22px; color: var(--bronze); }
+.rule p { margin: 0; color: var(--dust); }
+.tag-legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 8px 18px; }
+.tag-legend div { display: flex; gap: 8px; align-items: baseline; color: var(--dust); font-size: 13px; min-width: 0; }
+.tag-legend .chip { flex: none; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+.ban-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.ban-tile {
+  text-align: left; border: 1px solid var(--line); background: var(--pit); border-radius: 8px;
+  padding: 14px; display: flex; flex-direction: column; gap: 8px; position: relative;
+}
+.ban-tile:hover { border-color: var(--c); }
+.ban-tile .name { font-family: var(--display); font-size: 26px; color: var(--c); }
+.ban-tile p { margin: 0; color: var(--dust); font-size: 13px; }
+.ban-tile .who { font-size: 12px; color: var(--dust); }
+.ban-tile.banned { opacity: 0.55; border-color: var(--blood); }
+.ban-tile.banned .name { text-decoration: line-through; text-decoration-color: var(--blood); }
+.stamp {
+  position: absolute; top: 12px; right: 12px; font-family: var(--display); font-size: 20px; color: var(--blood);
+  border: 2px solid var(--blood); padding: 0 8px; border-radius: 4px; transform: rotate(-8deg);
+}
+
+.char-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+.char {
+  text-align: left; border: 1px solid var(--line); background: var(--pit); border-radius: 8px; padding: 14px;
+  display: flex; flex-direction: column; gap: 8px; min-width: 0;
+}
+.char:hover { border-color: var(--bronze); }
+.char .nm { font-family: var(--display); font-size: 28px; line-height: 1; }
+.char .ep { color: var(--dust); font-size: 13px; font-style: italic; }
+.char .ab { font-size: 13px; color: var(--sand); }
+.char .ab b { color: var(--bronze); font-weight: 600; }
+.char .inn { font-size: 13px; color: var(--dust); }
+.char .stats { font-size: 12px; color: var(--dust); }
+.warn { font-size: 12px; color: var(--blood); font-weight: 600; }
+.hidden-note { color: var(--dust); font-size: 13px; }
+
+/* ---------- Game ---------- */
+.hud {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  padding-block: 8px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  border-bottom: 1px solid var(--line); background: var(--pit);
+}
+.hud .logo { font-family: var(--display); font-size: 26px; line-height: 1; }
+.hud .logo span { color: var(--bronze); }
+.hud .round { display: flex; flex-direction: column; }
+.hud .round b { font-family: var(--display); font-size: 22px; font-weight: 400; line-height: 1; }
+.hud .vs { flex: 1; display: flex; gap: 14px; justify-content: flex-end; min-width: 260px; flex-wrap: wrap; }
+.life { display: flex; flex-direction: column; gap: 3px; min-width: 130px; flex: 1; max-width: 230px; }
+.life .top { display: flex; justify-content: space-between; font-size: 13px; gap: 8px; }
+.life .bar { height: 7px; background: var(--night); border-radius: 4px; overflow: hidden; }
+.life .bar i { display: block; height: 100%; background: var(--life); border-radius: 4px; transition: width 0.4s; }
+.life.foe .bar i { background: var(--blood); }
+.hud .tools { display: flex; gap: 6px; }
+
+.stage { flex: 1; min-height: 0; display: grid; grid-template-columns: 250px minmax(0, 1fr) 250px; }
+.side { border-right: 1px solid var(--line); overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.side.foe { border-right: 0; border-left: 1px solid var(--line); }
+.side h2 { font-size: 24px; line-height: 1; }
+.side .sub { color: var(--dust); font-size: 12px; }
+.progress { display: flex; flex-direction: column; gap: 6px; }
+.prog { display: grid; grid-template-columns: 78px 1fr auto; gap: 8px; align-items: center; font-size: 12px; }
+.pips { display: flex; gap: 2px; }
+.pips i { flex: 1; height: 6px; border-radius: 2px; background: var(--line); }
+.pips i.f { background: var(--c); }
+.pips i.mark { margin-right: 4px; }
+.prog .next { color: var(--dust); white-space: nowrap; }
+.owned { display: flex; flex-direction: column; gap: 4px; }
+.own {
+  display: grid; grid-template-columns: 1fr auto auto; gap: 6px; align-items: center; font-size: 13px;
+  padding: 4px 6px; border-radius: 4px; background: var(--pit);
+}
+.own .n { color: var(--dust); }
+.own .sellb { border: 1px solid var(--line); background: none; border-radius: 4px; font-size: 11px; padding: 1px 6px; color: var(--dust); }
+.own .sellb:hover { color: var(--bronze); border-color: var(--bronze); }
+.empty { color: var(--dust); font-size: 13px; font-style: italic; }
+
+.arena-wrap { position: relative; min-height: 0; min-width: 0; }
+#arena { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.speed { position: absolute; top: 10px; right: 10px; display: flex; gap: 4px; }
+.speed .btn { padding: 4px 9px; font-size: 13px; }
+.banner {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-align: center;
+  background: color-mix(in srgb, var(--night) 88%, transparent); border: 1px solid var(--line);
+  border-radius: 10px; padding: 18px 26px; display: flex; flex-direction: column; gap: 8px; align-items: center;
+  max-width: calc(100% - 32px);
+}
+.banner h2 { font-size: 48px; line-height: 1; }
+.banner.win h2 { color: var(--bronze); }
+.banner.loss h2 { color: var(--blood); }
+.banner p { margin: 0; color: var(--dust); }
+
+.tray {
+  border-top: 1px solid var(--line); background: var(--pit);
+  padding-block: 10px calc(10px + env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; gap: 12px; align-items: stretch;
+}
+.purse { display: flex; flex-direction: column; gap: 6px; justify-content: center; min-width: 108px; }
+.gold { display: flex; align-items: baseline; gap: 6px; }
+.gold b { font-family: var(--display); font-size: 34px; font-weight: 400; color: var(--bronze); line-height: 1; }
+.gold span { color: var(--dust); font-size: 12px; }
+.purse .row { gap: 6px; }
+.purse .btn { padding: 5px 9px; font-size: 13px; }
+.cards { flex: 1; display: flex; gap: 10px; overflow-x: auto; min-width: 0; padding-bottom: 2px; }
+.card {
+  flex: 1 0 158px; max-width: 220px; text-align: left; background: var(--pit-2);
+  border: 1px solid var(--line); border-top: 3px solid var(--tier); border-radius: 8px;
+  padding: 8px 10px; display: flex; flex-direction: column; gap: 5px; position: relative;
+}
+.card:hover:not(:disabled) { border-color: var(--tier); transform: translateY(-2px); }
+.card { transition: transform 0.12s, border-color 0.12s; }
+.card:disabled { cursor: not-allowed; }
+.card.poor .cost { color: var(--blood); }
+.card.sold { visibility: hidden; }
+.card .top { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; padding-right: 26px; }
+.card .cost {
+  position: absolute; top: 6px; right: 8px; font-family: var(--display); font-size: 22px; line-height: 1; color: var(--bronze);
+}
+.card .nm { font-weight: 700; font-size: 15px; }
+.card .ds { font-size: 13px; color: var(--sand); opacity: 0.86; flex: 1; }
+.card .ft { display: flex; justify-content: space-between; font-size: 11px; color: var(--dust); text-transform: uppercase; letter-spacing: 0.08em; }
+.t-1 { --tier: #8a8174; } .t-2 { --tier: #5fb3a1; } .t-3 { --tier: #7d8cf0; } .t-4 { --tier: #e0a43c; }
+.t-hybrid { --tier: #d06bd0; } .t-counter { --tier: #b9b2a6; }
+.go { display: flex; flex-direction: column; gap: 6px; justify-content: center; }
+.go .btn.primary { font-family: var(--display); font-size: 24px; padding: 6px 22px; font-weight: 400; }
+.hint { color: var(--dust); font-size: 11px; text-align: center; }
+
+.modal-back { position: fixed; inset: 0; background: rgba(8, 6, 10, 0.72); display: grid; place-items: center; z-index: 20; padding: 16px; }
+.modal {
+  background: var(--pit); border: 1px solid var(--line); border-radius: 10px; padding: 20px; max-width: 760px; width: 100%;
+  max-height: calc(100% - 32px); overflow-y: auto; display: flex; flex-direction: column; gap: 14px;
+}
+.modal h2 { font-size: 34px; }
+.sig-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.sig { text-align: left; background: var(--pit-2); border: 1px solid var(--line); border-radius: 8px; padding: 14px; display: flex; flex-direction: column; gap: 6px; }
+.sig:hover { border-color: var(--bronze); }
+.sig b { font-family: var(--display); font-size: 24px; font-weight: 400; color: var(--bronze); }
+
+.toast {
+  position: fixed; left: 50%; bottom: calc(150px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);
+  background: var(--pit-2); border: 1px solid var(--line); padding: 8px 14px; border-radius: 6px; z-index: 30; font-size: 14px;
+}
+
+.mobile-tabs { display: none; }
+
+@media (max-width: 900px) {
+  .stage { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(260px, 1fr) auto; }
+  .side { display: none; border: 0; border-top: 1px solid var(--line); max-height: 34vh; }
+  .side.foe { border-left: 0; }
+  .arena-wrap { order: -1; }
+  .side.show { display: flex; }
+  .mobile-tabs { display: flex; gap: 6px; padding: 6px 16px 0; }
+  .mobile-tabs .btn { padding: 4px 10px; font-size: 13px; }
+  .hud { gap: 10px 14px; }
+  .hud .vs { order: 10; flex-basis: 100%; min-width: 0; justify-content: flex-start; flex-wrap: nowrap; }
+  .life { min-width: 0; max-width: none; }
+  .life .top span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hud .tools { margin-left: auto; }
+  .tray { flex-wrap: wrap; }
+  .purse { flex-direction: row; align-items: center; min-width: 0; flex: 1; gap: 12px; }
+  .cards { order: 3; flex-basis: 100%; }
+  .card { flex: 0 0 150px; }
+  .go { flex-direction: row; align-items: center; }
+  .hint { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card, .life .bar i { transition: none; }
+}
+
+</style>
+<div id="app"></div>
+<script>
+(() => {
+"use strict";
+// ---- src/rng.js
+// Seeded PRNG (mulberry32). Every random roll in a match goes through one of
+// these so fights replay identically from a seed.
+function makeRng(seed) {
+  let s = seed >>> 0;
+  const rng = () => {
+    s = (s + 0x6d2b79f5) >>> 0;
+    let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  rng.int = (n) => Math.floor(rng() * n);
+  rng.pick = (arr) => arr[Math.floor(rng() * arr.length)];
+  rng.state = () => s;
+  return rng;
+}
+
+function weightedPick(rng, items, weightOf) {
+  let total = 0;
+  for (const it of items) total += weightOf(it);
+  if (total <= 0) return null;
+  let r = rng() * total;
+  for (const it of items) {
+    r -= weightOf(it);
+    if (r <= 0) return it;
+  }
+  return items[items.length - 1];
+}
+
+// ---- src/data/tags.js
+// Tags come in two kinds. Triggers decide WHEN stacks are gained; resources
+// decide WHAT the stacks do. Only resources can be banned.
+const TAGS = {
+  strike:    { name: 'Strike',    kind: 'trigger',  color: '#c9b79c', glyph: 'St', passive: '+1% attack speed per Strike card' },
+  precision: { name: 'Precision', kind: 'trigger',  color: '#f2d16b', glyph: 'Pr', passive: '+1% crit chance per Precision card' },
+  evasion:   { name: 'Evasion',   kind: 'trigger',  color: '#9fd8cb', glyph: 'Ev', passive: '+2% Focus per hit taken per Evasion card' },
+  pain:      { name: 'Pain',      kind: 'trigger',  color: '#d9707a', glyph: 'Pa', passive: '+1% max HP per Pain card. Pain triggers each time you lose 6% of max HP.' },
+  spell:     { name: 'Spell',     kind: 'trigger',  color: '#b59cf0', glyph: 'Sp', passive: '+1 mana per attack per Spell card' },
+
+  fire:   { name: 'Fire',   kind: 'resource', color: '#f07a3a', glyph: 'Fi', stack: '+2% attack speed per stack (cap 25). Fades after 3s without gaining any.' },
+  frost:  { name: 'Frost',  kind: 'resource', color: '#6cc4f0', glyph: 'Fr', stack: 'On the enemy: -1.5% attack speed and mana gain per stack. At 20 they freeze for 1.5s.' },
+  poison: { name: 'Poison', kind: 'resource', color: '#8fd14f', glyph: 'Po', stack: 'On the enemy: 1 damage per second per stack, ignoring armor and shield. Each stack cuts their healing 1% (max 50%).' },
+  bleed:  { name: 'Bleed',  kind: 'resource', color: '#e0445a', glyph: 'Bl', stack: 'On the enemy: 0.25% of their max HP per second per stack. Loses 7% of its stacks each second.' },
+  shield: { name: 'Shield', kind: 'resource', color: '#e9eef5', glyph: 'Sh', stack: 'Absorbs damage before HP. Poison goes straight through.' },
+  regen:  { name: 'Regen',  kind: 'resource', color: '#5fd69a', glyph: 'Re', stack: 'Heals 0.22% of max HP per second per stack.' },
+  arcane: { name: 'Mana',   kind: 'resource', color: '#5b8cff', glyph: 'Ma', stack: '+4% ability power per stack. Abilities ignore armor and cannot be dodged.' },
+  armor:  { name: 'Armor',  kind: 'resource', color: '#a8a39a', glyph: 'Ar', stack: '-1 damage from every attack per stack (attacks always deal at least 25%).' },
+};
+
+const TRIGGERS = Object.keys(TAGS).filter((t) => TAGS[t].kind === 'trigger');
+const RESOURCES = Object.keys(TAGS).filter((t) => TAGS[t].kind === 'resource');
+
+// Owning this many cards of a tag unlocks that tag's next tier in your shop.
+const TIER_UNLOCK = { 1: 0, 2: 4, 3: 9, 4: 15 };
+const TIER_NAMES = { 1: 'Common', 2: 'Uncommon', 3: 'Rare', 4: 'Mythic', hybrid: 'Hybrid', counter: 'Counter' };
+const CARD_COST = { 1: 2, 2: 3, 3: 4, 4: 6, hybrid: 4, counter: 2 };
+const HYBRID_REQ = 5; // cards needed in EACH of a hybrid's two resources
+
+function unlockedTier(count) {
+  let tier = 1;
+  for (const t of [2, 3, 4]) if (count >= TIER_UNLOCK[t]) tier = t;
+  return tier;
+}
+
+// ---- src/data/cards.js
+// Card definitions. Every card is data plus small hook functions the combat
+// engine calls. `n` is always the number of copies the owner has.
+//
+// Hooks:  setup(u, n)                 adjust stats before the fight
+//         onStart(f, u, n)            fight begins
+//         onAttack(f, u, n)           every attack, even ones that get dodged
+//         onHit(f, u, n, hit)         attack connected ({ crit, dmg })
+//         onCrit(f, u, n, hit)
+//         onEvade(f, u, n)            you dodged
+//         onPain(f, u, n)             each time you lose another slice of max HP
+//         onCast(f, u, n)
+//         onFreeze(f, u, n)           you froze the enemy
+//         onHitTaken(f, u, n, src)
+//         onShieldBreak(f, u, n)
+//         every: [seconds, (f, u, n) => {}]
+//         bonusDamage(f, u, n)        flat damage added to each attack
+//
+// Generator cards (trigger + resource) always grant their stacks. Cards that
+// make stacks on their own only have a 30% chance, so builds want a trigger.
+
+const pct = (x) => `${Math.round(x * 100)}%`;
+const chance = (f) => f.rng() < 0.3;
+
+const CARDS = [
+  // ---------------------------------------------------------------- Strike
+  { id: 'kindling', name: 'Kindling', tags: ['strike', 'fire'], tier: 1, max: 5,
+    desc: (n) => `On attack, gain ${n} Fire.`,
+    onAttack: (f, u, n) => f.gain(u, 'fire', n) },
+  { id: 'rime_edge', name: 'Rime Edge', tags: ['strike', 'frost'], tier: 1, max: 5,
+    desc: (n) => `On attack, apply ${n} Frost.`,
+    onAttack: (f, u, n) => f.apply(u, 'frost', n) },
+  { id: 'serrated', name: 'Serrated Edge', tags: ['strike', 'bleed'], tier: 1, max: 5,
+    desc: (n) => `On attack, apply ${n} Bleed.`,
+    onAttack: (f, u, n) => f.apply(u, 'bleed', n) },
+  { id: 'venom_coat', name: 'Venom Coat', tags: ['strike', 'poison'], tier: 1, max: 5,
+    desc: (n) => `On attack, apply ${n} Poison.`,
+    onAttack: (f, u, n) => f.apply(u, 'poison', n) },
+  { id: 'guarded_swing', name: 'Guarded Swing', tags: ['strike', 'shield'], tier: 1, max: 5,
+    desc: (n) => `On attack, gain ${4 * n} Shield.`,
+    onAttack: (f, u, n) => f.gain(u, 'shield', 4 * n) },
+  { id: 'iron_rhythm', name: 'Iron Rhythm', tags: ['strike', 'armor'], tier: 1, max: 5,
+    desc: (n) => `Every 4th attack, gain ${n} Armor.`,
+    onAttack: (f, u, n) => { if (u.attackCount % 4 === 0) f.gain(u, 'armor', n); } },
+  { id: 'battle_trance', name: 'Battle Trance', tags: ['strike', 'arcane'], tier: 1, max: 5,
+    desc: (n) => `Every 3rd attack, gain ${n} Mana stack${n > 1 ? 's' : ''}.`,
+    onAttack: (f, u, n) => { if (u.attackCount % 3 === 0) f.gain(u, 'arcane', n); } },
+  { id: 'pulse', name: 'Pulse', tags: ['strike', 'regen'], tier: 1, max: 5,
+    desc: (n) => `Every 3rd attack, gain ${n} Regen.`,
+    onAttack: (f, u, n) => { if (u.attackCount % 3 === 0) f.gain(u, 'regen', n); } },
+  { id: 'quick_hands', name: 'Quick Hands', tags: ['strike'], tier: 1, max: 5,
+    desc: (n) => `+${6 * n}% attack speed.`,
+    setup: (u, n) => { u.asBonus += 0.06 * n; } },
+  { id: 'momentum', name: 'Momentum', tags: ['strike'], tier: 2, max: 2,
+    desc: (n) => `+1% attack speed per attack this fight, up to +${15 * n}%.`,
+    setup: (u, n) => { u.momentumCap = 0.15 * n; } },
+  { id: 'flurry', name: 'Flurry', tags: ['strike'], tier: 3, max: 2,
+    desc: (n) => `Every ${6 - n}th attack strikes twice.`,
+    onAttack: (f, u, n, info) => { if (!info?.extra && u.attackCount % (6 - n) === 0) f.queueExtraAttack(u); } },
+  { id: 'whirlwind', name: 'Whirlwind', tags: ['strike'], tier: 4, max: 1,
+    desc: () => 'Your other "on attack" effects happen twice.',
+    setup: (u) => { u.flags.whirlwind = true; } },
+
+  // ------------------------------------------------------------- Precision
+  { id: 'venom_crit', name: 'Venomous Crit', tags: ['precision', 'poison'], tier: 1, max: 5,
+    desc: (n) => `On crit, apply ${4 * n} Poison.`,
+    onCrit: (f, u, n) => f.apply(u, 'poison', 4 * n) },
+  { id: 'flash_freeze', name: 'Flash Freeze', tags: ['precision', 'frost'], tier: 1, max: 5,
+    desc: (n) => `On crit, apply ${4 * n} Frost.`,
+    onCrit: (f, u, n) => f.apply(u, 'frost', 4 * n) },
+  { id: 'hemorrhage', name: 'Hemorrhage', tags: ['precision', 'bleed'], tier: 1, max: 5,
+    desc: (n) => `On crit, apply ${4 * n} Bleed.`,
+    onCrit: (f, u, n) => f.apply(u, 'bleed', 4 * n) },
+  { id: 'sparkfire', name: 'Sparkfire', tags: ['precision', 'fire'], tier: 1, max: 5,
+    desc: (n) => `On crit, gain ${3 * n} Fire.`,
+    onCrit: (f, u, n) => f.gain(u, 'fire', 3 * n) },
+  { id: 'lucky_guard', name: 'Lucky Guard', tags: ['precision', 'shield'], tier: 1, max: 5,
+    desc: (n) => `On crit, gain ${12 * n} Shield.`,
+    onCrit: (f, u, n) => f.gain(u, 'shield', 12 * n) },
+  { id: 'keen_edge', name: 'Keen Edge', tags: ['precision'], tier: 1, max: 5,
+    desc: (n) => `+${5 * n}% crit chance.`,
+    setup: (u, n) => { u.crit += 0.05 * n; } },
+  { id: 'deadly_aim', name: 'Deadly Aim', tags: ['precision'], tier: 2, max: 3,
+    desc: (n) => `Crits deal +${25 * n}% damage.`,
+    setup: (u, n) => { u.critMult += 0.25 * n; } },
+  { id: 'executioner', name: 'Executioner', tags: ['precision'], tier: 3, max: 2,
+    desc: (n) => `Crits also deal ${5 * n}% of the enemy's missing HP.`,
+    setup: (u, n) => { u.m.critMissing = 0.05 * n; } },
+  { id: 'bullseye', name: 'Bullseye', tags: ['precision'], tier: 4, max: 1,
+    desc: () => 'Your crit chance is doubled.',
+    setup: (u) => { u.flags.bullseye = true; } },
+
+  // --------------------------------------------------------------- Evasion
+  { id: 'shadow_step', name: 'Shadow Step', tags: ['evasion', 'fire'], tier: 1, max: 5,
+    desc: (n) => `On dodge, gain ${4 * n} Fire.`,
+    onEvade: (f, u, n) => f.gain(u, 'fire', 4 * n) },
+  { id: 'chill_mirage', name: 'Chilling Mirage', tags: ['evasion', 'frost'], tier: 1, max: 5,
+    desc: (n) => `On dodge, apply ${4 * n} Frost.`,
+    onEvade: (f, u, n) => f.apply(u, 'frost', 4 * n) },
+  { id: 'riposte_venom', name: 'Riposte Venom', tags: ['evasion', 'poison'], tier: 1, max: 5,
+    desc: (n) => `On dodge, apply ${4 * n} Poison.`,
+    onEvade: (f, u, n) => f.apply(u, 'poison', 4 * n) },
+  { id: 'wind_ward', name: 'Wind Ward', tags: ['evasion', 'shield'], tier: 1, max: 5,
+    desc: (n) => `On dodge, gain ${12 * n} Shield.`,
+    onEvade: (f, u, n) => f.gain(u, 'shield', 12 * n) },
+  { id: 'counter_cut', name: 'Counter Cut', tags: ['evasion', 'bleed'], tier: 1, max: 5,
+    desc: (n) => `On dodge, apply ${4 * n} Bleed.`,
+    onEvade: (f, u, n) => f.apply(u, 'bleed', 4 * n) },
+  { id: 'light_feet', name: 'Light Feet', tags: ['evasion'], tier: 1, max: 5,
+    desc: (n) => `+${3 * n}% Focus each time you're hit.`,
+    setup: (u, n) => { u.focusGain += 0.03 * n; } },
+  { id: 'second_nature', name: 'Second Nature', tags: ['evasion'], tier: 2, max: 2,
+    desc: (n) => `Start each fight with ${20 * n}% Focus.`,
+    setup: (u, n) => { u.focusStart = 0.2 * n; } },
+  { id: 'afterimage', name: 'Afterimage', tags: ['evasion'], tier: 3, max: 1,
+    desc: () => 'Dodging resets Focus to 20% instead of 0.',
+    setup: (u) => { u.focusReset = 0.2; } },
+  { id: 'phantom', name: 'Phantom', tags: ['evasion'], tier: 4, max: 1,
+    desc: () => 'After you dodge, your next attack is a guaranteed crit.',
+    onEvade: (f, u) => { u.forceCrit = 1; } },
+
+  // ------------------------------------------------------------------ Pain
+  { id: 'pain_steel', name: 'Pain Into Steel', tags: ['pain', 'armor'], tier: 1, max: 5,
+    desc: (n) => `Pain: gain ${n} Armor.`,
+    onPain: (f, u, n) => f.gain(u, 'armor', n) },
+  { id: 'scar_tissue', name: 'Scar Tissue', tags: ['pain', 'regen'], tier: 1, max: 5,
+    desc: (n) => `Pain: gain ${n} Regen.`,
+    onPain: (f, u, n) => f.gain(u, 'regen', n) },
+  { id: 'martyr_ward', name: "Martyr's Ward", tags: ['pain', 'shield'], tier: 1, max: 5,
+    desc: (n) => `Pain: gain ${8 * n} Shield.`,
+    onPain: (f, u, n) => f.gain(u, 'shield', 8 * n) },
+  { id: 'spiteful_blood', name: 'Spiteful Blood', tags: ['pain', 'bleed'], tier: 1, max: 5,
+    desc: (n) => `Pain: apply ${2 * n} Bleed.`,
+    onPain: (f, u, n) => f.apply(u, 'bleed', 2 * n) },
+  { id: 'rage', name: 'Rage', tags: ['pain', 'fire'], tier: 1, max: 5,
+    desc: (n) => `Pain: gain ${3 * n} Fire.`,
+    onPain: (f, u, n) => f.gain(u, 'fire', 3 * n) },
+  { id: 'bitter_frost', name: 'Bitter Frost', tags: ['pain', 'frost'], tier: 1, max: 5,
+    desc: (n) => `Pain: apply ${2 * n} Frost.`,
+    onPain: (f, u, n) => f.apply(u, 'frost', 2 * n) },
+  { id: 'thin_skin', name: 'Thin Skin', tags: ['pain'], tier: 1, max: 4,
+    desc: (n) => `Pain triggers every ${6 - 0.5 * n}% of max HP lost instead of 6%.`,
+    setup: (u, n) => { u.painStep = 0.06 - 0.005 * n; } },
+  { id: 'berserker', name: 'Berserker', tags: ['pain'], tier: 2, max: 3,
+    desc: (n) => `+${(0.5 * n).toFixed(1)}% attack speed per 1% HP you're missing.`,
+    setup: (u, n) => { u.m.berserk = 0.5 * n; } },
+  { id: 'last_stand', name: 'Last Stand', tags: ['pain'], tier: 3, max: 1,
+    desc: () => 'The first time you drop below 30% HP, trigger Pain 5 times and take no damage for 1s.',
+    setup: (u) => { u.flags.lastStand = true; } },
+  { id: 'undying_spite', name: 'Undying Spite', tags: ['pain'], tier: 4, max: 1,
+    desc: () => 'Each Pain trigger deals 3% of your max HP to the enemy.',
+    onPain: (f, u) => f.damage(u, u.enemy, u.maxHp * 0.03, 'true') },
+
+  // ----------------------------------------------------------------- Spell
+  { id: 'arcane_echoes', name: 'Arcane Echoes', tags: ['spell', 'arcane'], tier: 1, max: 5,
+    desc: (n) => `On cast, gain ${4 * n} Mana stacks.`,
+    onCast: (f, u, n) => f.gain(u, 'arcane', 4 * n) },
+  { id: 'frost_nova', name: 'Frost Nova', tags: ['spell', 'frost'], tier: 1, max: 5,
+    desc: (n) => `On cast, apply ${7 * n} Frost.`,
+    onCast: (f, u, n) => f.apply(u, 'frost', 7 * n) },
+  { id: 'spellshield', name: 'Spellshield', tags: ['spell', 'shield'], tier: 1, max: 5,
+    desc: (n) => `On cast, gain ${30 * n} Shield.`,
+    onCast: (f, u, n) => f.gain(u, 'shield', 30 * n) },
+  { id: 'toxic_bolt', name: 'Toxic Bolt', tags: ['spell', 'poison'], tier: 1, max: 5,
+    desc: (n) => `On cast, apply ${8 * n} Poison.`,
+    onCast: (f, u, n) => f.apply(u, 'poison', 8 * n) },
+  { id: 'mend', name: 'Mend', tags: ['spell', 'regen'], tier: 1, max: 5,
+    desc: (n) => `On cast, gain ${3 * n} Regen.`,
+    onCast: (f, u, n) => f.gain(u, 'regen', 3 * n) },
+  { id: 'combustion', name: 'Combustion', tags: ['spell', 'fire'], tier: 1, max: 5,
+    desc: (n) => `On cast, gain ${8 * n} Fire.`,
+    onCast: (f, u, n) => f.gain(u, 'fire', 8 * n) },
+  { id: 'runic_plate', name: 'Runic Plate', tags: ['spell', 'armor'], tier: 1, max: 5,
+    desc: (n) => `On cast, gain ${3 * n} Armor.`,
+    onCast: (f, u, n) => f.gain(u, 'armor', 3 * n) },
+  { id: 'focused_mind', name: 'Focused Mind', tags: ['spell'], tier: 1, max: 4,
+    desc: (n) => `Start each fight with ${20 * n} mana.`,
+    setup: (u, n) => { u.manaStart += 20 * n; } },
+  { id: 'quick_study', name: 'Quick Study', tags: ['spell'], tier: 2, max: 3,
+    desc: (n) => `Gain ${3 * n} mana per second.`,
+    setup: (u, n) => { u.manaRegen += 3 * n; } },
+  { id: 'spell_echo', name: 'Spell Echo', tags: ['spell'], tier: 3, max: 1,
+    desc: () => 'Every 3rd cast repeats at 50% power.',
+    setup: (u) => { u.flags.spellEcho = true; } },
+  { id: 'overcast', name: 'Overcast', tags: ['spell'], tier: 4, max: 1,
+    desc: () => 'Casting refunds 35% of your mana. Your ability deals +25% damage.',
+    setup: (u) => { u.m.castRefund = 0.35; u.m.abilityPower += 0.25; } },
+
+  // ------------------------------------------------------------------ Fire
+  { id: 'ember_heart', name: 'Ember Heart', tags: ['fire'], tier: 1, max: 5,
+    desc: (n) => `Start each fight with ${4 * n} Fire. Fire fades 1s later.`,
+    setup: (u, n) => { u.fireStart += 4 * n; u.fireLinger += 1; } },
+  { id: 'smolder', name: 'Smolder', tags: ['fire'], tier: 1, max: 5,
+    desc: (n) => `On attack, 30% chance to gain ${2 * n} Fire.`,
+    onAttack: (f, u, n) => { if (chance(f)) f.gain(u, 'fire', 2 * n); } },
+  { id: 'stoke', name: 'Stoke', tags: ['fire'], tier: 2, max: 3,
+    desc: (n) => `Fire cap +${8 * n}.`,
+    setup: (u, n) => { u.fireCap += 8 * n; } },
+  { id: 'flare', name: 'Flare', tags: ['fire'], tier: 2, max: 3,
+    desc: (n) => `Every 8th attack deals bonus damage equal to ${2 * n}x your Fire.`,
+    bonusDamage: (f, u, n) => (u.attackCount % 8 === 0 ? u.fire * 2 * n : 0) },
+  { id: 'wildfire', name: 'Wildfire', tags: ['fire'], tier: 3, max: 2,
+    desc: (n) => `Attacks deal bonus damage equal to ${pct(0.4 * n)} of your Fire.`,
+    bonusDamage: (f, u, n) => u.fire * 0.4 * n },
+  { id: 'phoenix', name: 'Phoenix Core', tags: ['fire'], tier: 4, max: 1,
+    desc: () => 'The first time you would die, consume all Fire and revive with 3% HP per Fire (min 15%).',
+    setup: (u) => { u.flags.phoenix = true; } },
+
+  // ----------------------------------------------------------------- Frost
+  { id: 'cold_snap', name: 'Cold Snap', tags: ['frost'], tier: 1, max: 5,
+    desc: (n) => `On attack, 30% chance to apply ${2 * n} Frost.`,
+    onAttack: (f, u, n) => { if (chance(f)) f.apply(u, 'frost', 2 * n); } },
+  { id: 'frostbite', name: 'Frostbite', tags: ['frost'], tier: 1, max: 5,
+    desc: (n) => `Frozen enemies take +${12 * n}% damage.`,
+    setup: (u, n) => { u.m.frozenBonus += 0.12 * n; } },
+  { id: 'permafrost', name: 'Permafrost', tags: ['frost'], tier: 2, max: 3,
+    desc: (n) => `Your freezes last ${0.4 * n}s longer and Frost decays ${pct(1 - Math.pow(0.6, n))} slower.`,
+    setup: (u, n) => { u.freezeDur += 0.4 * n; u.m.frostDecay *= Math.pow(0.6, n); } },
+  { id: 'shatter', name: 'Shatter', tags: ['frost'], tier: 2, max: 3,
+    desc: (n) => `When you freeze the enemy, deal ${4 * n}% of their max HP.`,
+    onFreeze: (f, u, n) => f.damage(u, u.enemy, u.enemy.maxHp * 0.04 * n * (u.flags.bigFreeze ? 2 : 1), 'ability') },
+  { id: 'deep_winter', name: 'Deep Winter', tags: ['frost'], tier: 3, max: 2,
+    desc: (n) => `The enemy freezes at ${20 - 4 * n} Frost instead of 20.`,
+    setup: (u, n) => { u.freezeAt = 20 - 4 * n; } },
+  { id: 'ice_armor', name: 'Ice Armor', tags: ['frost'], tier: 3, max: 2,
+    desc: (n) => `When you freeze the enemy, gain ${3 * n} Armor.`,
+    onFreeze: (f, u, n) => f.gain(u, 'armor', 3 * n) },
+  { id: 'absolute_zero', name: 'Absolute Zero', tags: ['frost'], tier: 4, max: 1,
+    desc: () => 'Every 3rd freeze lasts 4s and doubles Shatter damage.',
+    setup: (u) => { u.flags.absoluteZero = true; } },
+
+  // ---------------------------------------------------------------- Poison
+  { id: 'toxic_blade', name: 'Toxic Blade', tags: ['poison'], tier: 1, max: 5,
+    desc: (n) => `On attack, 30% chance to apply ${3 * n} Poison.`,
+    onAttack: (f, u, n) => { if (chance(f)) f.apply(u, 'poison', 3 * n); } },
+  { id: 'miasma', name: 'Miasma', tags: ['poison'], tier: 1, max: 5,
+    desc: (n) => `Every 2s, apply ${n} Poison.`,
+    every: [2, (f, u, n) => f.apply(u, 'poison', n)] },
+  { id: 'virulence', name: 'Virulence', tags: ['poison'], tier: 2, max: 3,
+    desc: (n) => `Your Poison deals +${20 * n}% damage.`,
+    setup: (u, n) => { u.m.poisonDmg += 0.2 * n; } },
+  { id: 'lingering', name: 'Lingering Toxin', tags: ['poison'], tier: 2, max: 3,
+    desc: (n) => `The enemy starts each fight with ${6 * n} Poison.`,
+    onStart: (f, u, n) => f.apply(u, 'poison', 6 * n) },
+  { id: 'pandemic', name: 'Pandemic', tags: ['poison'], tier: 3, max: 2,
+    desc: (n) => `When the enemy reaches 40 Poison, it bursts for ${3 * n}x its stacks and halves.`,
+    setup: (u, n) => { u.m.pandemic = 3 * n; } },
+  { id: 'plague_lord', name: 'Plague Lord', tags: ['poison'], tier: 4, max: 1,
+    desc: () => 'Poison ticks twice as fast and heals you for 25% of its damage.',
+    setup: (u) => { u.flags.plague = true; } },
+
+  // ----------------------------------------------------------------- Bleed
+  { id: 'rend', name: 'Rend', tags: ['bleed'], tier: 1, max: 5,
+    desc: (n) => `On attack, 30% chance to apply ${3 * n} Bleed.`,
+    onAttack: (f, u, n) => { if (chance(f)) f.apply(u, 'bleed', 3 * n); } },
+  { id: 'open_wounds', name: 'Open Wounds', tags: ['bleed'], tier: 1, max: 5,
+    desc: (n) => `Your Bleed deals +${12 * n}% damage.`,
+    setup: (u, n) => { u.m.bleedDmg += 0.12 * n; } },
+  { id: 'deep_cuts', name: 'Deep Cuts', tags: ['bleed'], tier: 2, max: 3,
+    desc: (n) => `Your Bleed decays ${pct(1 - Math.pow(0.7, n))} slower.`,
+    setup: (u, n) => { u.m.bleedDecay *= Math.pow(0.7, n); } },
+  { id: 'bloodletting', name: 'Bloodletting', tags: ['bleed'], tier: 2, max: 3,
+    desc: (n) => `Heal for ${20 * n}% of your Bleed damage.`,
+    setup: (u, n) => { u.m.bleedLeech = 0.2 * n; } },
+  { id: 'exsanguinate', name: 'Exsanguinate', tags: ['bleed'], tier: 3, max: 2,
+    desc: (n) => `Attacks deal +${2 * n} damage per 5 Bleed on the enemy.`,
+    bonusDamage: (f, u, n) => Math.floor(u.enemy.bleed / 5) * 2 * n },
+  { id: 'arterial', name: 'Arterial Strike', tags: ['bleed'], tier: 4, max: 1,
+    desc: () => 'Your Bleed no longer decays and deals +20% damage.',
+    setup: (u) => { u.m.bleedDecay = 0; u.m.bleedDmg += 0.2; } },
+
+  // ---------------------------------------------------------------- Shield
+  { id: 'barrier', name: 'Barrier', tags: ['shield'], tier: 1, max: 5,
+    desc: (n) => `Start each fight with ${30 * n} Shield.`,
+    onStart: (f, u, n) => f.gain(u, 'shield', 30 * n) },
+  { id: 'reinforce', name: 'Reinforce', tags: ['shield'], tier: 1, max: 5,
+    desc: (n) => `Every 3s, gain ${6 * n} Shield.`,
+    every: [3, (f, u, n) => f.gain(u, 'shield', 6 * n)] },
+  { id: 'bash', name: 'Shield Bash', tags: ['shield'], tier: 2, max: 3,
+    desc: (n) => `Attacks deal bonus damage equal to ${4 * n}% of your Shield.`,
+    bonusDamage: (f, u, n) => u.shield * 0.04 * n },
+  { id: 'overcharge', name: 'Overcharge', tags: ['shield'], tier: 2, max: 2,
+    desc: (n) => `Shield gains +${25 * n}% and can exceed max HP by ${50 * n}%.`,
+    setup: (u, n) => { u.m.shieldGain += 0.25 * n; u.m.shieldCap += 0.5 * n; } },
+  { id: 'bastion', name: 'Bastion', tags: ['shield'], tier: 3, max: 1,
+    desc: () => 'When your Shield breaks, take no damage for 1s (6s cooldown).',
+    setup: (u) => { u.flags.bastion = true; } },
+  { id: 'reflect', name: 'Reflective Plating', tags: ['shield'], tier: 3, max: 2,
+    desc: (n) => `Reflect ${25 * n}% of damage your Shield absorbs from attacks.`,
+    setup: (u, n) => { u.m.reflect = 0.25 * n; } },
+  { id: 'aegis', name: 'Aegis Eternal', tags: ['shield'], tier: 4, max: 1,
+    desc: () => 'All Shield you gain is doubled.',
+    setup: (u) => { u.m.shieldGain *= 2; } },
+
+  // ----------------------------------------------------------------- Regen
+  { id: 'hearty', name: 'Hearty', tags: ['regen'], tier: 1, max: 5,
+    desc: (n) => `+${50 * n} max HP.`,
+    setup: (u, n) => { u.maxHp += 50 * n; } },
+  { id: 'vitality', name: 'Vitality', tags: ['regen'], tier: 1, max: 5,
+    desc: (n) => `Start each fight with ${2 * n} Regen.`,
+    onStart: (f, u, n) => f.gain(u, 'regen', 2 * n) },
+  { id: 'second_wind', name: 'Second Wind', tags: ['regen'], tier: 2, max: 3,
+    desc: (n) => `The first time you drop below 50% HP, gain ${6 * n} Regen.`,
+    setup: (u, n) => { u.m.secondWind = 6 * n; } },
+  { id: 'giants_blood', name: "Giant's Blood", tags: ['regen'], tier: 2, max: 3,
+    desc: (n) => `Every 4s, gain ${n} Regen.`,
+    every: [4, (f, u, n) => f.gain(u, 'regen', n)] },
+  { id: 'juggernaut', name: 'Juggernaut', tags: ['regen'], tier: 3, max: 2,
+    desc: (n) => `Attacks deal bonus damage equal to ${1.5 * n}% of your max HP.`,
+    bonusDamage: (f, u, n) => u.maxHp * 0.015 * n },
+  { id: 'titan', name: 'Titan', tags: ['regen'], tier: 4, max: 1,
+    desc: () => 'Max HP x1.6. Attacks deal +3% of your max HP. Attack speed -20%.',
+    setup: (u) => { u.flags.titan = true; } },
+
+  // ---------------------------------------------------------- Mana (arcane)
+  { id: 'attunement', name: 'Attunement', tags: ['arcane'], tier: 1, max: 5,
+    desc: (n) => `Start each fight with ${3 * n} Mana stacks.`,
+    onStart: (f, u, n) => f.gain(u, 'arcane', 3 * n) },
+  { id: 'mana_font', name: 'Mana Font', tags: ['arcane'], tier: 1, max: 5,
+    desc: (n) => `+${3 * n} mana per attack.`,
+    setup: (u, n) => { u.manaPerAttack += 3 * n; } },
+  { id: 'spellweave', name: 'Spellweave', tags: ['arcane'], tier: 1, max: 5,
+    desc: (n) => `On attack, 30% chance to gain ${n} Mana stack${n > 1 ? 's' : ''}.`,
+    onAttack: (f, u, n) => { if (chance(f)) f.gain(u, 'arcane', n); } },
+  { id: 'mana_shield', name: 'Mana Shield', tags: ['arcane'], tier: 2, max: 3,
+    desc: (n) => `${15 * n}% of damage you take drains mana instead of HP.`,
+    setup: (u, n) => { u.m.manaShield = 0.15 * n; } },
+  { id: 'arcane_power', name: 'Arcane Power', tags: ['arcane'], tier: 3, max: 2,
+    desc: (n) => `Each Mana stack gives +${4 + 2 * n}% ability power instead of 4%.`,
+    setup: (u, n) => { u.arcaneValue = 0.04 + 0.02 * n; } },
+  { id: 'archmage', name: 'Archmage', tags: ['arcane'], tier: 4, max: 1,
+    desc: () => 'Your ability costs 40% less mana.',
+    setup: (u) => { u.m.castCost *= 0.6; } },
+
+  // ----------------------------------------------------------------- Armor
+  { id: 'plating', name: 'Plating', tags: ['armor'], tier: 1, max: 5,
+    desc: (n) => `Start each fight with ${2 * n} Armor.`,
+    onStart: (f, u, n) => f.gain(u, 'armor', 2 * n) },
+  { id: 'brace', name: 'Brace', tags: ['armor'], tier: 1, max: 5,
+    desc: (n) => `When hit, 30% chance to gain ${n} Armor.`,
+    onHitTaken: (f, u, n) => { if (chance(f)) f.gain(u, 'armor', n); } },
+  { id: 'thorns', name: 'Thorns', tags: ['armor'], tier: 2, max: 3,
+    desc: (n) => `Attackers take ${3 * n} + ${pct(0.5 * n)} of your Armor as damage.`,
+    onHitTaken: (f, u, n, src) => f.damage(u, src, 3 * n + u.armor * 0.5 * n, 'thorns') },
+  { id: 'stalwart', name: 'Stalwart', tags: ['armor'], tier: 2, max: 2,
+    desc: (n) => `Ignore the first ${n} freeze${n > 1 ? 's' : ''} each fight.`,
+    setup: (u, n) => { u.freezeImmune = n; } },
+  { id: 'fortress', name: 'Fortress', tags: ['armor'], tier: 3, max: 2,
+    desc: (n) => `Attacks deal bonus damage equal to ${pct(0.5 * n)} of your Armor.`,
+    bonusDamage: (f, u, n) => u.armor * 0.5 * n },
+  { id: 'living_mountain', name: 'Living Mountain', tags: ['armor'], tier: 4, max: 1,
+    desc: () => 'No single attack or ability can deal more than 6% of your max HP.',
+    setup: (u) => { u.flags.livingMountain = true; } },
+
+  // --------------------------------------------- Hybrids (two resources)
+  { id: 'thermal_shock', name: 'Thermal Shock', tags: ['fire', 'frost'], tier: 'hybrid', max: 1,
+    desc: () => 'When you freeze the enemy, gain 10 Fire. Frozen enemies take +20% damage.',
+    setup: (u) => { u.m.frozenBonus += 0.2; },
+    onFreeze: (f, u) => f.gain(u, 'fire', 10) },
+  { id: 'spellfire', name: 'Spellfire', tags: ['fire', 'arcane'], tier: 'hybrid', max: 1,
+    desc: () => 'On cast, gain Fire equal to half your Mana stacks (min 4). Each Fire adds 1% ability power.',
+    onCast: (f, u) => f.gain(u, 'fire', Math.max(4, Math.floor(u.arcane / 2))),
+    setup: (u) => { u.flags.spellfire = true; } },
+  { id: 'iron_will', name: 'Iron Will', tags: ['shield', 'armor'], tier: 'hybrid', max: 1,
+    desc: () => 'Every 3s, gain Shield equal to 2x your Armor.',
+    every: [3, (f, u) => f.gain(u, 'shield', u.armor * 2)] },
+  { id: 'blood_ward', name: 'Blood Ward', tags: ['regen', 'shield'], tier: 'hybrid', max: 1,
+    desc: () => 'Healing beyond max HP becomes Shield. Every 4s, gain Shield equal to 3% max HP.',
+    setup: (u) => { u.flags.overhealShield = true; },
+    every: [4, (f, u) => f.gain(u, 'shield', u.maxHp * 0.03)] },
+  { id: 'toxic_frost', name: 'Toxic Frost', tags: ['poison', 'frost'], tier: 'hybrid', max: 1,
+    desc: () => 'Your Poison deals +60% damage to enemies with 5+ Frost or frozen.',
+    setup: (u) => { u.flags.toxicFrost = true; } },
+  { id: 'molten_armor', name: 'Molten Armor', tags: ['fire', 'armor'], tier: 'hybrid', max: 1,
+    desc: () => 'Attackers take damage equal to your Fire. Each 5 Fire gives 1 Armor.',
+    onHitTaken: (f, u, n, src) => f.damage(u, src, u.fire, 'thorns'),
+    setup: (u) => { u.flags.moltenArmor = true; } },
+  { id: 'septic', name: 'Septic Wounds', tags: ['poison', 'bleed'], tier: 'hybrid', max: 1,
+    desc: () => 'Whenever you apply Bleed, also apply half as much Poison. Bleed deals +25% damage.',
+    setup: (u) => { u.flags.septic = true; u.m.bleedDmg += 0.25; } },
+  { id: 'glacial_bulwark', name: 'Glacial Bulwark', tags: ['frost', 'shield'], tier: 'hybrid', max: 1,
+    desc: () => 'When you freeze the enemy, gain Shield equal to 8% of your max HP.',
+    onFreeze: (f, u) => f.gain(u, 'shield', u.maxHp * 0.08) },
+  { id: 'blood_rite', name: 'Blood Rite', tags: ['bleed', 'regen'], tier: 'hybrid', max: 1,
+    desc: () => 'Gain 1 Regen for every 8 Bleed you apply.',
+    setup: (u) => { u.flags.bloodRite = true; } },
+
+  // ------------------------------------------------ Counters (no tags)
+  { id: 'antivenom', name: 'Antivenom', tags: [], tier: 'counter', max: 2, counters: 'poison',
+    desc: (n) => `Take ${30 * n}% less Poison damage.`,
+    setup: (u, n) => { u.m.poisonTaken -= 0.3 * n; } },
+  { id: 'thaw', name: 'Thaw', tags: [], tier: 'counter', max: 2, counters: 'frost',
+    desc: (n) => `Frost applied to you is reduced by ${30 * n}%.`,
+    setup: (u, n) => { u.m.frostTaken -= 0.3 * n; } },
+  { id: 'clotting', name: 'Clotting', tags: [], tier: 'counter', max: 2, counters: 'bleed',
+    desc: (n) => `Take ${30 * n}% less Bleed damage.`,
+    setup: (u, n) => { u.m.bleedTaken -= 0.3 * n; } },
+  { id: 'true_sight', name: 'True Sight', tags: [], tier: 'counter', max: 1, counters: 'evasion',
+    desc: () => 'Every 3rd attack cannot be dodged.',
+    setup: (u) => { u.m.trueSight = 3; } },
+  { id: 'unsettling', name: 'Unsettling Blows', tags: [], tier: 'counter', max: 2, counters: 'evasion',
+    desc: (n) => `Your hits remove ${25 * n}% of the enemy's Focus.`,
+    setup: (u, n) => { u.m.focusDrain = 0.25 * n; } },
+  { id: 'shieldbreaker', name: 'Shieldbreaker', tags: [], tier: 'counter', max: 2, counters: 'shield',
+    desc: (n) => `Deal +${50 * n}% damage to Shield.`,
+    setup: (u, n) => { u.m.vsShield += 0.5 * n; } },
+  { id: 'cauterize', name: 'Cauterize', tags: [], tier: 'counter', max: 2, counters: 'regen',
+    desc: (n) => `The enemy heals ${25 * n}% less.`,
+    setup: (u, n) => { u.m.enemyHealCut += 0.25 * n; } },
+  { id: 'sunder', name: 'Sunder', tags: [], tier: 'counter', max: 2, counters: 'armor',
+    desc: (n) => `Your attacks ignore ${4 * n} Armor.`,
+    setup: (u, n) => { u.m.armorPierce += 4 * n; } },
+  { id: 'nullstone', name: 'Nullstone', tags: [], tier: 'counter', max: 2, counters: 'arcane',
+    desc: (n) => `Take ${25 * n}% less ability damage.`,
+    setup: (u, n) => { u.m.abilityTaken -= 0.25 * n; } },
+  { id: 'cooling_draught', name: 'Cooling Draught', tags: [], tier: 'counter', max: 2, counters: 'fire',
+    desc: (n) => `The enemy's Fire cap is reduced by ${6 * n}.`,
+    setup: (u, n) => { u.m.enemyFireCapCut += 6 * n; } },
+];
+
+const CARD_BY_ID = Object.fromEntries(CARDS.map((c) => [c.id, c]));
+
+function cardResources(card) {
+  return card.tags.filter((t) => ['fire', 'frost', 'poison', 'bleed', 'shield', 'regen', 'arcane', 'armor'].includes(t));
+}
+
+// ---- src/data/characters.js
+// Gladiators. Each has a signature trigger, one or two resource affinities,
+// an innate passive, an ability cast at full mana, and two signature upgrades
+// offered at the milestone round.
+//
+// A character is hidden when ALL of its resources are banned. Characters with
+// two resources and one banned stay pickable but get a warning.
+
+const hit = (f, u, amount) => f.damage(u, u.enemy, amount, 'ability');
+
+const CHARACTERS = [
+  {
+    id: 'cinder', name: 'Cinder', epithet: 'the Kindled', trigger: 'strike', resources: ['fire'],
+    stats: { hp: 530, ad: 29, as: 1.1 },
+    innate: { desc: 'On attack, gain 1 Fire.', onAttack: (f, u) => f.gain(u, 'fire', 1) },
+    ability: { name: 'Blaze Rush', desc: (u) => `Deal 50 + 5 per Fire (${Math.round(50 + 5 * (u?.fire ?? 0))}).`,
+      cast: (f, u, p) => { const d = (50 + 5 * u.fire) * p; hit(f, u, d); if (u.sig === 'cinder_twin') hit(f, u, d * 0.6); } },
+    signatures: [
+      { id: 'cinder_wild', name: 'Wildheart', desc: 'Fire cap +12.', setup: (u) => { u.fireCap += 12; } },
+      { id: 'cinder_twin', name: 'Twin Blaze', desc: 'Blaze Rush hits a second time for 60%.' },
+    ],
+  },
+  {
+    id: 'glacia', name: 'Glacia', epithet: 'of the Long Winter', trigger: 'spell', resources: ['frost'],
+    stats: { hp: 610, ad: 27, manaMax: 80 },
+    innate: { desc: 'Your casts apply 4 extra Frost.', onCast: (f, u) => f.apply(u, 'frost', 4) },
+    ability: { name: 'Hailstorm', desc: () => 'Deal 55 and apply 8 Frost, plus 1 per 3 Frost already on the enemy.',
+      cast: (f, u, p) => {
+        const bonus = u.sig === 'glacia_lance' && u.enemy.frozen > 0 ? 2 : 1;
+        hit(f, u, 55 * p * bonus);
+        f.apply(u, 'frost', Math.round((8 + Math.floor(u.enemy.frost / 3)) * Math.min(p, 1.6)));
+      } },
+    signatures: [
+      { id: 'glacia_heart', name: 'Glacier Heart', desc: 'The enemy freezes 4 Frost sooner.', setup: (u) => { u.freezeAt -= 4; } },
+      { id: 'glacia_lance', name: 'Ice Lance', desc: 'Hailstorm deals double damage to frozen enemies.' },
+    ],
+  },
+  {
+    id: 'viper', name: 'Viper Saint', epithet: 'Twice-Fanged', trigger: 'precision', resources: ['poison', 'bleed'],
+    stats: { hp: 590, ad: 28, crit: 0.15 },
+    innate: { desc: 'Crits apply 3 Poison and 3 Bleed.', onCrit: (f, u) => { f.apply(u, 'poison', 3); f.apply(u, 'bleed', 3); } },
+    ability: { name: 'Fang Flurry', desc: () => 'Make 3 quick attacks.',
+      cast: (f, u) => { for (let i = 0; i < 3; i++) { if (u.sig === 'viper_lacerate') u.forceCrit += 1; f.queueExtraAttack(u); } } },
+    signatures: [
+      { id: 'viper_neuro', name: 'Neurotoxin', desc: 'Poison and Bleed deal +25% damage.', setup: (u) => { u.m.poisonDmg += 0.25; u.m.bleedDmg += 0.25; } },
+      { id: 'viper_lacerate', name: 'Lacerate', desc: 'Fang Flurry attacks always crit.' },
+    ],
+  },
+  {
+    id: 'wisp', name: 'Wisp Dancer', epithet: 'Never Where You Strike', trigger: 'evasion', resources: ['frost', 'fire'],
+    stats: { hp: 580, ad: 27, as: 1.15, focusGain: 0.08 },
+    innate: { desc: 'Gains 8% Focus each time she is hit, so she dodges on a steady rhythm.' },
+    ability: { name: 'Mirage', desc: () => 'Gain 40% Focus. Your next 2 attacks crit.',
+      cast: (f, u) => { f.gain(u, 'focus', 0.4); u.forceCrit += 2; } },
+    signatures: [
+      { id: 'wisp_will', name: "Will-o'-Wisp", desc: 'Dodges grant 2 Fire and apply 2 Frost.',
+        onEvade: (f, u) => { f.gain(u, 'fire', 2); f.apply(u, 'frost', 2); } },
+      { id: 'wisp_mist', name: 'Mistform', desc: 'Focus can reach 70% instead of 60%.', setup: (u) => { u.focusCap = 0.7; } },
+    ],
+  },
+  {
+    id: 'martyr', name: 'Iron Martyr', epithet: 'Who Bleeds for Steel', trigger: 'pain', resources: ['armor', 'shield'],
+    stats: { hp: 650, ad: 26, as: 0.85 },
+    innate: { desc: 'Pain: gain 1 Armor.', onPain: (f, u) => f.gain(u, 'armor', 1) },
+    ability: { name: 'Martyrdom', desc: (u) => `Gain 40 Shield + 8 per Armor (${Math.round(40 + 8 * (u?.armor ?? 0))}).`,
+      cast: (f, u, p) => { const s = (40 + 8 * u.armor) * p; f.gain(u, 'shield', s); if (u.sig === 'martyr_penance') hit(f, u, s * 0.4); } },
+    signatures: [
+      { id: 'martyr_penance', name: 'Penance', desc: 'Martyrdom also deals 40% of the Shield it grants as damage.' },
+      { id: 'martyr_unbowed', name: 'Unbowed', desc: 'Start each fight with 6 Armor.', onStart: (f, u) => f.gain(u, 'armor', 6) },
+    ],
+  },
+  {
+    id: 'stormseer', name: 'Stormseer', epithet: 'Speaker of Squalls', trigger: 'spell', resources: ['arcane', 'frost'],
+    stats: { hp: 610, ad: 25, manaMax: 75 },
+    innate: { desc: 'On cast, gain 3 Mana stacks.', onCast: (f, u) => f.gain(u, 'arcane', 3) },
+    ability: { name: 'Blizzard', desc: () => 'Deal 100 and apply 5 Frost.',
+      cast: (f, u, p) => { hit(f, u, 100 * p); f.apply(u, 'frost', u.sig === 'storm_front' ? 10 : 5); } },
+    signatures: [
+      { id: 'storm_front', name: 'Storm Front', desc: 'Blizzard applies 10 Frost instead of 5.' },
+      { id: 'storm_conduit', name: 'Conduit', desc: '+5 mana per attack.', setup: (u) => { u.manaPerAttack += 5; } },
+    ],
+  },
+  {
+    id: 'grove', name: 'Grove Keeper', epithet: 'Rooted', trigger: 'pain', resources: ['regen'],
+    stats: { hp: 600, ad: 24, as: 0.9 },
+    innate: { desc: 'Start each fight with 2 Regen.', onStart: (f, u) => f.gain(u, 'regen', 2) },
+    ability: { name: 'Overgrowth', desc: () => 'Heal 4% of max HP plus 0.7% per Regen.',
+      cast: (f, u, p) => {
+        const h = u.maxHp * (0.04 + 0.007 * u.regen) * Math.min(p, 1.5);
+        const healed = f.heal(u, h);
+        if (u.sig === 'grove_thorn') hit(f, u, healed * 0.6);
+      } },
+    signatures: [
+      { id: 'grove_thorn', name: 'Thornroot', desc: 'Overgrowth deals 60% of what it heals as damage.' },
+      { id: 'grove_deep', name: 'Deep Roots', desc: '+150 max HP.', setup: (u) => { u.maxHp += 150; } },
+    ],
+  },
+  {
+    id: 'ashen', name: 'Ashen Witch', epithet: 'Mother of Smoke', trigger: 'spell', resources: ['fire', 'poison'],
+    stats: { hp: 540, ad: 25, manaMax: 90 },
+    innate: { desc: 'On cast, gain 5 Fire.', onCast: (f, u) => f.gain(u, 'fire', 5) },
+    ability: { name: 'Cinderplague', desc: () => 'Deal 30 and apply 8 Poison plus 1 per 2 Fire.',
+      cast: (f, u, p) => { hit(f, u, 30 * p); f.apply(u, 'poison', Math.round((8 + u.fire / 2) * p)); } },
+    signatures: [
+      { id: 'ashen_kindled', name: 'Kindled Plague', desc: 'Your Poison deals +30% damage.', setup: (u) => { u.m.poisonDmg += 0.3; } },
+      { id: 'ashen_pyre', name: 'Pyre', desc: 'Cinderplague costs 25% less mana.', setup: (u) => { u.m.castCost *= 0.75; } },
+    ],
+  },
+  {
+    id: 'reaver', name: 'Bloodreaver', epithet: 'the Red Harvest', trigger: 'strike', resources: ['bleed', 'regen'],
+    stats: { hp: 700, ad: 32 },
+    innate: { desc: 'Heal for 15% of your Bleed damage.', setup: (u) => { u.m.bleedLeech += 0.15; } },
+    ability: { name: 'Rupture', desc: (u) => `Deal 30 + 5 per Bleed on the enemy (${Math.round(30 + 5 * (u?.enemy?.bleed ?? 0))}) and heal half of it.`,
+      cast: (f, u, p) => {
+        const d = hit(f, u, ((u.sig === 'reaver_butcher' ? 7 : 5) * u.enemy.bleed + 30) * p);
+        f.heal(u, d * 0.5);
+      } },
+    signatures: [
+      { id: 'reaver_hemo', name: 'Hemophage', desc: 'Heal for another 25% of your Bleed damage.', setup: (u) => { u.m.bleedLeech += 0.25; } },
+      { id: 'reaver_butcher', name: 'Butcher', desc: 'Rupture deals 7 per Bleed instead of 5.' },
+    ],
+  },
+  {
+    id: 'sage', name: 'Bulwark Sage', epithet: 'Keeper of Wards', trigger: 'spell', resources: ['shield', 'arcane'],
+    stats: { hp: 640, ad: 25, manaMax: 80 },
+    innate: { desc: 'All Shield you gain is increased by 15%.', setup: (u) => { u.m.shieldGain += 0.15; } },
+    ability: { name: 'Arcane Barrier', desc: () => 'Gain 60 Shield, then deal 40 plus 35% of your Shield as damage.',
+      cast: (f, u, p) => { f.gain(u, 'shield', 60 * p * (u.sig === 'sage_overflow' ? 1.5 : 1)); hit(f, u, 40 * p + u.shield * 0.35 * Math.min(p, 1.6)); } },
+    signatures: [
+      { id: 'sage_rune', name: 'Runeward', desc: 'Start each fight with 50 Shield.', onStart: (f, u) => f.gain(u, 'shield', 50) },
+      { id: 'sage_overflow', name: 'Overflow', desc: 'Arcane Barrier grants 50% more Shield.' },
+    ],
+  },
+  {
+    id: 'duelist', name: 'Brass Duelist', epithet: 'First Blade of the Pit', trigger: 'precision', resources: ['fire', 'armor'],
+    stats: { hp: 630, ad: 31, crit: 0.14 },
+    innate: { desc: 'Crits grant 1 Armor.', onCrit: (f, u) => f.gain(u, 'armor', 1) },
+    ability: { name: 'Lunge', desc: (u) => `Deal 60 + 4 per Armor and Fire (${Math.round(60 + 4 * ((u?.armor ?? 0) + (u?.fire ?? 0)))}).`,
+      cast: (f, u, p) => hit(f, u, (60 + 4 * (u.armor + u.fire)) * p) },
+    signatures: [
+      { id: 'duelist_tempo', name: 'Steel Tempo', desc: 'Crits also grant 3 Fire.', onCrit: (f, u) => f.gain(u, 'fire', 3) },
+      { id: 'duelist_guard', name: 'Guard Stance', desc: 'Start each fight with 5 Armor.', onStart: (f, u) => f.gain(u, 'armor', 5) },
+    ],
+  },
+  {
+    id: 'nightshade', name: 'Nightshade', epithet: 'Smoke and Needles', trigger: 'evasion', resources: ['poison', 'shield'],
+    stats: { hp: 520, ad: 24, as: 1.1, focusGain: 0.045 },
+    innate: { desc: 'Gains 4.5% Focus each time she is hit. Dodges apply 2 Poison.', onEvade: (f, u) => f.apply(u, 'poison', 2) },
+    ability: { name: 'Smoke Veil', desc: () => 'Gain 25% Focus and 30 Shield, and apply 6 Poison.',
+      cast: (f, u, p) => { f.gain(u, 'focus', 0.25); f.gain(u, 'shield', 30 * p); f.apply(u, 'poison', Math.round(6 * p)); } },
+    signatures: [
+      { id: 'shade_needles', name: 'Needle Rain', desc: 'Dodges apply 4 more Poison.', onEvade: (f, u) => f.apply(u, 'poison', 4) },
+      { id: 'shade_veil', name: 'Thick Smoke', desc: 'Start each fight with 30% Focus.', setup: (u) => { u.focusStart += 0.3; } },
+    ],
+  },
+];
+
+const CHAR_BY_ID = Object.fromEntries(CHARACTERS.map((c) => [c.id, c]));
+
+// Visibility after bans. Returns 'hidden', 'weakened' or 'ok'.
+function characterStatus(char, bans) {
+  const left = char.resources.filter((r) => !bans.includes(r));
+  if (left.length === 0) return 'hidden';
+  if (left.length < char.resources.length) return 'weakened';
+  return 'ok';
+}
+
+// ---- src/engine/combat.js
+
+const DT = 0.05;
+const SUDDEN_DEATH_AT = 30; // seconds; damage ramps after this
+const TIME_LIMIT = 90;
+
+const HOOKS = ['onStart', 'onAttack', 'onHit', 'onCrit', 'onEvade', 'onPain', 'onCast', 'onFreeze', 'onHitTaken', 'onShieldBreak', 'bonusDamage'];
+const BASE = { hp: 600, ad: 30, as: 1.0, crit: 0.05, critMult: 1.75, manaMax: 100, manaPerAttack: 10, focusGain: 0 };
+
+// Build a combat unit from a loadout: { charId, cards: {id: copies}, sig }.
+function buildUnit(loadout, side) {
+  const ch = CHAR_BY_ID[loadout.charId];
+  const s = { ...BASE, ...ch.stats };
+  const u = {
+    side, char: ch, sig: loadout.sig || null,
+    maxHp: s.hp, hp: 0, ad: s.ad, asBase: s.as, asBonus: 0, crit: s.crit, critMult: s.critMult,
+    manaMax: s.manaMax, mana: 0, manaStart: 0, manaPerAttack: s.manaPerAttack, manaRegen: 0,
+    // stacks on self
+    fire: 0, fireCap: 25, fireStart: 0, fireIdle: 0, fireLinger: 3,
+    shield: 0, regen: 0, arcane: 0, arcaneValue: 0.04, armor: 0,
+    // stacks the enemy put on you
+    frost: 0, poison: 0, bleed: 0,
+    // freeze settings you impose on the enemy
+    freezeAt: 20, freezeDur: 1.5, freezesDone: 0, freezeImmune: 0,
+    // evasion
+    focus: 0, focusGain: s.focusGain, focusCap: 0.6, focusReset: 0, focusStart: 0,
+    // pain
+    painStep: 0.06, painAcc: 0,
+    // timers and counters
+    frozen: 0, immune: 0, bastionCd: 0, attackTimer: 0, attackCount: 0, castCount: 0, forceCrit: 0,
+    momentumCap: 0, pendingAttacks: 0, bleedApplied: 0,
+    m: {
+      poisonDmg: 1, bleedDmg: 1, bleedDecay: 1, frostDecay: 1, shieldGain: 1, shieldCap: 1, vsShield: 1,
+      poisonTaken: 1, frostTaken: 1, bleedTaken: 1, abilityTaken: 1, enemyHealCut: 0, enemyFireCapCut: 0,
+      abilityPower: 1, castCost: 1, frozenBonus: 0, reflect: 0, manaShield: 0, armorPierce: 0,
+      focusDrain: 0, trueSight: 0, critMissing: 0, castRefund: 0, berserk: 0, bleedLeech: 0,
+      pandemic: 0, secondWind: 0,
+    },
+    flags: {},
+    used: {},
+    hooks: Object.fromEntries(HOOKS.map((h) => [h, []])),
+    timers: [],
+    stats: { dealt: 0, taken: 0, healed: 0, dodges: 0, crits: 0, casts: 0, freezes: 0, byKind: {} },
+    tagCounts: {},
+  };
+
+  const sources = [];
+  sources.push({ src: ch.innate, n: 1, name: 'innate' });
+  for (const [id, n] of Object.entries(loadout.cards || {})) {
+    const card = CARD_BY_ID[id];
+    if (card && n > 0) {
+      sources.push({ src: card, n, name: card.name });
+      for (const t of card.tags) u.tagCounts[t] = (u.tagCounts[t] || 0) + n;
+    }
+  }
+  if (u.sig) {
+    const sig = ch.signatures.find((x) => x.id === u.sig);
+    if (sig) sources.push({ src: sig, n: 1, name: sig.name });
+  }
+
+  // Trigger tag passives: owning cards of a trigger makes that trigger happen.
+  const tc = u.tagCounts;
+  u.asBonus += 0.01 * (tc.strike || 0);
+  u.crit += 0.01 * (tc.precision || 0);
+  u.focusGain += 0.02 * (tc.evasion || 0);
+  u.maxHp *= 1 + 0.01 * (tc.pain || 0);
+  u.manaPerAttack += tc.spell || 0;
+
+  for (const { src, n } of sources) {
+    if (src.setup) src.setup(u, n);
+    for (const h of HOOKS) if (src[h]) u.hooks[h].push({ fn: src[h], n });
+    if (src.every) u.timers.push({ interval: src.every[0], fn: src.every[1], n, acc: 0 });
+  }
+
+  if (u.flags.titan) { u.maxHp *= 1.6; u.asBase *= 0.8; u.hooks.bonusDamage.push({ fn: (f, x) => x.maxHp * 0.03, n: 1 }); }
+  if (u.flags.bullseye) u.crit *= 2;
+  u.crit = Math.min(u.crit, 0.95);
+  u.maxHp = Math.round(u.maxHp);
+  u.hp = u.maxHp;
+  return u;
+}
+
+class Fight {
+  constructor(loadoutA, loadoutB, seed = 1) {
+    this.rng = makeRng(seed);
+    this.a = buildUnit(loadoutA, 0);
+    this.b = buildUnit(loadoutB, 1);
+    this.a.enemy = this.b;
+    this.b.enemy = this.a;
+    this.units = [this.a, this.b];
+    this.t = 0;
+    this.over = false;
+    this.winner = null; // 0, 1, or -1 for a draw
+    this.onEvent = null; // set by the renderer to receive hit/dodge/cast events
+    for (const u of this.units) {
+      u.fireCap = Math.max(5, u.fireCap - u.enemy.m.enemyFireCapCut);
+      u.mana = Math.min(u.manaMax * 0.9, u.manaStart);
+      u.focus = Math.min(u.focusCap, u.focusStart);
+      if (u.fireStart) this.gain(u, 'fire', u.fireStart);
+    }
+    for (const u of this.units) this.run(u, 'onStart');
+  }
+
+  emit(type, u, data = {}) {
+    if (this.onEvent) this.onEvent({ t: this.t, type, side: u.side, ...data });
+  }
+
+  run(u, hook, arg) {
+    for (const h of u.hooks[hook]) h.fn(this, u, h.n, arg);
+  }
+
+  // Stacks on yourself.
+  gain(u, res, k) {
+    if (u.dead || !(k > 0)) return;
+    switch (res) {
+      case 'fire': u.fire = Math.min(u.fireCap, u.fire + k); u.fireIdle = 0; break;
+      case 'shield': u.shield = Math.min(u.maxHp * u.m.shieldCap, u.shield + k * u.m.shieldGain); break;
+      case 'regen': u.regen += k; break;
+      case 'arcane': u.arcane += k; break;
+      case 'armor': u.armor += k; break;
+      case 'focus': u.focus = Math.min(u.focusCap, u.focus + k); break;
+    }
+  }
+
+  // Stacks you put on the enemy.
+  apply(src, res, k) {
+    const tgt = src.enemy;
+    if (tgt.dead || !(k > 0)) return;
+    if (res === 'frost') {
+      tgt.frost += k * Math.max(0, tgt.m.frostTaken);
+      if (tgt.frost >= Math.max(6, src.freezeAt)) this.freeze(src, tgt);
+    } else if (res === 'poison') {
+      tgt.poison += k;
+      if (src.m.pandemic && tgt.poison >= 40) {
+        this.damage(src, tgt, tgt.poison * src.m.pandemic, 'poison');
+        tgt.poison = Math.floor(tgt.poison / 2);
+        this.emit('burst', tgt);
+      }
+    } else if (res === 'bleed') {
+      tgt.bleed += k;
+      if (src.flags.septic) this.apply(src, 'poison', k / 2);
+      if (src.flags.bloodRite) {
+        src.bleedApplied += k;
+        while (src.bleedApplied >= 8) { src.bleedApplied -= 8; this.gain(src, 'regen', 1); }
+      }
+    }
+  }
+
+  freeze(src, tgt) {
+    tgt.frost = 0;
+    if (tgt.freezeImmune > 0) { tgt.freezeImmune--; this.emit('resist', tgt); return; }
+    src.freezesDone++;
+    src.flags.bigFreeze = src.flags.absoluteZero && src.freezesDone % 3 === 0;
+    tgt.frozen = src.flags.bigFreeze ? 4 : src.freezeDur;
+    src.stats.freezes++;
+    this.emit('freeze', tgt, { dur: tgt.frozen });
+    this.run(src, 'onFreeze');
+    src.flags.bigFreeze = false;
+  }
+
+  antiheal(u) {
+    return Math.min(0.5, u.poison * 0.01) + u.enemy.m.enemyHealCut;
+  }
+
+  heal(u, amt) {
+    if (u.dead || amt <= 0) return 0;
+    amt *= Math.max(0, 1 - this.antiheal(u));
+    const room = u.maxHp - u.hp;
+    const healed = Math.min(room, amt);
+    u.hp += healed;
+    if (u.flags.overhealShield && amt > healed) this.gain(u, 'shield', amt - healed);
+    u.stats.healed += healed;
+    return healed;
+  }
+
+  // kind: attack | ability | poison | bleed | thorns | true
+  damage(src, tgt, amt, kind, info = {}) {
+    if (tgt.dead || !(amt > 0)) return 0;
+    if (tgt.immune > 0) return 0;
+    if (this.t > SUDDEN_DEATH_AT) amt *= 1 + (this.t - SUDDEN_DEATH_AT) * 0.08;
+    if (tgt.frozen > 0 && src.m.frozenBonus && (kind === 'attack' || kind === 'ability')) amt *= 1 + src.m.frozenBonus;
+    if (kind === 'attack' || kind === 'thorns') {
+      const armor = Math.max(0, tgt.armor + (tgt.flags.moltenArmor ? Math.floor(tgt.fire / 5) : 0) - src.m.armorPierce);
+      amt = Math.max(amt * 0.25, amt - armor);
+    }
+    if (kind === 'ability') amt *= Math.max(0, tgt.m.abilityTaken);
+    if (kind === 'poison') amt *= Math.max(0, tgt.m.poisonTaken);
+    if (kind === 'bleed') amt *= Math.max(0, tgt.m.bleedTaken);
+    if (tgt.flags.livingMountain && (kind === 'attack' || kind === 'ability')) amt = Math.min(amt, tgt.maxHp * 0.06);
+
+    if (kind !== 'poison' && kind !== 'true' && tgt.shield > 0) {
+      const eff = amt * src.m.vsShield;
+      const absorbed = Math.min(tgt.shield, eff);
+      tgt.shield -= absorbed;
+      amt = (eff - absorbed) / src.m.vsShield;
+      if (tgt.m.reflect && kind === 'attack') this.damage(tgt, src, absorbed * tgt.m.reflect, 'true');
+      if (tgt.shield <= 0.01) {
+        tgt.shield = 0;
+        this.run(tgt, 'onShieldBreak');
+        if (tgt.flags.bastion && tgt.bastionCd <= 0) {
+          tgt.immune = 1; tgt.bastionCd = 6; this.emit('immune', tgt);
+          return absorbed;
+        }
+      }
+    }
+    if (tgt.m.manaShield && amt > 0) {
+      const draw = Math.min(tgt.mana, amt * tgt.m.manaShield);
+      tgt.mana -= draw;
+      amt -= draw;
+    }
+    if (amt <= 0) return 0;
+
+    tgt.hp -= amt;
+    src.stats.dealt += amt;
+    src.stats.byKind[kind] = (src.stats.byKind[kind] || 0) + amt;
+    tgt.stats.taken += amt;
+    if (kind === 'attack' || kind === 'ability' || kind === 'thorns') this.emit('dmg', tgt, { amt, kind, crit: !!info.crit });
+
+    // Pain triggers
+    tgt.painAcc += amt;
+    const step = Math.max(0.02, tgt.painStep) * tgt.maxHp;
+    let guard = 0;
+    while (tgt.painAcc >= step && guard++ < 10 && tgt.hp > 0) {
+      tgt.painAcc -= step;
+      this.run(tgt, 'onPain');
+    }
+    if (tgt.m.secondWind && !tgt.used.secondWind && tgt.hp < tgt.maxHp * 0.5) {
+      tgt.used.secondWind = true;
+      this.gain(tgt, 'regen', tgt.m.secondWind);
+    }
+    if (tgt.flags.lastStand && !tgt.used.lastStand && tgt.hp > 0 && tgt.hp < tgt.maxHp * 0.3) {
+      tgt.used.lastStand = true;
+      for (let i = 0; i < 5; i++) this.run(tgt, 'onPain');
+      tgt.immune = 1;
+      this.emit('immune', tgt);
+    }
+    if (tgt.hp <= 0) {
+      if (tgt.flags.phoenix && !tgt.used.phoenix) {
+        tgt.used.phoenix = true;
+        tgt.hp = tgt.maxHp * Math.max(0.15, Math.min(1, tgt.fire * 0.03));
+        tgt.fire = 0;
+        tgt.poison = Math.floor(tgt.poison / 2);
+        tgt.bleed = 0;
+        tgt.immune = 0.5;
+        this.emit('revive', tgt);
+      } else {
+        tgt.hp = 0;
+        tgt.dead = true;
+      }
+    }
+    return amt;
+  }
+
+  attackSpeed(u) {
+    let as = u.asBase * (1 + u.asBonus + 0.02 * u.fire + Math.min(u.momentumCap, 0.01 * u.attackCount));
+    if (u.m.berserk) as *= 1 + u.m.berserk * (1 - u.hp / u.maxHp);
+    return as * this.slow(u);
+  }
+
+  slow(u) {
+    return Math.max(0.3, 1 - 0.015 * u.frost);
+  }
+
+  queueExtraAttack(u) {
+    u.pendingAttacks++;
+  }
+
+  attack(a, extra = false) {
+    const d = a.enemy;
+    if (a.dead || d.dead) return;
+    a.attackCount++;
+    this.run(a, 'onAttack', { extra });
+    if (a.flags.whirlwind) this.run(a, 'onAttack', { extra: true });
+    if (d.dead) return;
+
+    const canDodge = (d.focusGain > 0 || d.focus > 0) && !(a.m.trueSight && a.attackCount % a.m.trueSight === 0);
+    if (canDodge && this.rng() < d.focus) {
+      d.focus = d.focusReset;
+      d.stats.dodges++;
+      this.emit('dodge', d);
+      this.run(d, 'onEvade');
+      a.mana += a.manaPerAttack * 0.5 * this.slow(a);
+      return;
+    }
+    if (d.focusGain > 0) d.focus = Math.min(d.focusCap, d.focus + d.focusGain);
+    if (a.m.focusDrain) d.focus *= 1 - Math.min(1, a.m.focusDrain);
+
+    let crit = false;
+    if (a.forceCrit > 0) { crit = true; a.forceCrit--; } else crit = this.rng() < a.crit;
+    let dmg = a.ad;
+    for (const h of a.hooks.bonusDamage) dmg += h.fn(this, a, h.n) || 0;
+    if (crit) {
+      dmg *= a.critMult;
+      if (a.m.critMissing) dmg += (d.maxHp - d.hp) * a.m.critMissing;
+      a.stats.crits++;
+    }
+    const dealt = this.damage(a, d, dmg, 'attack', { crit });
+    a.mana += a.manaPerAttack * this.slow(a);
+    const hit = { crit, dmg: dealt };
+    this.emit('attack', a, { crit });
+    this.run(a, 'onHit', hit);
+    if (crit) this.run(a, 'onCrit', hit);
+    if (!d.dead) this.run(d, 'onHitTaken', a);
+  }
+
+  cast(u) {
+    u.castCount++;
+    u.stats.casts++;
+    const power = u.m.abilityPower * (1 + u.arcane * u.arcaneValue + (u.flags.spellfire ? u.fire * 0.01 : 0));
+    this.emit('cast', u, { name: u.char.ability.name });
+    u.char.ability.cast(this, u, power);
+    if (u.flags.spellEcho && u.castCount % 3 === 0) u.char.ability.cast(this, u, power * 0.5);
+    this.run(u, 'onCast');
+    if (u.m.castRefund) u.mana += u.manaMax * u.m.castRefund;
+  }
+
+  step(dt = DT) {
+    if (this.over) return;
+    this.t += dt;
+    for (const u of this.units) {
+      if (u.dead) continue;
+      const e = u.enemy;
+      u.frozen = Math.max(0, u.frozen - dt);
+      u.immune = Math.max(0, u.immune - dt);
+      u.bastionCd = Math.max(0, u.bastionCd - dt);
+
+      // Damage over time the enemy put on this unit.
+      if (u.poison > 0) {
+        let mult = e.m.poisonDmg * (e.flags.plague ? 2 : 1);
+        if (e.flags.toxicFrost && (u.frost >= 5 || u.frozen > 0)) mult *= 1.6;
+        const d = this.damage(e, u, u.poison * mult * dt, 'poison');
+        if (e.flags.plague) this.heal(e, d * 0.25);
+      }
+      if (u.bleed > 0.05 && !u.dead) {
+        const d = this.damage(e, u, u.bleed * 0.0025 * u.maxHp * e.m.bleedDmg * dt, 'bleed');
+        if (e.m.bleedLeech) this.heal(e, d * e.m.bleedLeech);
+        u.bleed = Math.max(0, u.bleed - u.bleed * 0.07 * e.m.bleedDecay * dt);
+      }
+      if (u.dead) continue;
+      u.frost = Math.max(0, u.frost - 0.6 * e.m.frostDecay * dt);
+
+      if (u.regen > 0) this.heal(u, u.regen * 0.0022 * u.maxHp * dt);
+      u.fireIdle += dt;
+      if (u.fireIdle > u.fireLinger) u.fire = Math.max(0, u.fire - 2.5 * dt);
+
+      for (const tm of u.timers) {
+        tm.acc += dt;
+        if (tm.acc >= tm.interval) { tm.acc -= tm.interval; tm.fn(this, u, tm.n); }
+      }
+
+      if (u.frozen <= 0) {
+        u.mana += u.manaRegen * dt * this.slow(u);
+        u.attackTimer += this.attackSpeed(u) * dt;
+        let guard = 0;
+        while (u.attackTimer >= 1 && guard++ < 4 && !u.dead && !e.dead) {
+          u.attackTimer -= 1;
+          this.attack(u);
+        }
+        while (u.pendingAttacks > 0 && !u.dead && !e.dead) {
+          u.pendingAttacks--;
+          this.attack(u, true);
+        }
+        const cost = u.manaMax * u.m.castCost;
+        if (u.mana >= cost && !u.dead && !e.dead) {
+          u.mana -= cost;
+          this.cast(u);
+          while (u.pendingAttacks > 0 && !u.dead && !e.dead) { u.pendingAttacks--; this.attack(u, true); }
+        }
+      }
+      u.mana = Math.min(u.mana, u.manaMax * 1.5);
+    }
+    this.checkEnd();
+  }
+
+  checkEnd() {
+    const [a, b] = this.units;
+    if (a.dead || b.dead) {
+      this.over = true;
+      this.winner = a.dead && b.dead ? -1 : a.dead ? 1 : 0;
+    } else if (this.t >= TIME_LIMIT) {
+      this.over = true;
+      const pa = a.hp / a.maxHp, pb = b.hp / b.maxHp;
+      this.winner = Math.abs(pa - pb) < 0.01 ? -1 : pa > pb ? 0 : 1;
+    }
+  }
+
+  runToEnd() {
+    while (!this.over) this.step();
+    return this.result();
+  }
+
+  result() {
+    const w = this.winner;
+    const survivor = w >= 0 ? this.units[w] : null;
+    return {
+      winner: w,
+      time: this.t,
+      survivorHpPct: survivor ? survivor.hp / survivor.maxHp : 0,
+      stats: this.units.map((u) => ({ ...u.stats })),
+    };
+  }
+}
+
+// ---- src/engine/shop.js
+
+const SHOP_SIZE = 5;
+const REROLL_COST = 1;
+const BASE_WEIGHT = { 1: 10, 2: 7, 3: 5, 4: 3, hybrid: 6, counter: 2.5 };
+
+function tagCounts(cards) {
+  const counts = {};
+  for (const [id, n] of Object.entries(cards)) {
+    const c = CARD_BY_ID[id];
+    if (!c) continue;
+    for (const t of c.tags) counts[t] = (counts[t] || 0) + n;
+  }
+  return counts;
+}
+
+function cardCost(card) {
+  return CARD_COST[card.tier];
+}
+
+function sellValue(card) {
+  return Math.max(1, Math.floor(cardCost(card) / 2));
+}
+
+function isBanned(card, bans) {
+  if (cardResources(card).some((r) => bans.includes(r))) return true;
+  if (card.counters && bans.includes(card.counters)) return true;
+  return false;
+}
+
+// Why a card is (or isn't) in your pool. Used by the UI for tier progress.
+function isUnlocked(card, counts, round) {
+  if (card.tier === 1) return true;
+  if (card.tier === 'counter') return round >= 2;
+  if (card.tier === 'hybrid') return card.tags.every((t) => (counts[t] || 0) >= HYBRID_REQ);
+  const best = Math.max(0, ...card.tags.map((t) => counts[t] || 0));
+  return best >= TIER_UNLOCK[card.tier];
+}
+
+function eligibleCards(player, bans, round) {
+  const counts = tagCounts(player.cards);
+  return CARDS.filter((c) => !isBanned(c, bans) && (player.cards[c.id] || 0) < c.max && isUnlocked(c, counts, round));
+}
+
+function cardWeight(card, player, counts) {
+  let w = BASE_WEIGHT[card.tier];
+  if (card.tags.length) {
+    const avg = card.tags.reduce((s, t) => s + (counts[t] || 0), 0) / card.tags.length;
+    w *= Math.min(3, 1 + 0.15 * avg);
+  }
+  const ch = CHAR_BY_ID[player.charId];
+  if (ch && card.tags.some((t) => t === ch.trigger || ch.resources.includes(t))) w *= 1.5;
+  return w;
+}
+
+function rollShop(player, bans, round, rng) {
+  const counts = tagCounts(player.cards);
+  const pool = eligibleCards(player, bans, round);
+  const shop = [];
+  while (shop.length < SHOP_SIZE && pool.length) {
+    const pick = weightedPick(rng, pool, (c) => cardWeight(c, player, counts));
+    if (!pick) break;
+    shop.push(pick.id);
+    pool.splice(pool.indexOf(pick), 1);
+  }
+  return shop;
+}
+
+// ---- src/engine/match.js
+
+const START_HP = 60;
+const SIGNATURE_ROUND = 7;
+const BANS_PER_PLAYER = 1;
+
+// Match state is plain JSON so it can be saved, snapshotted or sent over a
+// network later. Players are an array so more than two can be added.
+function createMatch({ seed = Date.now() % 1e9, players }) {
+  return {
+    seed, nonce: 0, round: 0, phase: 'ban', bans: [], history: [],
+    players: players.map((p, i) => ({
+      id: i, name: p.name, isBot: !!p.isBot, charId: null, hp: START_HP, gold: 0,
+      cards: {}, shop: [], locked: false, sig: null, ban: null, wins: 0,
+    })),
+  };
+}
+
+function rngFor(m) {
+  m.nonce++;
+  return makeRng((m.seed * 7919 + m.nonce * 104729) >>> 0);
+}
+
+function visibleCharacters(bans) {
+  return CHARACTERS.map((c) => ({ char: c, status: characterStatus(c, bans) })).filter((x) => x.status !== 'hidden');
+}
+
+function submitBan(m, playerId, resource) {
+  m.players[playerId].ban = resource;
+  if (m.players.every((p) => p.ban)) {
+    m.bans = [...new Set(m.players.map((p) => p.ban))];
+    m.phase = 'pick';
+  }
+}
+
+function pickCharacter(m, playerId, charId) {
+  const ch = CHAR_BY_ID[charId];
+  if (!ch || characterStatus(ch, m.bans) === 'hidden') return false;
+  m.players[playerId].charId = charId;
+  if (m.players.every((p) => p.charId)) startRound(m);
+  return true;
+}
+
+function income(round) {
+  return Math.min(10, 4 + round);
+}
+
+function interest(gold) {
+  return Math.min(2, Math.floor(gold / 10));
+}
+
+function startRound(m) {
+  m.round++;
+  for (const p of alive(m)) {
+    p.gold += income(m.round) + interest(p.gold);
+    if (!p.locked || p.shop.length === 0) p.shop = rollShop(p, m.bans, m.round, rngFor(m));
+    p.locked = false;
+  }
+  m.phase = m.round === SIGNATURE_ROUND ? 'signature' : 'shop';
+}
+
+function chooseSignature(m, playerId, sigId) {
+  m.players[playerId].sig = sigId;
+  if (alive(m).every((p) => p.sig)) m.phase = 'shop';
+}
+
+function alive(m) {
+  return m.players.filter((p) => p.hp > 0);
+}
+
+function buy(m, playerId, slot) {
+  const p = m.players[playerId];
+  const id = p.shop[slot];
+  const card = id && CARD_BY_ID[id];
+  if (!card) return false;
+  const cost = cardCost(card);
+  if (p.gold < cost || (p.cards[id] || 0) >= card.max) return false;
+  p.gold -= cost;
+  p.cards[id] = (p.cards[id] || 0) + 1;
+  p.shop[slot] = null;
+  return true;
+}
+
+function sell(m, playerId, cardId) {
+  const p = m.players[playerId];
+  if (!p.cards[cardId]) return false;
+  p.cards[cardId]--;
+  if (p.cards[cardId] === 0) delete p.cards[cardId];
+  p.gold += sellValue(CARD_BY_ID[cardId]);
+  return true;
+}
+
+function reroll(m, playerId) {
+  const p = m.players[playerId];
+  if (p.gold < REROLL_COST) return false;
+  p.gold -= REROLL_COST;
+  p.shop = rollShop(p, m.bans, m.round, rngFor(m));
+  p.locked = false;
+  return true;
+}
+
+function toggleLock(m, playerId) {
+  m.players[playerId].locked = !m.players[playerId].locked;
+}
+
+function loadout(p) {
+  return { charId: p.charId, cards: { ...p.cards }, sig: p.sig };
+}
+
+// Pairings: with 2 players it's always a duel. With more, pair neighbours in
+// a rotating order; an odd player out fights a copy ("ghost") of another.
+function pairings(m) {
+  const live = alive(m);
+  if (live.length < 2) return [];
+  const order = live.map((p) => p.id);
+  const shift = m.round % order.length;
+  const rotated = order.slice(shift).concat(order.slice(0, shift));
+  const pairs = [];
+  for (let i = 0; i + 1 < rotated.length; i += 2) pairs.push([rotated[i], rotated[i + 1]]);
+  if (rotated.length % 2) pairs.push([rotated[rotated.length - 1], rotated[0], 'ghost']);
+  return pairs;
+}
+
+function makeFight(m, a, b) {
+  return new Fight(loadout(m.players[a]), loadout(m.players[b]), (m.seed + m.round * 31337) >>> 0);
+}
+
+function damageFor(round, survivorHpPct) {
+  return 1 + Math.ceil(round * 0.8) + Math.round(survivorHpPct * 4);
+}
+
+// Apply a finished fight. Returns a summary for the UI.
+function resolveFight(m, a, b, result, ghost = false) {
+  const pa = m.players[a], pb = m.players[b];
+  let summary;
+  if (result.winner === -1) {
+    const d = Math.ceil(damageFor(m.round, 0) / 2);
+    pa.hp -= d;
+    if (!ghost) pb.hp -= d;
+    summary = { round: m.round, winner: null, damage: d, time: result.time };
+  } else {
+    const winner = result.winner === 0 ? pa : pb;
+    const loser = result.winner === 0 ? pb : pa;
+    const d = damageFor(m.round, result.survivorHpPct);
+    if (!(ghost && loser === pb)) loser.hp -= d;
+    winner.wins++;
+    summary = { round: m.round, winner: winner.id, loser: loser.id, damage: d, time: result.time };
+  }
+  m.history.push(summary);
+  for (const p of m.players) p.hp = Math.max(0, p.hp);
+  return summary;
+}
+
+function finishRound(m) {
+  if (alive(m).length <= 1) {
+    m.phase = 'over';
+    return;
+  }
+  startRound(m);
+}
+
+// ---- src/ai/bot.js
+
+// A simple opponent: commit to the character's trigger and resources, buy
+// what fits, answer the enemy's main resource with counters.
+
+function botBan(m, id) {
+  const rng = rngFor(m);
+  submitBan(m, id, rng.pick(RESOURCES));
+}
+
+function botPick(m, id, preferred) {
+  const rng = rngFor(m);
+  const vis = visibleCharacters(m.bans);
+  const ok = vis.filter((v) => v.status === 'ok');
+  const pool = ok.length ? ok : vis;
+  const choice = (preferred && pool.find((v) => v.char.id === preferred)) || rng.pick(pool);
+  pickCharacter(m, id, choice.char.id);
+}
+
+function botSignature(m, id) {
+  const p = m.players[id];
+  const rng = rngFor(m);
+  chooseSignature(m, id, rng.pick(CHAR_BY_ID[p.charId].signatures).id);
+}
+
+function plan(m, p) {
+  if (p.plan) return p.plan;
+  const ch = CHAR_BY_ID[p.charId];
+  const rng = rngFor(m);
+  const resources = ch.resources.filter((r) => !m.bans.includes(r));
+  if (resources.length < 2) {
+    const extra = RESOURCES.filter((r) => !m.bans.includes(r) && !resources.includes(r));
+    resources.push(rng.pick(extra));
+  }
+  p.plan = { trigger: ch.trigger, resources };
+  return p.plan;
+}
+
+function scoreCard(card, p, enemy, plan, noise = 0) {
+  const res = cardResources(card);
+  const trig = card.tags.filter((t) => TRIGGERS.includes(t));
+  let s = 0;
+  if (card.tier === 'counter') {
+    const ec = tagCounts(enemy.cards);
+    return (ec[card.counters] || 0) >= 6 ? 5 + noise : -1;
+  }
+  if (card.tier === 'hybrid') return res.every((r) => plan.resources.includes(r)) ? 8 + noise : -1;
+  for (const r of res) s += plan.resources.includes(r) ? 3 : -2;
+  for (const t of trig) s += t === plan.trigger ? 2.5 : -1.5;
+  if (res.length && trig.length && res.every((r) => plan.resources.includes(r)) && trig[0] === plan.trigger) s += 3;
+  s += (typeof card.tier === 'number' ? card.tier - 1 : 0) * 0.8;
+  return s + noise;
+}
+
+function botShop(m, id) {
+  const p = m.players[id];
+  const enemy = m.players.find((q) => q.id !== id && q.hp > 0) || m.players[(id + 1) % m.players.length];
+  const pl = plan(m, p);
+  const rng = rngFor(m);
+  let rerolls = 0;
+  for (let guard = 0; guard < 40; guard++) {
+    let best = -1, bestScore = 2.5;
+    p.shop.forEach((cid, i) => {
+      if (!cid) return;
+      const card = CARD_BY_ID[cid];
+      if (cardCost(card) > p.gold || (p.cards[cid] || 0) >= card.max) return;
+      const s = scoreCard(card, p, enemy, pl, (rng() - 0.5));
+      if (s > bestScore) { bestScore = s; best = i; }
+    });
+    if (best >= 0) { buy(m, id, best); continue; }
+    if (p.gold >= REROLL_COST + 2 && rerolls < 5) { reroll(m, id); rerolls++; continue; }
+    break;
+  }
+}
+
+// ---- src/ui/arena.js
+
+// Canvas renderer for the pit. It either shows a static preview of both
+// gladiators or plays a Fight forward in real time at the chosen speed.
+
+const SELF_STACKS = ['fire', 'shield', 'regen', 'arcane', 'armor'];
+const ON_ME = ['frost', 'poison', 'bleed'];
+
+function createArena(canvas) {
+  const ctx = canvas.getContext('2d');
+  const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  let w = 0, h = 0, dpr = 1;
+  let units = null;
+  let fight = null;
+  let onDone = null;
+  let speed = 2;
+  let acc = 0;
+  let last = 0;
+  let raf = 0;
+  let floaters = [];
+  const anim = [{ lunge: 0, flash: 0, cast: 0 }, { lunge: 0, flash: 0, cast: 0 }];
+  let dotSeen = [{ poison: 0, bleed: 0 }, { poison: 0, bleed: 0 }];
+  let dotTimer = 0;
+  let embers = Array.from({ length: 40 }, () => ({ x: Math.random(), y: Math.random(), v: 0.02 + Math.random() * 0.04, r: Math.random() * 1.6 + 0.4 }));
+
+  function resize() {
+    const r = canvas.getBoundingClientRect();
+    dpr = Math.min(2, window.devicePixelRatio || 1);
+    w = Math.max(10, r.width); h = Math.max(10, r.height);
+    canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
+  }
+  const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(resize) : null;
+  ro?.observe(canvas);
+  resize();
+
+  function pos(side) {
+    return { x: w * (side === 0 ? 0.28 : 0.72), y: h * 0.5 };
+  }
+  function radius() {
+    return Math.max(26, Math.min(w * 0.09, h * 0.16, 62));
+  }
+
+  function float(side, text, color, size = 16, dy = 0) {
+    const p = pos(side);
+    floaters.push({ x: p.x + (Math.random() - 0.5) * radius(), y: p.y - radius() * 0.6 + dy, text, color, size, life: 1.1 });
+    if (floaters.length > 60) floaters.shift();
+  }
+
+  function onEvent(ev) {
+    const a = anim[ev.side];
+    switch (ev.type) {
+      case 'attack': a.lunge = 1; break;
+      case 'dmg':
+        anim[ev.side].flash = 1;
+        float(ev.side, Math.round(ev.amt) + (ev.crit ? '!' : ''), ev.crit ? '#f2d16b' : ev.kind === 'ability' ? '#b59cf0' : ev.kind === 'thorns' ? '#a8a39a' : '#e9dcc0', ev.crit ? 22 : ev.kind === 'ability' ? 19 : 15);
+        break;
+      case 'dodge': float(ev.side, 'DODGE', TAGS.evasion.color, 15, -10); break;
+      case 'freeze': float(ev.side, 'FROZEN', TAGS.frost.color, 18, -18); break;
+      case 'cast': a.cast = 1; float(ev.side, ev.name, TAGS.spell.color, 16, -32); break;
+      case 'revive': float(ev.side, 'REVIVED', TAGS.fire.color, 20, -24); break;
+      case 'resist': float(ev.side, 'RESISTED', '#a8a39a', 14, -18); break;
+      case 'immune': float(ev.side, 'IMMUNE', '#e9eef5', 14, -18); break;
+      case 'burst': float(ev.side, 'PANDEMIC', TAGS.poison.color, 18, -18); break;
+    }
+  }
+
+  function setPreview(loadA, loadB) {
+    fight = null;
+    onDone = null;
+    floaters = [];
+    try {
+      const a = buildUnit(loadA, 0), b = buildUnit(loadB, 1);
+      a.enemy = b; b.enemy = a;
+      units = [a, b];
+    } catch { units = null; }
+    start();
+  }
+
+  function play(f, done) {
+    fight = f;
+    fight.onEvent = onEvent;
+    units = fight.units;
+    onDone = done;
+    acc = 0;
+    floaters = [];
+    dotSeen = [{ poison: 0, bleed: 0 }, { poison: 0, bleed: 0 }];
+    start();
+  }
+
+  function skip() {
+    if (!fight) return;
+    fight.onEvent = null;
+    fight.runToEnd();
+    finish();
+  }
+
+  function finish() {
+    const cb = onDone;
+    onDone = null;
+    if (cb) cb(fight.result());
+  }
+
+  function setSpeed(s) { speed = s; }
+
+  function start() {
+    if (!raf) { last = performance.now(); raf = requestAnimationFrame(frame); }
+  }
+
+  function frame(now) {
+    raf = 0;
+    const dt = Math.min(0.1, (now - last) / 1000);
+    last = now;
+    if (fight && !fight.over) {
+      acc += dt * speed;
+      let steps = 0;
+      while (acc >= DT && !fight.over && steps++ < 200) { fight.step(DT); acc -= DT; }
+      dotTimer += dt;
+      if (dotTimer > 0.6) { dotTimer = 0; dotFloaters(); }
+      if (fight.over) setTimeout(finish, 650);
+    }
+    for (const a of anim) {
+      a.lunge = Math.max(0, a.lunge - dt * 6 * Math.max(1, speed / 2));
+      a.flash = Math.max(0, a.flash - dt * 5);
+      a.cast = Math.max(0, a.cast - dt * 2);
+    }
+    for (const f of floaters) { f.life -= dt * 0.9; f.y -= dt * 38; }
+    floaters = floaters.filter((f) => f.life > 0);
+    draw(dt);
+    raf = requestAnimationFrame(frame);
+  }
+
+  function dotFloaters() {
+    for (const u of fight.units) {
+      const src = u.enemy.stats.byKind;
+      for (const k of ['poison', 'bleed']) {
+        const total = src[k] || 0;
+        const d = total - dotSeen[u.side][k];
+        if (d >= 1) float(u.side, Math.round(d), TAGS[k].color, 13, 26);
+        dotSeen[u.side][k] = total;
+      }
+    }
+  }
+
+  function roundRect(x, y, ww, hh, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + ww, y, x + ww, y + hh, r);
+    ctx.arcTo(x + ww, y + hh, x, y + hh, r);
+    ctx.arcTo(x, y + hh, x, y, r);
+    ctx.arcTo(x, y, x + ww, y, r);
+    ctx.closePath();
+  }
+
+  function drawFloor(dt) {
+    ctx.fillStyle = '#15131a';
+    ctx.fillRect(0, 0, w, h);
+    const g = ctx.createRadialGradient(w / 2, h * 0.55, 10, w / 2, h * 0.55, Math.max(w, h) * 0.6);
+    g.addColorStop(0, '#3a2f26');
+    g.addColorStop(0.55, '#231d22');
+    g.addColorStop(1, '#15131a');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.ellipse(w / 2, h * 0.55, w * 0.47, h * 0.42, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(214,162,78,0.18)';
+    ctx.lineWidth = 1;
+    for (const s of [1, 0.72]) {
+      ctx.beginPath();
+      ctx.ellipse(w / 2, h * 0.55, w * 0.47 * s, h * 0.42 * s, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    if (!reduceMotion) {
+      ctx.fillStyle = 'rgba(240,122,58,0.35)';
+      for (const e of embers) {
+        e.y -= e.v * dt;
+        if (e.y < 0) { e.y = 1; e.x = Math.random(); }
+        ctx.beginPath();
+        ctx.arc(e.x * w, e.y * h, e.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+
+  function bar(x, y, ww, hh, frac, color, back = '#0e0c11') {
+    ctx.fillStyle = back;
+    roundRect(x, y, ww, hh, hh / 2); ctx.fill();
+    if (frac > 0) {
+      ctx.fillStyle = color;
+      roundRect(x, y, Math.max(hh, ww * Math.min(1, frac)), hh, hh / 2); ctx.fill();
+    }
+  }
+
+  function drawUnit(u) {
+    const r = radius();
+    const p = pos(u.side);
+    const a = anim[u.side];
+    const dir = u.side === 0 ? 1 : -1;
+    const x = p.x + dir * a.lunge * r * 0.5;
+    const y = p.y;
+    const ringColor = TAGS[u.char.resources[0]].color;
+
+    // shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.beginPath(); ctx.ellipse(x, y + r * 1.05, r * 0.9, r * 0.22, 0, 0, Math.PI * 2); ctx.fill();
+
+    // cast glow
+    if (a.cast > 0) {
+      ctx.strokeStyle = `rgba(181,156,240,${a.cast * 0.8})`;
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(x, y, r * (1.25 + (1 - a.cast) * 0.5), 0, Math.PI * 2); ctx.stroke();
+    }
+    // shield ring
+    if (u.shield > 0) {
+      ctx.strokeStyle = 'rgba(233,238,245,0.85)';
+      ctx.lineWidth = 2 + Math.min(8, (u.shield / u.maxHp) * 16);
+      ctx.beginPath(); ctx.arc(x, y, r + 7, 0, Math.PI * 2); ctx.stroke();
+    }
+    // focus arc
+    if (u.focusGain > 0 || u.focus > 0) {
+      ctx.strokeStyle = TAGS.evasion.color;
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(x, y, r + 14, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (u.focus / 1)); ctx.stroke();
+    }
+    // medallion
+    const mg = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, 2, x, y, r);
+    mg.addColorStop(0, '#3b3442');
+    mg.addColorStop(1, '#1b1820');
+    ctx.fillStyle = mg;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = ringColor;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    if (u.char.resources[1]) {
+      ctx.strokeStyle = TAGS[u.char.resources[1]].color;
+      ctx.beginPath(); ctx.arc(x, y, r - 5, 0, Math.PI * 2); ctx.lineWidth = 1.5; ctx.stroke();
+    }
+    if (a.flash > 0) {
+      ctx.fillStyle = `rgba(217,80,94,${a.flash * 0.35})`;
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    }
+    if (u.frozen > 0) {
+      ctx.fillStyle = 'rgba(108,196,240,0.38)';
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    }
+    if (u.dead) {
+      ctx.fillStyle = 'rgba(10,8,12,0.6)';
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.fillStyle = '#e9dcc0';
+    ctx.font = `${Math.round(r * 0.95)}px "Grenze Gotisch", Georgia, serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(u.char.name.split(' ').map((s) => s[0]).join(''), x, y + 2);
+
+    // bars
+    const bw = Math.max(110, r * 2.6), bx = p.x - bw / 2, by = y - r - 34;
+    bar(bx, by, bw, 9, u.hp / u.maxHp, u.side === 0 ? '#7fca6e' : '#d9505e');
+    if (u.shield > 0) {
+      ctx.fillStyle = 'rgba(233,238,245,0.9)';
+      const sx = bx + bw * Math.min(1, u.hp / u.maxHp);
+      roundRect(Math.min(sx, bx + bw - 3), by, Math.max(3, Math.min(bw * (u.shield / u.maxHp), bx + bw - sx)), 9, 3);
+      ctx.fill();
+    }
+    bar(bx, by + 12, bw, 4, u.mana / (u.manaMax * u.m.castCost), '#5b8cff');
+    ctx.font = '600 12px "Barlow Semi Condensed", system-ui, sans-serif';
+    ctx.fillStyle = '#e9dcc0';
+    ctx.textAlign = 'left';
+    ctx.fillText(`${Math.ceil(u.hp)}`, bx, by - 8);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#a99c87';
+    ctx.fillText(u.char.name, bx + bw, by - 8);
+
+    // stacks
+    const chips = [];
+    for (const k of SELF_STACKS) if (u[k] >= 1) chips.push({ k, v: u[k], mine: true });
+    if (u.focusGain > 0 || u.focus > 0) chips.push({ k: 'evasion', v: Math.round(u.focus * 100) + '%', mine: true });
+    for (const k of ON_ME) if (u[k] >= 1) chips.push({ k, v: u[k], mine: false });
+    const cw = 46, ch = 20, gap = 4;
+    const perRow = Math.max(2, Math.floor((w * 0.42) / (cw + gap)));
+    chips.forEach((c, i) => {
+      const row = Math.floor(i / perRow), col = i % perRow;
+      const n = Math.min(perRow, chips.length - row * perRow);
+      const cx = p.x - (n * (cw + gap) - gap) / 2 + col * (cw + gap);
+      const cy = y + r + 24 + row * (ch + gap);
+      const color = TAGS[c.k].color;
+      ctx.fillStyle = color + '22';
+      roundRect(cx, cy, cw, ch, 4); ctx.fill();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1;
+      ctx.setLineDash(c.mine ? [] : [3, 2]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = color;
+      ctx.font = '700 11px "Barlow Semi Condensed", system-ui, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText(TAGS[c.k].glyph, cx + 5, cy + ch / 2 + 1);
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#e9dcc0';
+      ctx.fillText(typeof c.v === 'number' ? Math.floor(c.v) : c.v, cx + cw - 5, cy + ch / 2 + 1);
+    });
+  }
+
+  function draw(dt) {
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    drawFloor(dt);
+    if (!units) return;
+    for (const u of units) drawUnit(u);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    if (fight) {
+      const t = fight.t;
+      ctx.font = '600 14px "Barlow Semi Condensed", system-ui, sans-serif';
+      ctx.fillStyle = t > SUDDEN_DEATH_AT ? '#d9505e' : '#a99c87';
+      const label = t > SUDDEN_DEATH_AT ? `SUDDEN DEATH  +${Math.round((t - SUDDEN_DEATH_AT) * 8)}% damage` : `${t.toFixed(1)}s`;
+      ctx.fillText(label, w / 2, 22);
+    } else {
+      ctx.font = '600 13px "Barlow Semi Condensed", system-ui, sans-serif';
+      ctx.fillStyle = '#a99c87';
+      ctx.fillText('Fight preview: starting stats', w / 2, 22);
+    }
+    ctx.font = `${Math.round(radius() * 0.6)}px "Grenze Gotisch", Georgia, serif`;
+    ctx.fillStyle = 'rgba(214,162,78,0.55)';
+    ctx.fillText('vs', w / 2, h * 0.5);
+    for (const f of floaters) {
+      ctx.globalAlpha = Math.max(0, Math.min(1, f.life));
+      ctx.font = `700 ${f.size}px "Barlow Semi Condensed", system-ui, sans-serif`;
+      ctx.fillStyle = '#0e0c11';
+      ctx.fillText(f.text, f.x + 1, f.y + 1);
+      ctx.fillStyle = f.color;
+      ctx.fillText(f.text, f.x, f.y);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function destroy() {
+    cancelAnimationFrame(raf);
+    raf = 0;
+    ro?.disconnect();
+    if (fight) fight.onEvent = null;
+  }
+
+  return { setPreview, play, skip, setSpeed, destroy, get playing() { return !!(fight && onDone); } };
+}
+
+// ---- src/ui/app.js
+
+const ME = 0, FOE = 1;
+const root = document.getElementById('app');
+let M = null;
+let ui = { screen: 'title', speed: 2, banner: null, mobileTab: null, toast: null };
+let arena = null;
+let fighting = false;
+let toastTimer = 0;
+
+const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+function chip(tag, withName = false) {
+  const t = TAGS[tag];
+  const tip = t.kind === 'trigger' ? `${t.name} (trigger): ${t.passive}` : `${t.name}: ${t.stack}`;
+  return `<span class="chip ${t.kind}" style="--c:${t.color}" title="${esc(tip)}">${withName ? t.name : t.glyph}</span>`;
+}
+
+function cardTags(card) {
+  if (card.tier === 'counter') return `<span class="chip" style="--c:#b9b2a6">Counter</span>${card.counters ? `<span class="arrow">vs</span>${chip(card.counters, true)}` : ''}`;
+  const trig = card.tags.filter((t) => TRIGGERS.includes(t));
+  const res = cardResources(card);
+  if (trig.length && res.length) return `${chip(trig[0], true)}<span class="arrow">&#9656;</span>${chip(res[0], true)}`;
+  return card.tags.map((t) => chip(t, true)).join('');
+}
+
+function record() {
+  try { return JSON.parse(localStorage.getItem('stack-arena-record') || '{"w":0,"l":0}'); } catch { return { w: 0, l: 0 }; }
+}
+function saveRecord(won) {
+  try {
+    const r = record();
+    if (won) r.w++; else r.l++;
+    localStorage.setItem('stack-arena-record', JSON.stringify(r));
+  } catch { /* storage unavailable */ }
+}
+
+function toast(msg) {
+  ui.toast = msg;
+  clearTimeout(toastTimer);
+  let el = document.querySelector('.toast');
+  if (!el) { el = document.createElement('div'); el.className = 'toast'; el.setAttribute('role', 'status'); document.body.appendChild(el); }
+  el.textContent = msg;
+  el.hidden = false;
+  toastTimer = setTimeout(() => { el.hidden = true; }, 1800);
+}
+
+// ---------------------------------------------------------------- screens
+
+function render() {
+  if (ui.screen !== 'game' && arena) { arena.destroy(); arena = null; }
+  if (ui.screen === 'title') return renderTitle();
+  if (ui.screen === 'ban') return renderBan();
+  if (ui.screen === 'pick') return renderPick();
+  if (ui.screen === 'over') return renderOver();
+  return renderGame();
+}
+
+function renderTitle() {
+  const r = record();
+  root.innerHTML = `
+  <div class="screen"><div class="screen-inner">
+    <div>
+      <div class="eyebrow">A 1v1 auto-battler</div>
+      <h1 class="brand">Stack <span>Arena</span></h1>
+    </div>
+    <p class="lede">Pick a gladiator, buy buff cards from the shop between rounds, and watch the fight play out by itself.
+      Cards give you <b>stacks</b>. The more cards you own of one kind, the better the cards that show up.</p>
+    <div class="row">
+      <button class="btn primary" id="start" style="font-family:var(--display);font-size:26px;font-weight:400;padding:6px 28px">Enter the arena</button>
+      ${r.w + r.l ? `<span class="eyebrow">Your record: ${r.w} won, ${r.l} lost</span>` : ''}
+    </div>
+    <div class="rules">
+      <div class="rule"><h3>Triggers and resources</h3><p>Triggers decide <i>when</i> you gain stacks (Strike, Crit, Dodge, Pain, Spell). Resources decide <i>what</i> stacks do. A card like ${chip('precision', true)} <span class="arrow">&#9656;</span> ${chip('poison', true)} always fires. Cards with only a resource fire 30% of the time.</p></div>
+      <div class="rule"><h3>Build up, unlock more</h3><p>Own ${TIER_UNLOCK[2]}, ${TIER_UNLOCK[3]} and ${TIER_UNLOCK[4]} cards of a tag to unlock its Uncommon, Rare and Mythic cards. Own ${HYBRID_REQ} of two resources to unlock their Hybrid card.</p></div>
+      <div class="rule"><h3>Bans</h3><p>You and your rival each secretly ban one resource. Banned cards never appear, and gladiators who only use banned resources sit the match out.</p></div>
+      <div class="rule"><h3>Focus, not luck</h3><p>Dodging builds Focus. Every hit you take adds to your dodge chance, and a dodge resets it, so you can never dodge twice in a row. Poison, Bleed and abilities can't be dodged.</p></div>
+    </div>
+    <div>
+      <div class="eyebrow" style="margin-bottom:10px">The thirteen tags</div>
+      <div class="tag-legend">
+        ${Object.keys(TAGS).map((t) => `<div>${chip(t, true)}<span>${esc(TAGS[t].kind === 'trigger' ? TAGS[t].passive : TAGS[t].stack)}</span></div>`).join('')}
+      </div>
+    </div>
+  </div></div>`;
+  root.querySelector('#start').onclick = () => {
+    M = createMatch({ seed: Math.floor(Math.random() * 1e9), players: [{ name: 'You' }, { name: 'Rival', isBot: true }] });
+    ui.screen = 'ban';
+    render();
+  };
+}
+
+function renderBan() {
+  const banned = M.phase !== 'ban';
+  root.innerHTML = `
+  <div class="screen"><div class="screen-inner">
+    <div>
+      <div class="eyebrow">Step 1 of 2</div>
+      <h1 style="font-size:48px">${banned ? 'The bans are in' : 'Ban one resource'}</h1>
+      <p class="lede">${banned
+        ? 'Neither of you saw the other\'s choice. These resources are gone for the whole match.'
+        : 'Your rival is choosing at the same time. Ban what you least want to fight.'}</p>
+    </div>
+    <div class="ban-grid">
+      ${RESOURCES.map((r) => {
+        const t = TAGS[r];
+        const mine = M.players[ME].ban === r, theirs = M.players[FOE].ban === r;
+        const isBanned = banned && (mine || theirs);
+        const who = mine && theirs ? 'Banned by both of you' : mine ? 'Your ban' : theirs ? 'Rival\'s ban' : '';
+        return `<button class="ban-tile ${isBanned ? 'banned' : ''}" style="--c:${t.color}" data-res="${r}" ${banned ? 'disabled' : ''}>
+          <span class="name">${t.name}</span><p>${esc(t.stack)}</p>
+          ${isBanned ? `<span class="stamp">Banned</span><span class="who">${who}</span>` : ''}
+        </button>`;
+      }).join('')}
+    </div>
+    ${banned ? `<div><button class="btn primary" id="next">Choose your gladiator</button></div>` : ''}
+  </div></div>`;
+  root.querySelectorAll('[data-res]').forEach((b) => b.onclick = () => {
+    botBan(M, FOE);
+    submitBan(M, ME, b.dataset.res);
+    render();
+  });
+  root.querySelector('#next')?.addEventListener('click', () => { ui.screen = 'pick'; render(); });
+}
+
+function charStats(c) {
+  const s = { hp: 600, ad: 30, as: 1.0, crit: 0.05, manaMax: 100, ...c.stats };
+  return `${s.hp} HP · ${s.ad} damage · ${s.as.toFixed(2)} attacks/s · ${Math.round(s.crit * 100)}% crit · ${s.manaMax} mana`;
+}
+
+function renderPick() {
+  const vis = visibleCharacters(M.bans);
+  const hidden = CHARACTERS.filter((c) => characterStatus(c, M.bans) === 'hidden');
+  root.innerHTML = `
+  <div class="screen"><div class="screen-inner">
+    <div>
+      <div class="eyebrow">Step 2 of 2 · Banned: ${M.bans.map((b) => chip(b, true)).join(' ')}</div>
+      <h1 style="font-size:48px">Choose your gladiator</h1>
+      <p class="lede">Each gladiator has a trigger and one or two resources. The shop offers their cards more often, and their ability grows with those stacks.</p>
+    </div>
+    <div class="char-grid">
+      ${vis.map(({ char: c, status }) => `
+        <button class="char" data-char="${c.id}">
+          <div class="row" style="gap:6px">${chip(c.trigger, true)}<span class="arrow">&#9656;</span>${c.resources.map((r) => chip(r, true)).join('')}</div>
+          <div><div class="nm">${esc(c.name)}</div><div class="ep">${esc(c.epithet)}</div></div>
+          <div class="ab"><b>${esc(c.ability.name)}:</b> ${esc(c.ability.desc())}</div>
+          <div class="inn">Innate: ${esc(c.innate.desc)}</div>
+          <div class="stats num">${charStats(c)}</div>
+          ${status === 'weakened' ? `<div class="warn">${c.resources.filter((r) => M.bans.includes(r)).map((r) => TAGS[r].name).join(', ')} is banned. This build is weaker.</div>` : ''}
+        </button>`).join('')}
+    </div>
+    ${hidden.length ? `<p class="hidden-note">Sitting out (all their resources are banned): ${hidden.map((c) => esc(c.name)).join(', ')}.</p>` : ''}
+  </div></div>`;
+  root.querySelectorAll('[data-char]').forEach((b) => b.onclick = () => {
+    botPick(M, FOE);
+    pickCharacter(M, ME, b.dataset.char);
+    afterRoundStart();
+    ui.screen = 'game';
+    render();
+  });
+}
+
+function afterRoundStart() {
+  if (M.phase === 'signature') botSignature(M, FOE);
+  if (M.phase === 'shop') botShop(M, FOE);
+}
+
+// ---------------------------------------------------------------- game
+
+function renderGame() {
+  if (!root.querySelector('.game')) {
+    root.innerHTML = `
+    <div class="game" style="display:flex;flex-direction:column;height:100%">
+      <header class="hud" id="hud"></header>
+      <div class="mobile-tabs" id="mtabs"></div>
+      <main class="stage">
+        <aside class="side" id="mine" aria-label="Your build"></aside>
+        <section class="arena-wrap" aria-label="Arena">
+          <canvas id="arena" aria-label="Fight view"></canvas>
+          <div class="speed" id="speed"></div>
+          <div id="banner"></div>
+        </section>
+        <aside class="side foe" id="foe" aria-label="Rival build"></aside>
+      </main>
+      <footer class="tray" id="tray"></footer>
+      <div id="modal"></div>
+    </div>`;
+    arena = createArena(root.querySelector('#arena'));
+    arena.setSpeed(ui.speed);
+  }
+  if (!fighting) arena.setPreview(loadout(M.players[ME]), loadout(M.players[FOE]));
+  updateGame();
+}
+
+function updateGame() {
+  renderHud();
+  renderSide('mine', M.players[ME], true);
+  renderSide('foe', M.players[FOE], false);
+  renderTray();
+  renderSpeed();
+  renderBanner();
+  renderModal();
+  renderTabs();
+}
+
+function renderHud() {
+  const me = M.players[ME], foe = M.players[FOE];
+  const life = (p, cls) => `
+    <div class="life ${cls}">
+      <div class="top"><span>${esc(p.name)} · ${esc(CHAR_BY_ID[p.charId].name)}</span><span class="num">${p.hp} / ${START_HP}</span></div>
+      <div class="bar"><i style="width:${(p.hp / START_HP) * 100}%"></i></div>
+    </div>`;
+  root.querySelector('#hud').innerHTML = `
+    <div class="logo">Stack <span>Arena</span></div>
+    <div class="round"><span class="eyebrow">Round</span><b class="num">${M.round}</b></div>
+    <div class="eyebrow">Bans: ${M.bans.map((b) => chip(b, true)).join(' ')}</div>
+    <div class="vs">${life(me, 'me')}${life(foe, 'foe')}</div>
+    <div class="tools"><button class="btn" id="codex" title="What every tag does">Tags</button></div>`;
+  root.querySelector('#codex').onclick = () => { ui.modal = 'codex'; renderModal(); };
+}
+
+function tierProgress(counts) {
+  const entries = Object.entries(counts).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]);
+  if (!entries.length) return '<p class="empty">No cards yet. Buy from the shop below.</p>';
+  return entries.map(([t, n]) => {
+    const next = [2, 3, 4].find((k) => n < TIER_UNLOCK[k]);
+    const max = TIER_UNLOCK[4];
+    const pips = Array.from({ length: max }, (_, i) => `<i class="${i < n ? 'f' : ''} ${[TIER_UNLOCK[2], TIER_UNLOCK[3], TIER_UNLOCK[4]].includes(i + 1) ? 'mark' : ''}"></i>`).join('');
+    return `<div class="prog" style="--c:${TAGS[t].color}">
+      <span>${chip(t, true)} <span class="num">${n}</span></span>
+      <span class="pips">${pips}</span>
+      <span class="next">${next ? `${TIER_NAMES[next]} at ${TIER_UNLOCK[next]}` : 'All tiers'}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderSide(id, p, mine) {
+  const el = root.querySelector('#' + id);
+  const c = CHAR_BY_ID[p.charId];
+  const counts = tagCounts(p.cards);
+  const owned = Object.entries(p.cards).sort((a, b) => CARD_BY_ID[a[0]].name.localeCompare(CARD_BY_ID[b[0]].name));
+  const sig = p.sig && c.signatures.find((s) => s.id === p.sig);
+  const hybrids = mine ? CARDS.filter((h) => h.tier === 'hybrid' && !h.tags.some((t) => M.bans.includes(t)) && h.tags.every((t) => (counts[t] || 0) >= 2) && !h.tags.every((t) => (counts[t] || 0) >= HYBRID_REQ)) : [];
+  el.innerHTML = `
+    <div>
+      <div class="eyebrow">${mine ? 'Your gladiator' : 'Rival'}</div>
+      <h2>${esc(c.name)}</h2>
+      <div class="sub">${chip(c.trigger, true)} ${c.resources.map((r) => chip(r, true)).join(' ')}</div>
+    </div>
+    <div class="sub"><b style="color:var(--bronze)">${esc(c.ability.name)}</b>: ${esc(c.ability.desc())}${sig ? `<br><b style="color:var(--bronze)">${esc(sig.name)}</b>: ${esc(sig.desc)}` : ''}</div>
+    <div><div class="eyebrow" style="margin-bottom:6px">Tag progress</div><div class="progress">${tierProgress(counts)}</div></div>
+    ${hybrids.length ? `<div class="sub">Close to a Hybrid: ${hybrids.map((h) => `${esc(h.name)} (${h.tags.map((t) => `${TAGS[t].name} ${counts[t] || 0}/${HYBRID_REQ}`).join(', ')})`).join('; ')}</div>` : ''}
+    <div><div class="eyebrow" style="margin-bottom:6px">Cards (${owned.reduce((s, [, n]) => s + n, 0)})</div>
+      <div class="owned">${owned.length ? owned.map(([cid, n]) => {
+        const card = CARD_BY_ID[cid];
+        return `<div class="own" title="${esc(card.desc(n))}"><span>${esc(card.name)}</span><span class="n num">x${n}</span>${mine && !fighting ? `<button class="sellb" data-sell="${cid}" title="Sell one copy">Sell +${sellValue(card)}</button>` : '<span></span>'}</div>`;
+      }).join('') : '<p class="empty">Nothing yet.</p>'}</div>
+    </div>`;
+  el.querySelectorAll('[data-sell]').forEach((b) => b.onclick = () => {
+    sell(M, ME, b.dataset.sell);
+    arena.setPreview(loadout(M.players[ME]), loadout(M.players[FOE]));
+    updateGame();
+  });
+}
+
+function renderTray() {
+  const p = M.players[ME];
+  const el = root.querySelector('#tray');
+  const locked = fighting || M.phase !== 'shop' || !!ui.banner;
+  el.innerHTML = `
+    <div class="purse">
+      <div class="gold"><b class="num">${p.gold}</b><span>gold<br>+${income(M.round + 1) + interest(p.gold)} next round</span></div>
+      <div class="row">
+        <button class="btn" id="reroll" ${locked || p.gold < REROLL_COST ? 'disabled' : ''} title="New cards (R)">Reroll ${REROLL_COST}</button>
+        <button class="btn ${p.locked ? 'on' : ''}" id="lock" ${locked ? 'disabled' : ''} title="Keep these cards for next round">${p.locked ? 'Locked' : 'Lock'}</button>
+      </div>
+    </div>
+    <div class="cards" role="list">
+      ${p.shop.map((cid, i) => {
+        if (!cid) return `<div class="card sold t-1" aria-hidden="true"></div>`;
+        const card = CARD_BY_ID[cid];
+        const have = p.cards[cid] || 0;
+        const cost = cardCost(card);
+        const poor = cost > p.gold;
+        return `<button class="card t-${card.tier} ${poor ? 'poor' : ''}" role="listitem" data-slot="${i}" ${locked || poor || have >= card.max ? 'disabled' : ''} title="Buy (${i + 1})">
+          <span class="cost num">${cost}</span>
+          <div class="top">${cardTags(card)}</div>
+          <div class="nm">${esc(card.name)}</div>
+          <div class="ds">${esc(card.desc(have + 1))}</div>
+          <div class="ft"><span>${TIER_NAMES[card.tier]}</span><span class="num">${have ? `Owned ${have}/${card.max}` : `Max ${card.max}`}</span></div>
+        </button>`;
+      }).join('')}
+    </div>
+    <div class="go">
+      <button class="btn primary" id="fight" ${locked ? 'disabled' : ''}>Fight</button>
+      <div class="hint">Keys: 1-5 buy · R reroll · F fight</div>
+    </div>`;
+  el.querySelectorAll('[data-slot]').forEach((b) => b.onclick = () => doBuy(Number(b.dataset.slot)));
+  el.querySelector('#reroll').onclick = () => { reroll(M, ME); updateGame(); };
+  el.querySelector('#lock').onclick = () => { toggleLock(M, ME); renderTray(); };
+  el.querySelector('#fight').onclick = startFight;
+}
+
+function doBuy(slot) {
+  if (fighting || M.phase !== 'shop' || ui.banner) return;
+  const p = M.players[ME];
+  const before = tagCounts(p.cards);
+  if (!buy(M, ME, slot)) { toast('Not enough gold.'); return; }
+  const after = tagCounts(p.cards);
+  for (const t of Object.keys(after)) {
+    for (const k of [2, 3, 4]) {
+      if ((before[t] || 0) < TIER_UNLOCK[k] && after[t] >= TIER_UNLOCK[k]) toast(`${TAGS[t].name} ${TIER_NAMES[k]} cards unlocked`);
+    }
+  }
+  for (const h of CARDS.filter((c) => c.tier === 'hybrid')) {
+    if (h.tags.every((t) => (after[t] || 0) >= HYBRID_REQ) && !h.tags.every((t) => (before[t] || 0) >= HYBRID_REQ) && !h.tags.some((t) => M.bans.includes(t))) toast(`Hybrid unlocked: ${h.name}`);
+  }
+  arena.setPreview(loadout(M.players[ME]), loadout(M.players[FOE]));
+  updateGame();
+}
+
+function renderSpeed() {
+  const el = root.querySelector('#speed');
+  el.innerHTML = [1, 2, 4].map((s) => `<button class="btn ${ui.speed === s ? 'on' : ''}" data-speed="${s}">${s}x</button>`).join('') +
+    (fighting ? `<button class="btn" id="skip">Skip</button>` : '');
+  el.querySelectorAll('[data-speed]').forEach((b) => b.onclick = () => { ui.speed = Number(b.dataset.speed); arena.setSpeed(ui.speed); renderSpeed(); });
+  el.querySelector('#skip')?.addEventListener('click', () => arena.skip());
+}
+
+function startFight() {
+  if (fighting || M.phase !== 'shop' || ui.banner) return;
+  fighting = true;
+  const f = makeFight(M, ME, FOE);
+  arena.play(f, (result) => {
+    fighting = false;
+    const summary = resolveFight(M, ME, FOE, result);
+    const s = result.stats[ME], o = result.stats[FOE];
+    ui.banner = {
+      outcome: summary.winner === ME ? 'win' : summary.winner === FOE ? 'loss' : 'draw',
+      damage: summary.damage,
+      time: result.time,
+      line: `You dealt ${Math.round(s.dealt)} damage and took ${Math.round(s.taken)}.` +
+        (s.dodges ? ` ${plural(s.dodges, 'dodge')}.` : '') + (s.crits ? ` ${plural(s.crits, 'crit')}.` : '') + (s.freezes ? ` ${plural(s.freezes, 'freeze')}.` : '') +
+        (o.dodges ? ` Your rival dodged ${plural(o.dodges, 'time')}.` : ''),
+    };
+    updateGame();
+  });
+  updateGame();
+}
+
+function renderBanner() {
+  const el = root.querySelector('#banner');
+  const b = ui.banner;
+  if (!b) { el.innerHTML = ''; return; }
+  const over = M.players.some((p) => p.hp <= 0);
+  const title = b.outcome === 'win' ? 'Victory' : b.outcome === 'loss' ? 'Defeat' : 'Draw';
+  const sub = b.outcome === 'win' ? `Your rival loses ${b.damage} HP.` : b.outcome === 'loss' ? `You lose ${b.damage} HP.` : `You both lose ${Math.ceil(b.damage)} HP.`;
+  el.innerHTML = `<div class="banner ${b.outcome}" role="status">
+    <span class="eyebrow">Round ${M.round} · ${b.time.toFixed(1)}s</span>
+    <h2>${title}</h2><p>${sub}</p><p style="font-size:13px">${esc(b.line)}</p>
+    <button class="btn primary" id="cont">${over ? 'See the result' : 'Next round'}</button>
+  </div>`;
+  el.querySelector('#cont').onclick = nextRound;
+  el.querySelector('#cont').focus({ preventScroll: true });
+}
+
+function nextRound() {
+  ui.banner = null;
+  finishRound(M);
+  if (M.phase === 'over') {
+    saveRecord(M.players[ME].hp > 0);
+    ui.screen = 'over';
+    render();
+    return;
+  }
+  afterRoundStart();
+  arena.setPreview(loadout(M.players[ME]), loadout(M.players[FOE]));
+  updateGame();
+}
+
+function renderModal() {
+  const el = root.querySelector('#modal');
+  if (M.phase === 'signature' && !M.players[ME].sig) {
+    const c = CHAR_BY_ID[M.players[ME].charId];
+    el.innerHTML = `<div class="modal-back"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="sigt">
+      <div class="eyebrow">Round ${SIGNATURE_ROUND} milestone</div>
+      <h2 id="sigt">Choose a signature for ${esc(c.name)}</h2>
+      <p style="margin:0;color:var(--dust)">This upgrade lasts for the rest of the match.</p>
+      <div class="sig-grid">${c.signatures.map((s) => `<button class="sig" data-sig="${s.id}"><b>${esc(s.name)}</b><span>${esc(s.desc)}</span></button>`).join('')}</div>
+    </div></div>`;
+    el.querySelectorAll('[data-sig]').forEach((b) => b.onclick = () => {
+      chooseSignature(M, ME, b.dataset.sig);
+      if (M.phase === 'shop') botShop(M, FOE);
+      arena.setPreview(loadout(M.players[ME]), loadout(M.players[FOE]));
+      updateGame();
+    });
+    return;
+  }
+  if (ui.modal === 'codex') {
+    el.innerHTML = `<div class="modal-back" id="mb"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="cdx">
+      <div class="row" style="justify-content:space-between"><h2 id="cdx">The thirteen tags</h2><button class="btn" id="close">Close</button></div>
+      <p style="margin:0;color:var(--dust)">Dashed chips are triggers: owning cards of a trigger makes it happen more. Solid chips are resources. Resources marked "on the enemy" show dashed in the arena.</p>
+      <div class="tag-legend">${Object.keys(TAGS).map((t) => `<div>${chip(t, true)}<span>${esc(TAGS[t].kind === 'trigger' ? TAGS[t].passive : TAGS[t].stack)}</span></div>`).join('')}</div>
+      <p style="margin:0;color:var(--dust)">Tiers unlock per tag at ${TIER_UNLOCK[2]} / ${TIER_UNLOCK[3]} / ${TIER_UNLOCK[4]} cards. Hybrids need ${HYBRID_REQ} cards in both of their resources. After ${30}s of a fight, all damage ramps up by 8% per second.</p>
+    </div></div>`;
+    const close = () => { ui.modal = null; renderModal(); };
+    el.querySelector('#close').onclick = close;
+    el.querySelector('#mb').onclick = (e) => { if (e.target.id === 'mb') close(); };
+    return;
+  }
+  el.innerHTML = '';
+}
+
+function renderTabs() {
+  const el = root.querySelector('#mtabs');
+  el.innerHTML = `<button class="btn ${ui.mobileTab === 'mine' ? 'on' : ''}" data-tab="mine">Your build</button><button class="btn ${ui.mobileTab === 'foe' ? 'on' : ''}" data-tab="foe">Rival</button>`;
+  el.querySelectorAll('[data-tab]').forEach((b) => b.onclick = () => { ui.mobileTab = ui.mobileTab === b.dataset.tab ? null : b.dataset.tab; renderTabs(); });
+  root.querySelector('#mine').classList.toggle('show', ui.mobileTab === 'mine');
+  root.querySelector('#foe').classList.toggle('show', ui.mobileTab === 'foe');
+}
+
+function renderOver() {
+  const me = M.players[ME], foe = M.players[FOE];
+  const won = me.hp > 0;
+  const list = (p) => Object.entries(p.cards).map(([id, n]) => `${esc(CARD_BY_ID[id].name)} x${n}`).join(', ') || 'No cards';
+  root.innerHTML = `
+  <div class="screen"><div class="screen-inner">
+    <div>
+      <div class="eyebrow">After ${M.round} rounds · ${me.wins} fights won, ${foe.wins} lost</div>
+      <h1 class="brand" style="color:${won ? 'var(--bronze)' : 'var(--blood)'}">${won ? 'Champion' : 'Fallen'}</h1>
+    </div>
+    <div class="rules">
+      <div class="rule"><h3>${esc(CHAR_BY_ID[me.charId].name)} (you)</h3><div class="progress">${tierProgress(tagCounts(me.cards))}</div><p>${list(me)}</p></div>
+      <div class="rule"><h3>${esc(CHAR_BY_ID[foe.charId].name)} (rival)</h3><div class="progress">${tierProgress(tagCounts(foe.cards))}</div><p>${list(foe)}</p></div>
+    </div>
+    <div class="row"><button class="btn primary" id="again">Play again</button><button class="btn" id="home">Back to title</button></div>
+  </div></div>`;
+  root.querySelector('#again').onclick = () => {
+    M = createMatch({ seed: Math.floor(Math.random() * 1e9), players: [{ name: 'You' }, { name: 'Rival', isBot: true }] });
+    ui.screen = 'ban';
+    render();
+  };
+  root.querySelector('#home').onclick = () => { ui.screen = 'title'; render(); };
+}
+
+document.addEventListener('keydown', (e) => {
+  if (ui.screen !== 'game' || e.target.closest?.('input,textarea') || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.key === 'Escape' && ui.modal) { ui.modal = null; renderModal(); return; }
+  if (M.phase !== 'shop' || fighting || ui.banner) {
+    if ((e.key === 'Enter' || e.key === ' ') && ui.banner && document.activeElement?.id !== 'cont') { e.preventDefault(); nextRound(); }
+    return;
+  }
+  if (e.key >= '1' && e.key <= '5') doBuy(Number(e.key) - 1);
+  else if (e.key === 'r' || e.key === 'R') { if (reroll(M, ME)) updateGame(); }
+  else if (e.key === 'f' || e.key === 'F') startFight();
+});
+
+// Keep the match across live updates of the page.
+function start(data) {
+  if (data && data.M) {
+    M = data.M;
+    ui = { ...ui, ...data.ui, banner: data.ui?.banner || null, modal: null };
+  }
+  render();
+}
+window.claude?.hot?.snapshot?.(() => ({ M, ui: { screen: ui.screen, speed: ui.speed, banner: ui.banner } }));
+if (window.claude?.hot?.ready) window.claude.hot.ready(start);
+else start(window.claude?.hot?.data ?? {});
+
+})();
+</script>

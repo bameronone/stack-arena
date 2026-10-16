@@ -1,0 +1,123 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { Fight } from '../src/engine/combat.js';
+import { CARDS } from '../src/data/cards.js';
+import { CHARACTERS, CHAR_BY_ID, characterStatus } from '../src/data/characters.js';
+import { createMatch, submitBan, pickCharacter, buy, sell, reroll, visibleCharacters } from '../src/engine/match.js';
+import { eligibleCards, rollShop, isBanned } from '../src/engine/shop.js';
+import { makeRng } from '../src/rng.js';
+import { playMatchForTest } from './helpers.mjs';
+
+test('fights are deterministic for a seed', () => {
+  const a = { charId: 'cinder', cards: { kindling: 3, keen_edge: 2 } };
+  const b = { charId: 'viper', cards: { venom_crit: 2, hemorrhage: 2 } };
+  const r1 = new Fight(a, b, 42).runToEnd();
+  const r2 = new Fight(a, b, 42).runToEnd();
+  assert.deepEqual(r1, r2);
+});
+
+test('every fight ends within the time limit', () => {
+  const rng = makeRng(7);
+  for (let i = 0; i < 60; i++) {
+    const pick = () => {
+      const cards = {};
+      for (let k = 0; k < 15; k++) { const c = rng.pick(CARDS); cards[c.id] = Math.min(c.max, (cards[c.id] || 0) + 1); }
+      return { charId: rng.pick(CHARACTERS).id, cards };
+    };
+    const r = new Fight(pick(), pick(), i).runToEnd();
+    assert.ok(r.time <= 90.01, `fight ran ${r.time}s`);
+  }
+});
+
+test('Focus: +10% per hit, reset on dodge, never two dodges in a row: about 21.5% dodges', () => {
+  // Wisp has 8% innate; add Light Feet so per-hit gain is close to 10%.
+  const dancer = { charId: 'wisp', cards: {} };
+  const f = new Fight({ charId: 'martyr', cards: {} }, dancer, 3);
+  f.b.focusGain = 0.1; f.b.maxHp = f.b.hp = 1e9; f.a.maxHp = f.a.hp = 1e9;
+  let attacks = 0;
+  for (let i = 0; i < 20000; i++) { f.attack(f.a); attacks++; }
+  const rate = f.b.stats.dodges / attacks;
+  assert.ok(rate > 0.2 && rate < 0.23, `dodge rate ${rate}`);
+});
+
+test('dodged attacks still fire the attacker\'s Strike effects', () => {
+  const f = new Fight({ charId: 'cinder', cards: { kindling: 1 } }, { charId: 'wisp', cards: {} }, 1);
+  f.b.focus = 1; f.b.focusCap = 1; f.b.focusReset = 1;
+  f.attack(f.a);
+  assert.equal(f.b.stats.dodges, 1);
+  assert.ok(f.a.fire >= 2, 'Kindling and Cinder innate still granted Fire');
+});
+
+test('Poison ignores shield', () => {
+  const f = new Fight({ charId: 'ashen', cards: {} }, { charId: 'sage', cards: {} }, 1);
+  f.b.shield = 500; f.b.poison = 10;
+  const hp = f.b.hp;
+  f.step(1);
+  assert.ok(f.b.hp < hp);
+});
+
+test('freezing at the threshold stops attacks', () => {
+  const f = new Fight({ charId: 'glacia', cards: {} }, { charId: 'cinder', cards: {} }, 1);
+  f.apply(f.a, 'frost', 20);
+  assert.ok(f.b.frozen > 0);
+  const before = f.b.attackCount;
+  for (let i = 0; i < 10; i++) f.step();
+  assert.equal(f.b.attackCount, before);
+});
+
+test('pure characters are hidden when their resource is banned', () => {
+  assert.equal(characterStatus(CHAR_BY_ID.cinder, ['fire']), 'hidden');
+  assert.equal(characterStatus(CHAR_BY_ID.ashen, ['fire']), 'weakened');
+  assert.equal(characterStatus(CHAR_BY_ID.ashen, ['fire', 'poison']), 'hidden');
+  assert.equal(characterStatus(CHAR_BY_ID.ashen, ['frost', 'bleed']), 'ok');
+  const vis = visibleCharacters(['fire', 'regen']).map((v) => v.char.id);
+  assert.ok(!vis.includes('cinder') && !vis.includes('grove') && vis.includes('ashen'));
+});
+
+test('banned resources never appear in shops, including hybrids and counters', () => {
+  const bans = ['poison', 'frost'];
+  const p = { charId: 'viper', cards: { venom_coat: 0, serrated: 5, rend: 5, hemorrhage: 5 } };
+  const pool = eligibleCards(p, bans, 10);
+  assert.ok(pool.length > 10);
+  for (const c of pool) assert.ok(!isBanned(c, bans), c.id);
+  assert.ok(!pool.some((c) => c.id === 'antivenom' || c.id === 'toxic_frost'));
+});
+
+test('higher tiers unlock with tag count', () => {
+  const none = eligibleCards({ charId: 'cinder', cards: {} }, [], 1);
+  assert.ok(none.every((c) => c.tier === 1));
+  const fire = eligibleCards({ charId: 'cinder', cards: { kindling: 5, smolder: 5, ember_heart: 5 } }, [], 5);
+  assert.ok(fire.some((c) => c.id === 'phoenix'));
+});
+
+test('shop has 5 distinct cards', () => {
+  const s = rollShop({ charId: 'cinder', cards: {} }, [], 1, makeRng(3));
+  assert.equal(s.length, 5);
+  assert.equal(new Set(s).size, 5);
+});
+
+test('match flow: ban, pick, buy, sell, reroll', () => {
+  const m = createMatch({ seed: 5, players: [{ name: 'You' }, { name: 'Bot', isBot: true }] });
+  submitBan(m, 0, 'fire');
+  submitBan(m, 1, 'regen');
+  assert.equal(m.phase, 'pick');
+  assert.equal(pickCharacter(m, 0, 'cinder'), false);
+  assert.ok(pickCharacter(m, 0, 'viper'));
+  assert.ok(pickCharacter(m, 1, 'glacia'));
+  assert.equal(m.round, 1);
+  const p = m.players[0];
+  const gold = p.gold;
+  assert.ok(buy(m, 0, 0));
+  assert.ok(p.gold < gold);
+  const id = Object.keys(p.cards)[0];
+  assert.ok(sell(m, 0, id));
+  assert.ok(reroll(m, 0));
+});
+
+test('full bot matches finish', () => {
+  for (let s = 0; s < 20; s++) {
+    const m = playMatchForTest(s);
+    assert.equal(m.phase, 'over');
+    assert.ok(m.players.some((p) => p.hp === 0));
+  }
+});
