@@ -39,7 +39,7 @@ Requires Node 18+. There are no dependencies.
 | `node tools/ffa.mjs 200 8 easy,normal,hard` | Plays free-for-all bot matches; reports match length and average placement by gladiator and level |
 | `node tools/cardvalue.mjs` | Measures each card's value by simulation and regenerates `src/ai/cardValues.js` (run this after balance changes) |
 | `node tools/autotune.mjs 3` | Nudges each gladiator's base HP toward a 50% win rate (edits `characters.js`; review the diff) |
-| `PIXELLAB_API_KEY=... node tools/pixellab.mjs [ids] [--force]` | Generates pixel-art sprites (a base image plus idle, attack, cast, hurt and death animations) for each gladiator with [PixelLab](https://www.pixellab.ai) into `assets/sprites/`; the build embeds them. Skips files that already exist. The key can also go in a git-ignored `.pixellab-key` file |
+| `node tools/pixellab-mcp.mjs create\|animate\|fetch <gladiator>` | Makes a gladiator's sprites with [PixelLab](https://www.pixellab.ai) through its MCP server, which spends subscription generations (about 7 per gladiator): `create` the character, `animate` idle/attack/cast/hurt/death, then `fetch` the frames into `assets/sprites/<gladiator>/` once they finish. Key from `PIXELLAB_API_KEY` or a git-ignored `.pixellab-key`; behind a proxy add `NODE_USE_ENV_PROXY=1` |
 | `NODE_PATH=$(npm root -g) node tools/playtest.cjs <outdir> [w] [h] [players]` | Plays a full solo match in headless Chromium, saves screenshots, reports JS errors and sideways scrolling |
 | `NODE_PATH=$(npm root -g) node tools/mptest.cjs <outdir> [leave]` | Plays an online match between two headless browser pages plus a bot (local transport); `leave` makes the guest quit mid-match |
 
@@ -62,7 +62,7 @@ src/
   ui/arena.js           canvas renderer for fights (sprites when present, medallions otherwise)
   ui/app.js             screens and shop UI
   ui/style.css
-assets/sprites/         generated gladiator sprites (tools/pixellab.mjs)
+assets/sprites/         gladiator sprites from PixelLab (tools/pixellab-mcp.mjs); Cinder so far
 tools/                  build, balance sim, browser playtest, sprite generator
 tests/                  unit tests
 ```

@@ -232,6 +232,11 @@ export function createArena(canvas) {
     }
   }
 
+  // PixelLab characters stand on a canvas ~40% larger than the figure.
+  function spriteBox(y, r) {
+    return { size: r * 3.4, feet: y + r * 1.05 };
+  }
+
   function drawSprite(u, set, a, x, y, r) {
     const frames = set[a.clip] || set.idle || set.base;
     const n = frames.length;
@@ -241,15 +246,20 @@ export function createArena(canvas) {
     let src = img;
     if (u.frozen > 0) src = tinted(img, '#6cc4f0', 0.45);
     else if (a.flash > 0) src = tinted(img, '#ff4a5a', a.flash * 0.55);
-    // PixelLab characters stand on a canvas ~40% larger than the figure.
-    const size = r * 3.7;
-    const feet = y + r * 1.05;
+    // Clips can come on larger canvases than the base image (a wide swing
+    // needs room), with the figure centred at the same pixel scale. So every
+    // frame is drawn at the base image's scale around the same centre point.
+    const { size, feet } = spriteBox(y, r);
+    const base = set.base[0];
+    const scale = size / base.naturalWidth;
+    const cy = feet - base.naturalHeight * 0.48 * scale;
+    const dw = img.naturalWidth * scale, dh = img.naturalHeight * scale;
     ctx.save();
     ctx.imageSmoothingEnabled = false;
     if (u.dead && a.clip === 'death' && a.clipT > CLIP.death) ctx.globalAlpha = 0.55;
     ctx.translate(x, 0);
     if (u.side === 1) ctx.scale(-1, 1);
-    ctx.drawImage(src, -size / 2, feet - size * 0.95, size, size);
+    ctx.drawImage(src, -dw / 2, cy - dh / 2, dw, dh);
     ctx.restore();
   }
 
@@ -321,7 +331,9 @@ export function createArena(canvas) {
     }
 
     // bars
-    const bw = Math.max(110, r * 2.6), bx = p.x - bw / 2, by = y - r - 34;
+    // With a sprite, the bars sit above the figure's head instead of the medallion.
+    const box = spriteBox(y, r);
+    const bw = Math.max(110, r * 2.6), bx = p.x - bw / 2, by = sprites ? box.feet - box.size * 0.86 - 18 : y - r - 34;
     bar(bx, by, bw, 9, u.hp / u.maxHp, u.side === 0 ? '#7fca6e' : '#d9505e');
     if (u.shield > 0) {
       ctx.fillStyle = 'rgba(233,238,245,0.9)';
