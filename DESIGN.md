@@ -75,8 +75,8 @@ Hand-written card scoring did no better than random buying. Measuring each card'
 
 These are 3000-match results between Gladiator-level bots:
 
-- **Characters:** every gladiator wins 45–58%.
-- **Resources:** each lands between 47% and 55%.
+- **Characters:** every gladiator wins 42–55%. Poison builds sit a little under par (about 43%) on purpose: human players got more out of poison than the bots do.
+- **Resources:** non-poison resources land between 49% and 53%. Poison decays 2% of its stacks per second so it levels off instead of snowballing.
 - **Average match:** about 11 rounds, with fights of about 12s.
 
 After changing cards, re-run `tools/cardvalue.mjs` (so the AI's card values stay accurate), then `npm run sim`.

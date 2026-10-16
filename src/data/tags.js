@@ -9,7 +9,7 @@ export const TAGS = {
 
   fire:   { name: 'Fire',   kind: 'resource', color: '#f07a3a', glyph: 'Fi', stack: '+2.5% attack speed per stack (cap 25). Fades after 3s without gaining any.' },
   frost:  { name: 'Frost',  kind: 'resource', color: '#6cc4f0', glyph: 'Fr', stack: 'On the enemy: -1.5% attack speed and mana gain per stack. At 16 they freeze for 1.5s.' },
-  poison: { name: 'Poison', kind: 'resource', color: '#8fd14f', glyph: 'Po', stack: 'On the enemy: 1 damage per second per stack, ignoring armor and shield. Each stack cuts their healing 1% (max 50%).' },
+  poison: { name: 'Poison', kind: 'resource', color: '#8fd14f', glyph: 'Po', stack: 'On the enemy: 1 damage per second per stack, ignoring armor and shield. Each stack cuts their healing 1% (max 50%). Loses 2% of its stacks each second.' },
   bleed:  { name: 'Bleed',  kind: 'resource', color: '#e0445a', glyph: 'Bl', stack: 'On the enemy: 0.25% of their max HP per second per stack. Loses 8% of its stacks each second.' },
   shield: { name: 'Shield', kind: 'resource', color: '#e9eef5', glyph: 'Sh', stack: 'Absorbs damage before HP. Poison goes straight through.' },
   regen:  { name: 'Regen',  kind: 'resource', color: '#5fd69a', glyph: 'Re', stack: 'Heals 0.2% of max HP per second per stack.' },

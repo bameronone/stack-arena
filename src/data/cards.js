@@ -269,10 +269,10 @@ export const CARDS = [
     desc: (n) => `The enemy starts each fight with ${6 * n} Poison.`,
     onStart: (f, u, n) => f.apply(u, 'poison', 6 * n) },
   { id: 'pandemic', name: 'Pandemic', tags: ['poison'], tier: 3, max: 2,
-    desc: (n) => `When the enemy reaches 40 Poison, it bursts for ${3 * n}x its stacks and halves.`,
-    setup: (u, n) => { u.m.pandemic = 3 * n; } },
+    desc: (n) => `When the enemy reaches 40 Poison, it bursts for ${2 * n}x its stacks and halves.`,
+    setup: (u, n) => { u.m.pandemic = 2 * n; } },
   { id: 'plague_lord', name: 'Plague Lord', tags: ['poison'], tier: 4, max: 1,
-    desc: () => 'Poison ticks twice as fast and heals you for 25% of its damage.',
+    desc: () => 'Poison ticks 50% faster and heals you for 20% of its damage.',
     setup: (u) => { u.flags.plague = true; } },
 
   // ----------------------------------------------------------------- Bleed

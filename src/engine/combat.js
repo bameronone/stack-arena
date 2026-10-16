@@ -358,10 +358,12 @@ export class Fight {
 
       // Damage over time the enemy put on this unit.
       if (u.poison > 0) {
-        let mult = e.m.poisonDmg * (e.flags.plague ? 2 : 1);
+        let mult = e.m.poisonDmg * (e.flags.plague ? 1.5 : 1);
         if (e.flags.toxicFrost && (u.frost >= 5 || u.frozen > 0)) mult *= 1.6;
         const d = this.damage(e, u, u.poison * mult * dt, 'poison');
-        if (e.flags.plague) this.heal(e, d * 0.25, 'Plague Lord');
+        if (e.flags.plague) this.heal(e, d * 0.2, 'Plague Lord');
+        // Poison wears off slowly, so it levels off instead of growing forever.
+        u.poison = Math.max(0, u.poison - u.poison * 0.02 * dt);
       }
       if (u.bleed > 0.05 && !u.dead) {
         const d = this.damage(e, u, u.bleed * 0.0025 * u.maxHp * e.m.bleedDmg * dt, 'bleed');

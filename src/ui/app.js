@@ -35,6 +35,9 @@ let arena = null;
 let toastTimer = 0;
 let lastCounts = null;
 let savedResultFor = null;
+// Cards you bought stay in the tray as invisible copies, so the row keeps its
+// height instead of shrinking when the tallest card is bought.
+const shopGhost = [];
 const ui = {
   tab: params.get('room') ? 'online' : 'solo',
   speed: 2, banner: null, mobileTab: null, modal: null,
@@ -667,17 +670,14 @@ function renderTray() {
     </div>
     <div class="cards" role="list">
       ${p.shop.map((cid, i) => {
-        if (!cid) return `<div class="card sold t-1" aria-hidden="true"></div>`;
+        if (cid) shopGhost[i] = cid;
+        if (!cid) return shopGhost[i] ? `<div class="card sold t-${CARD_BY_ID[shopGhost[i]].tier}" aria-hidden="true">${cardBody(CARD_BY_ID[shopGhost[i]], 0)}</div>` : '<div class="card sold t-1" aria-hidden="true"></div>';
         const card = CARD_BY_ID[cid];
         const have = p.cards[cid] || 0;
         const cost = cardCost(card);
         const poor = cost > p.gold;
         return `<button class="card t-${card.tier} ${poor ? 'poor' : ''}" role="listitem" data-slot="${i}" ${locked || poor || have >= card.max ? 'disabled' : ''} title="Buy (${i + 1})">
-          <span class="cost num">${cost}</span>
-          <div class="top">${cardTags(card)}</div>
-          <div class="nm">${esc(card.name)}</div>
-          <div class="ds">${richDesc(card, Math.min(card.max, have + 1))}</div>
-          <div class="ft"><span>${TIER_NAMES[card.tier]}</span><span class="num">${have ? `Owned ${have}/${card.max}` : `Max ${card.max}`}</span></div>
+          ${cardBody(card, have)}
         </button>`;
       }).join('')}
     </div>
@@ -689,6 +689,14 @@ function renderTray() {
   el.querySelector('#reroll').onclick = () => S.act('reroll');
   el.querySelector('#lock').onclick = () => S.act('lock');
   el.querySelector('#fight').onclick = toggleReady;
+}
+
+function cardBody(card, have) {
+  return `<span class="cost num">${cardCost(card)}</span>
+    <div class="top">${cardTags(card)}</div>
+    <div class="nm">${esc(card.name)}</div>
+    <div class="ds">${richDesc(card, Math.min(card.max, have + 1))}</div>
+    <div class="ft"><span>${TIER_NAMES[card.tier]}</span><span class="num">${have ? `Owned ${have}/${card.max}` : `Max ${card.max}`}</span></div>`;
 }
 
 function doBuy(slot) {
