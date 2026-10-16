@@ -23,18 +23,18 @@ export function buildUnit(loadout, side) {
     // stacks the enemy put on you
     frost: 0, poison: 0, bleed: 0,
     // freeze settings you impose on the enemy
-    freezeAt: 20, freezeDur: 1.5, freezesDone: 0, freezeImmune: 0,
+    freezeAt: 16, freezeDur: 1.5, freezesDone: 0, freezeImmune: 0,
     // evasion
     focus: 0, focusGain: s.focusGain, focusCap: 0.6, focusReset: 0, focusStart: 0,
     // pain
-    painStep: 0.06, painAcc: 0,
+    painStep: 0.12, painAcc: 0,
     // timers and counters
     frozen: 0, immune: 0, bastionCd: 0, attackTimer: 0, attackCount: 0, castCount: 0, forceCrit: 0,
     momentumCap: 0, pendingAttacks: 0, bleedApplied: 0,
     m: {
       poisonDmg: 1, bleedDmg: 1, bleedDecay: 1, frostDecay: 1, shieldGain: 1, shieldCap: 1, vsShield: 1,
       poisonTaken: 1, frostTaken: 1, bleedTaken: 1, abilityTaken: 1, enemyHealCut: 0, enemyFireCapCut: 0,
-      abilityPower: 1, castCost: 1, frozenBonus: 0, reflect: 0, manaShield: 0, armorPierce: 0,
+      abilityPower: 1, castCost: 1, frozenBonus: 0, reflect: 0, manaWard: 0, armorPierce: 0,
       focusDrain: 0, trueSight: 0, critMissing: 0, castRefund: 0, berserk: 0, bleedLeech: 0,
       pandemic: 0, secondWind: 0,
     },
@@ -64,9 +64,9 @@ export function buildUnit(loadout, side) {
   const tc = u.tagCounts;
   u.asBonus += 0.01 * (tc.strike || 0);
   u.crit += 0.01 * (tc.precision || 0);
-  u.focusGain += 0.02 * (tc.evasion || 0);
-  u.maxHp *= 1 + 0.01 * (tc.pain || 0);
-  u.manaPerAttack += tc.spell || 0;
+  u.focusGain += 0.03 * (tc.evasion || 0);
+  u.painStep -= 0.005 * (tc.pain || 0);
+  u.manaPerAttack += 0.5 * (tc.spell || 0);
 
   for (const { src, n } of sources) {
     if (src.setup) src.setup(u, n);
@@ -182,7 +182,7 @@ export class Fight {
     if (this.t > SUDDEN_DEATH_AT) amt *= 1 + (this.t - SUDDEN_DEATH_AT) * 0.08;
     if (tgt.frozen > 0 && src.m.frozenBonus && (kind === 'attack' || kind === 'ability')) amt *= 1 + src.m.frozenBonus;
     if (kind === 'attack' || kind === 'thorns') {
-      const armor = Math.max(0, tgt.armor + (tgt.flags.moltenArmor ? Math.floor(tgt.fire / 5) : 0) - src.m.armorPierce);
+      const armor = 1.25 * Math.max(0, tgt.armor + (tgt.flags.moltenArmor ? Math.floor(tgt.fire / 5) : 0) - src.m.armorPierce);
       amt = Math.max(amt * 0.25, amt - armor);
     }
     if (kind === 'ability') amt *= Math.max(0, tgt.m.abilityTaken);
@@ -205,11 +205,7 @@ export class Fight {
         }
       }
     }
-    if (tgt.m.manaShield && amt > 0) {
-      const draw = Math.min(tgt.mana, amt * tgt.m.manaShield);
-      tgt.mana -= draw;
-      amt -= draw;
-    }
+    if (tgt.m.manaWard && kind === 'attack' && tgt.arcane >= 5) amt *= 1 - tgt.m.manaWard;
     if (amt <= 0) return 0;
 
     tgt.hp -= amt;
@@ -220,7 +216,7 @@ export class Fight {
 
     // Pain triggers
     tgt.painAcc += amt;
-    const step = Math.max(0.02, tgt.painStep) * tgt.maxHp;
+    const step = Math.max(0.04, tgt.painStep) * tgt.maxHp;
     let guard = 0;
     while (tgt.painAcc >= step && guard++ < 10 && tgt.hp > 0) {
       tgt.painAcc -= step;
@@ -239,7 +235,7 @@ export class Fight {
     if (tgt.hp <= 0) {
       if (tgt.flags.phoenix && !tgt.used.phoenix) {
         tgt.used.phoenix = true;
-        tgt.hp = tgt.maxHp * Math.max(0.15, Math.min(1, tgt.fire * 0.03));
+        tgt.hp = tgt.maxHp * Math.max(0.1, Math.min(1, tgt.fire * 0.02));
         tgt.fire = 0;
         tgt.poison = Math.floor(tgt.poison / 2);
         tgt.bleed = 0;
@@ -254,7 +250,7 @@ export class Fight {
   }
 
   attackSpeed(u) {
-    let as = u.asBase * (1 + u.asBonus + 0.02 * u.fire + Math.min(u.momentumCap, 0.01 * u.attackCount));
+    let as = u.asBase * (1 + u.asBonus + 0.025 * u.fire + Math.min(u.momentumCap, 0.01 * u.attackCount));
     if (u.m.berserk) as *= 1 + u.m.berserk * (1 - u.hp / u.maxHp);
     return as * this.slow(u);
   }
@@ -336,12 +332,12 @@ export class Fight {
       if (u.bleed > 0.05 && !u.dead) {
         const d = this.damage(e, u, u.bleed * 0.0025 * u.maxHp * e.m.bleedDmg * dt, 'bleed');
         if (e.m.bleedLeech) this.heal(e, d * e.m.bleedLeech);
-        u.bleed = Math.max(0, u.bleed - u.bleed * 0.07 * e.m.bleedDecay * dt);
+        u.bleed = Math.max(0, u.bleed - u.bleed * 0.08 * e.m.bleedDecay * dt);
       }
       if (u.dead) continue;
       u.frost = Math.max(0, u.frost - 0.6 * e.m.frostDecay * dt);
 
-      if (u.regen > 0) this.heal(u, u.regen * 0.0022 * u.maxHp * dt);
+      if (u.regen > 0) this.heal(u, u.regen * 0.002 * u.maxHp * dt);
       u.fireIdle += dt;
       if (u.fireIdle > u.fireLinger) u.fire = Math.max(0, u.fire - 2.5 * dt);
 

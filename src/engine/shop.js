@@ -21,10 +21,6 @@ export function cardCost(card) {
   return CARD_COST[card.tier];
 }
 
-export function sellValue(card) {
-  return Math.max(1, Math.floor(cardCost(card) / 2));
-}
-
 export function isBanned(card, bans) {
   if (cardResources(card).some((r) => bans.includes(r))) return true;
   if (card.counters && bans.includes(card.counters)) return true;

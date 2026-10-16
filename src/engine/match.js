@@ -1,7 +1,7 @@
 import { makeRng } from '../rng.js';
 import { CARD_BY_ID } from '../data/cards.js';
 import { CHARACTERS, CHAR_BY_ID, characterStatus } from '../data/characters.js';
-import { rollShop, cardCost, sellValue, REROLL_COST } from './shop.js';
+import { rollShop, cardCost, REROLL_COST } from './shop.js';
 import { Fight } from './combat.js';
 
 export const START_HP = 60;
@@ -14,7 +14,7 @@ export function createMatch({ seed = Date.now() % 1e9, players }) {
   return {
     seed, nonce: 0, round: 0, phase: 'ban', bans: [], history: [],
     players: players.map((p, i) => ({
-      id: i, name: p.name, isBot: !!p.isBot, charId: null, hp: START_HP, gold: 0,
+      id: i, name: p.name, isBot: !!p.isBot, level: p.level || null, charId: null, hp: START_HP, gold: 0,
       cards: {}, shop: [], locked: false, sig: null, ban: null, wins: 0,
     })),
   };
@@ -82,15 +82,6 @@ export function buy(m, playerId, slot) {
   p.gold -= cost;
   p.cards[id] = (p.cards[id] || 0) + 1;
   p.shop[slot] = null;
-  return true;
-}
-
-export function sell(m, playerId, cardId) {
-  const p = m.players[playerId];
-  if (!p.cards[cardId]) return false;
-  p.cards[cardId]--;
-  if (p.cards[cardId] === 0) delete p.cards[cardId];
-  p.gold += sellValue(CARD_BY_ID[cardId]);
   return true;
 }
 

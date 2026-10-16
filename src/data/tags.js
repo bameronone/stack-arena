@@ -3,18 +3,18 @@
 export const TAGS = {
   strike:    { name: 'Strike',    kind: 'trigger',  color: '#c9b79c', glyph: 'St', passive: '+1% attack speed per Strike card' },
   precision: { name: 'Precision', kind: 'trigger',  color: '#f2d16b', glyph: 'Pr', passive: '+1% crit chance per Precision card' },
-  evasion:   { name: 'Evasion',   kind: 'trigger',  color: '#9fd8cb', glyph: 'Ev', passive: '+2% Focus per hit taken per Evasion card' },
-  pain:      { name: 'Pain',      kind: 'trigger',  color: '#d9707a', glyph: 'Pa', passive: '+1% max HP per Pain card. Pain triggers each time you lose 6% of max HP.' },
-  spell:     { name: 'Spell',     kind: 'trigger',  color: '#b59cf0', glyph: 'Sp', passive: '+1 mana per attack per Spell card' },
+  evasion:   { name: 'Evasion',   kind: 'trigger',  color: '#9fd8cb', glyph: 'Ev', passive: '+3% Focus per hit taken per Evasion card' },
+  pain:      { name: 'Pain',      kind: 'trigger',  color: '#d9707a', glyph: 'Pa', passive: 'Pain triggers each time you lose 12% of max HP, 0.5% sooner per Pain card (min 4%)' },
+  spell:     { name: 'Spell',     kind: 'trigger',  color: '#b59cf0', glyph: 'Sp', passive: '+0.5 mana per attack per Spell card' },
 
-  fire:   { name: 'Fire',   kind: 'resource', color: '#f07a3a', glyph: 'Fi', stack: '+2% attack speed per stack (cap 25). Fades after 3s without gaining any.' },
-  frost:  { name: 'Frost',  kind: 'resource', color: '#6cc4f0', glyph: 'Fr', stack: 'On the enemy: -1.5% attack speed and mana gain per stack. At 20 they freeze for 1.5s.' },
+  fire:   { name: 'Fire',   kind: 'resource', color: '#f07a3a', glyph: 'Fi', stack: '+2.5% attack speed per stack (cap 25). Fades after 3s without gaining any.' },
+  frost:  { name: 'Frost',  kind: 'resource', color: '#6cc4f0', glyph: 'Fr', stack: 'On the enemy: -1.5% attack speed and mana gain per stack. At 16 they freeze for 1.5s.' },
   poison: { name: 'Poison', kind: 'resource', color: '#8fd14f', glyph: 'Po', stack: 'On the enemy: 1 damage per second per stack, ignoring armor and shield. Each stack cuts their healing 1% (max 50%).' },
-  bleed:  { name: 'Bleed',  kind: 'resource', color: '#e0445a', glyph: 'Bl', stack: 'On the enemy: 0.25% of their max HP per second per stack. Loses 7% of its stacks each second.' },
+  bleed:  { name: 'Bleed',  kind: 'resource', color: '#e0445a', glyph: 'Bl', stack: 'On the enemy: 0.25% of their max HP per second per stack. Loses 8% of its stacks each second.' },
   shield: { name: 'Shield', kind: 'resource', color: '#e9eef5', glyph: 'Sh', stack: 'Absorbs damage before HP. Poison goes straight through.' },
-  regen:  { name: 'Regen',  kind: 'resource', color: '#5fd69a', glyph: 'Re', stack: 'Heals 0.22% of max HP per second per stack.' },
+  regen:  { name: 'Regen',  kind: 'resource', color: '#5fd69a', glyph: 'Re', stack: 'Heals 0.2% of max HP per second per stack.' },
   arcane: { name: 'Mana',   kind: 'resource', color: '#5b8cff', glyph: 'Ma', stack: '+4% ability power per stack. Abilities ignore armor and cannot be dodged.' },
-  armor:  { name: 'Armor',  kind: 'resource', color: '#a8a39a', glyph: 'Ar', stack: '-1 damage from every attack per stack (attacks always deal at least 25%).' },
+  armor:  { name: 'Armor',  kind: 'resource', color: '#a8a39a', glyph: 'Ar', stack: '-1.25 damage from every attack per stack (attacks always deal at least 25%).' },
 };
 
 export const TRIGGERS = Object.keys(TAGS).filter((t) => TAGS[t].kind === 'trigger');

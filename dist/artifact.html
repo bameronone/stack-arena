@@ -1,6 +1,3 @@
-<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<style>body{margin:0}[hidden]{display:none!important}</style>
 <title>Stack Arena</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -81,6 +78,17 @@ h1, h2, h3 { font-family: var(--display); font-weight: 400; margin: 0; text-wrap
 .tag-legend div { display: flex; gap: 8px; align-items: baseline; color: var(--dust); font-size: 13px; min-width: 0; }
 .tag-legend .chip { flex: none; }
 .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.levels { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; max-width: 760px; }
+.level {
+  text-align: left; background: var(--pit); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px;
+  display: flex; flex-direction: column; gap: 4px; min-width: 0;
+}
+.level b { font-family: var(--display); font-size: 24px; font-weight: 400; line-height: 1; }
+.level span { color: var(--dust); font-size: 13px; }
+.level .rec { color: var(--sand); font-size: 12px; }
+.level:hover { border-color: var(--dust); }
+.level.on { border-color: var(--bronze); box-shadow: inset 0 0 0 1px var(--bronze); }
+.level.on b { color: var(--bronze); }
 
 .ban-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
 .ban-tile {
@@ -147,12 +155,10 @@ h1, h2, h3 { font-family: var(--display); font-weight: 400; margin: 0; text-wrap
 .prog .next { color: var(--dust); white-space: nowrap; }
 .owned { display: flex; flex-direction: column; gap: 4px; }
 .own {
-  display: grid; grid-template-columns: 1fr auto auto; gap: 6px; align-items: center; font-size: 13px;
+  display: grid; grid-template-columns: 1fr auto; gap: 6px; align-items: center; font-size: 13px;
   padding: 4px 6px; border-radius: 4px; background: var(--pit);
 }
 .own .n { color: var(--dust); }
-.own .sellb { border: 1px solid var(--line); background: none; border-radius: 4px; font-size: 11px; padding: 1px 6px; color: var(--dust); }
-.own .sellb:hover { color: var(--bronze); border-color: var(--bronze); }
 .empty { color: var(--dust); font-size: 13px; font-style: italic; }
 
 .arena-wrap { position: relative; min-height: 0; min-width: 0; }
@@ -251,7 +257,7 @@ h1, h2, h3 { font-family: var(--display); font-weight: 400; margin: 0; text-wrap
 }
 
 </style>
-</head><body><div id="app"></div>
+<div id="app"></div>
 <script>
 (() => {
 "use strict";
@@ -291,18 +297,18 @@ function weightedPick(rng, items, weightOf) {
 const TAGS = {
   strike:    { name: 'Strike',    kind: 'trigger',  color: '#c9b79c', glyph: 'St', passive: '+1% attack speed per Strike card' },
   precision: { name: 'Precision', kind: 'trigger',  color: '#f2d16b', glyph: 'Pr', passive: '+1% crit chance per Precision card' },
-  evasion:   { name: 'Evasion',   kind: 'trigger',  color: '#9fd8cb', glyph: 'Ev', passive: '+2% Focus per hit taken per Evasion card' },
-  pain:      { name: 'Pain',      kind: 'trigger',  color: '#d9707a', glyph: 'Pa', passive: '+1% max HP per Pain card. Pain triggers each time you lose 6% of max HP.' },
-  spell:     { name: 'Spell',     kind: 'trigger',  color: '#b59cf0', glyph: 'Sp', passive: '+1 mana per attack per Spell card' },
+  evasion:   { name: 'Evasion',   kind: 'trigger',  color: '#9fd8cb', glyph: 'Ev', passive: '+3% Focus per hit taken per Evasion card' },
+  pain:      { name: 'Pain',      kind: 'trigger',  color: '#d9707a', glyph: 'Pa', passive: 'Pain triggers each time you lose 12% of max HP, 0.5% sooner per Pain card (min 4%)' },
+  spell:     { name: 'Spell',     kind: 'trigger',  color: '#b59cf0', glyph: 'Sp', passive: '+0.5 mana per attack per Spell card' },
 
-  fire:   { name: 'Fire',   kind: 'resource', color: '#f07a3a', glyph: 'Fi', stack: '+2% attack speed per stack (cap 25). Fades after 3s without gaining any.' },
-  frost:  { name: 'Frost',  kind: 'resource', color: '#6cc4f0', glyph: 'Fr', stack: 'On the enemy: -1.5% attack speed and mana gain per stack. At 20 they freeze for 1.5s.' },
+  fire:   { name: 'Fire',   kind: 'resource', color: '#f07a3a', glyph: 'Fi', stack: '+2.5% attack speed per stack (cap 25). Fades after 3s without gaining any.' },
+  frost:  { name: 'Frost',  kind: 'resource', color: '#6cc4f0', glyph: 'Fr', stack: 'On the enemy: -1.5% attack speed and mana gain per stack. At 16 they freeze for 1.5s.' },
   poison: { name: 'Poison', kind: 'resource', color: '#8fd14f', glyph: 'Po', stack: 'On the enemy: 1 damage per second per stack, ignoring armor and shield. Each stack cuts their healing 1% (max 50%).' },
-  bleed:  { name: 'Bleed',  kind: 'resource', color: '#e0445a', glyph: 'Bl', stack: 'On the enemy: 0.25% of their max HP per second per stack. Loses 7% of its stacks each second.' },
+  bleed:  { name: 'Bleed',  kind: 'resource', color: '#e0445a', glyph: 'Bl', stack: 'On the enemy: 0.25% of their max HP per second per stack. Loses 8% of its stacks each second.' },
   shield: { name: 'Shield', kind: 'resource', color: '#e9eef5', glyph: 'Sh', stack: 'Absorbs damage before HP. Poison goes straight through.' },
-  regen:  { name: 'Regen',  kind: 'resource', color: '#5fd69a', glyph: 'Re', stack: 'Heals 0.22% of max HP per second per stack.' },
+  regen:  { name: 'Regen',  kind: 'resource', color: '#5fd69a', glyph: 'Re', stack: 'Heals 0.2% of max HP per second per stack.' },
   arcane: { name: 'Mana',   kind: 'resource', color: '#5b8cff', glyph: 'Ma', stack: '+4% ability power per stack. Abilities ignore armor and cannot be dodged.' },
-  armor:  { name: 'Armor',  kind: 'resource', color: '#a8a39a', glyph: 'Ar', stack: '-1 damage from every attack per stack (attacks always deal at least 25%).' },
+  armor:  { name: 'Armor',  kind: 'resource', color: '#a8a39a', glyph: 'Ar', stack: '-1.25 damage from every attack per stack (attacks always deal at least 25%).' },
 };
 
 const TRIGGERS = Object.keys(TAGS).filter((t) => TAGS[t].kind === 'trigger');
@@ -399,6 +405,15 @@ const CARDS = [
   { id: 'lucky_guard', name: 'Lucky Guard', tags: ['precision', 'shield'], tier: 1, max: 5,
     desc: (n) => `On crit, gain ${12 * n} Shield.`,
     onCrit: (f, u, n) => f.gain(u, 'shield', 12 * n) },
+  { id: 'riposte_plate', name: 'Riposte Plate', tags: ['precision', 'armor'], tier: 1, max: 5,
+    desc: (n) => `On crit, gain ${n} Armor.`,
+    onCrit: (f, u, n) => f.gain(u, 'armor', n) },
+  { id: 'lifebloom', name: 'Lifebloom', tags: ['precision', 'regen'], tier: 1, max: 5,
+    desc: (n) => `On crit, gain ${2 * n} Regen.`,
+    onCrit: (f, u, n) => f.gain(u, 'regen', 2 * n) },
+  { id: 'insight', name: 'Insight', tags: ['precision', 'arcane'], tier: 1, max: 5,
+    desc: (n) => `On crit, gain ${2 * n} Mana stacks and ${10 * n} mana.`,
+    onCrit: (f, u, n) => { f.gain(u, 'arcane', 2 * n); u.mana += 10 * n; } },
   { id: 'keen_edge', name: 'Keen Edge', tags: ['precision'], tier: 1, max: 5,
     desc: (n) => `+${5 * n}% crit chance.`,
     setup: (u, n) => { u.crit += 0.05 * n; } },
@@ -428,6 +443,15 @@ const CARDS = [
   { id: 'counter_cut', name: 'Counter Cut', tags: ['evasion', 'bleed'], tier: 1, max: 5,
     desc: (n) => `On dodge, apply ${4 * n} Bleed.`,
     onEvade: (f, u, n) => f.apply(u, 'bleed', 4 * n) },
+  { id: 'sidestep_guard', name: 'Sidestep Guard', tags: ['evasion', 'armor'], tier: 1, max: 5,
+    desc: (n) => `On dodge, gain ${n} Armor.`,
+    onEvade: (f, u, n) => f.gain(u, 'armor', n) },
+  { id: 'second_breath', name: 'Second Breath', tags: ['evasion', 'regen'], tier: 1, max: 5,
+    desc: (n) => `On dodge, gain ${2 * n} Regen.`,
+    onEvade: (f, u, n) => f.gain(u, 'regen', 2 * n) },
+  { id: 'mind_over_blade', name: 'Mind Over Blade', tags: ['evasion', 'arcane'], tier: 1, max: 5,
+    desc: (n) => `On dodge, gain ${2 * n} Mana stacks and ${10 * n} mana.`,
+    onEvade: (f, u, n) => { f.gain(u, 'arcane', 2 * n); u.mana += 10 * n; } },
   { id: 'light_feet', name: 'Light Feet', tags: ['evasion'], tier: 1, max: 5,
     desc: (n) => `+${3 * n}% Focus each time you're hit.`,
     setup: (u, n) => { u.focusGain += 0.03 * n; } },
@@ -443,26 +467,32 @@ const CARDS = [
 
   // ------------------------------------------------------------------ Pain
   { id: 'pain_steel', name: 'Pain Into Steel', tags: ['pain', 'armor'], tier: 1, max: 5,
-    desc: (n) => `Pain: gain ${n} Armor.`,
-    onPain: (f, u, n) => f.gain(u, 'armor', n) },
+    desc: (n) => `Pain: gain ${n * 0.5} Armor.`,
+    onPain: (f, u, n) => f.gain(u, 'armor', n * 0.5) },
   { id: 'scar_tissue', name: 'Scar Tissue', tags: ['pain', 'regen'], tier: 1, max: 5,
-    desc: (n) => `Pain: gain ${n} Regen.`,
-    onPain: (f, u, n) => f.gain(u, 'regen', n) },
+    desc: (n) => `Pain: gain ${n * 0.5} Regen.`,
+    onPain: (f, u, n) => f.gain(u, 'regen', n * 0.5) },
   { id: 'martyr_ward', name: "Martyr's Ward", tags: ['pain', 'shield'], tier: 1, max: 5,
-    desc: (n) => `Pain: gain ${8 * n} Shield.`,
-    onPain: (f, u, n) => f.gain(u, 'shield', 8 * n) },
+    desc: (n) => `Pain: gain ${5 * n} Shield.`,
+    onPain: (f, u, n) => f.gain(u, 'shield', 5 * n) },
   { id: 'spiteful_blood', name: 'Spiteful Blood', tags: ['pain', 'bleed'], tier: 1, max: 5,
-    desc: (n) => `Pain: apply ${2 * n} Bleed.`,
-    onPain: (f, u, n) => f.apply(u, 'bleed', 2 * n) },
+    desc: (n) => `Pain: apply ${n} Bleed.`,
+    onPain: (f, u, n) => f.apply(u, 'bleed', n) },
   { id: 'rage', name: 'Rage', tags: ['pain', 'fire'], tier: 1, max: 5,
-    desc: (n) => `Pain: gain ${3 * n} Fire.`,
-    onPain: (f, u, n) => f.gain(u, 'fire', 3 * n) },
+    desc: (n) => `Pain: gain ${2 * n} Fire.`,
+    onPain: (f, u, n) => f.gain(u, 'fire', 2 * n) },
   { id: 'bitter_frost', name: 'Bitter Frost', tags: ['pain', 'frost'], tier: 1, max: 5,
-    desc: (n) => `Pain: apply ${2 * n} Frost.`,
-    onPain: (f, u, n) => f.apply(u, 'frost', 2 * n) },
+    desc: (n) => `Pain: apply ${n} Frost.`,
+    onPain: (f, u, n) => f.apply(u, 'frost', n) },
+  { id: 'venom_blood', name: 'Venom Blood', tags: ['pain', 'poison'], tier: 1, max: 5,
+    desc: (n) => `Pain: apply ${2 * n} Poison.`,
+    onPain: (f, u, n) => f.apply(u, 'poison', 2 * n) },
+  { id: 'pained_insight', name: 'Pained Insight', tags: ['pain', 'arcane'], tier: 1, max: 5,
+    desc: (n) => `Pain: gain ${n} Mana stack${n > 1 ? 's' : ''} and ${5 * n} mana.`,
+    onPain: (f, u, n) => { f.gain(u, 'arcane', n); u.mana += 5 * n; } },
   { id: 'thin_skin', name: 'Thin Skin', tags: ['pain'], tier: 1, max: 4,
-    desc: (n) => `Pain triggers every ${6 - 0.5 * n}% of max HP lost instead of 6%.`,
-    setup: (u, n) => { u.painStep = 0.06 - 0.005 * n; } },
+    desc: (n) => `Pain triggers ${n}% of max HP sooner.`,
+    setup: (u, n) => { u.painStep -= 0.01 * n; } },
   { id: 'berserker', name: 'Berserker', tags: ['pain'], tier: 2, max: 3,
     desc: (n) => `+${(0.5 * n).toFixed(1)}% attack speed per 1% HP you're missing.`,
     setup: (u, n) => { u.m.berserk = 0.5 * n; } },
@@ -470,8 +500,8 @@ const CARDS = [
     desc: () => 'The first time you drop below 30% HP, trigger Pain 5 times and take no damage for 1s.',
     setup: (u) => { u.flags.lastStand = true; } },
   { id: 'undying_spite', name: 'Undying Spite', tags: ['pain'], tier: 4, max: 1,
-    desc: () => 'Each Pain trigger deals 3% of your max HP to the enemy.',
-    onPain: (f, u) => f.damage(u, u.enemy, u.maxHp * 0.03, 'true') },
+    desc: () => 'Each Pain trigger deals 2% of your max HP to the enemy.',
+    onPain: (f, u) => f.damage(u, u.enemy, u.maxHp * 0.02, 'true') },
 
   // ----------------------------------------------------------------- Spell
   { id: 'arcane_echoes', name: 'Arcane Echoes', tags: ['spell', 'arcane'], tier: 1, max: 5,
@@ -495,12 +525,15 @@ const CARDS = [
   { id: 'runic_plate', name: 'Runic Plate', tags: ['spell', 'armor'], tier: 1, max: 5,
     desc: (n) => `On cast, gain ${3 * n} Armor.`,
     onCast: (f, u, n) => f.gain(u, 'armor', 3 * n) },
+  { id: 'hemomancy', name: 'Hemomancy', tags: ['spell', 'bleed'], tier: 1, max: 5,
+    desc: (n) => `On cast, apply ${7 * n} Bleed.`,
+    onCast: (f, u, n) => f.apply(u, 'bleed', 7 * n) },
   { id: 'focused_mind', name: 'Focused Mind', tags: ['spell'], tier: 1, max: 4,
     desc: (n) => `Start each fight with ${20 * n} mana.`,
     setup: (u, n) => { u.manaStart += 20 * n; } },
   { id: 'quick_study', name: 'Quick Study', tags: ['spell'], tier: 2, max: 3,
-    desc: (n) => `Gain ${3 * n} mana per second.`,
-    setup: (u, n) => { u.manaRegen += 3 * n; } },
+    desc: (n) => `Gain ${2 * n} mana per second.`,
+    setup: (u, n) => { u.manaRegen += 2 * n; } },
   { id: 'spell_echo', name: 'Spell Echo', tags: ['spell'], tier: 3, max: 1,
     desc: () => 'Every 3rd cast repeats at 50% power.',
     setup: (u) => { u.flags.spellEcho = true; } },
@@ -525,7 +558,7 @@ const CARDS = [
     desc: (n) => `Attacks deal bonus damage equal to ${pct(0.4 * n)} of your Fire.`,
     bonusDamage: (f, u, n) => u.fire * 0.4 * n },
   { id: 'phoenix', name: 'Phoenix Core', tags: ['fire'], tier: 4, max: 1,
-    desc: () => 'The first time you would die, consume all Fire and revive with 3% HP per Fire (min 15%).',
+    desc: () => 'The first time you would die, consume all Fire and revive with 2% HP per Fire (min 10%).',
     setup: (u) => { u.flags.phoenix = true; } },
 
   // ----------------------------------------------------------------- Frost
@@ -542,8 +575,8 @@ const CARDS = [
     desc: (n) => `When you freeze the enemy, deal ${4 * n}% of their max HP.`,
     onFreeze: (f, u, n) => f.damage(u, u.enemy, u.enemy.maxHp * 0.04 * n * (u.flags.bigFreeze ? 2 : 1), 'ability') },
   { id: 'deep_winter', name: 'Deep Winter', tags: ['frost'], tier: 3, max: 2,
-    desc: (n) => `The enemy freezes at ${20 - 4 * n} Frost instead of 20.`,
-    setup: (u, n) => { u.freezeAt = 20 - 4 * n; } },
+    desc: (n) => `The enemy freezes at ${16 - 3 * n} Frost instead of 16.`,
+    setup: (u, n) => { u.freezeAt = 16 - 3 * n; } },
   { id: 'ice_armor', name: 'Ice Armor', tags: ['frost'], tier: 3, max: 2,
     desc: (n) => `When you freeze the enemy, gain ${3 * n} Armor.`,
     onFreeze: (f, u, n) => f.gain(u, 'armor', 3 * n) },
@@ -645,19 +678,19 @@ const CARDS = [
     desc: (n) => `On attack, 30% chance to gain ${n} Mana stack${n > 1 ? 's' : ''}.`,
     onAttack: (f, u, n) => { if (chance(f)) f.gain(u, 'arcane', n); } },
   { id: 'mana_shield', name: 'Mana Shield', tags: ['arcane'], tier: 2, max: 3,
-    desc: (n) => `${15 * n}% of damage you take drains mana instead of HP.`,
-    setup: (u, n) => { u.m.manaShield = 0.15 * n; } },
+    desc: (n) => `Take ${8 * n}% less damage from attacks while you have 5 or more Mana stacks.`,
+    setup: (u, n) => { u.m.manaWard = 0.08 * n; } },
   { id: 'arcane_power', name: 'Arcane Power', tags: ['arcane'], tier: 3, max: 2,
     desc: (n) => `Each Mana stack gives +${4 + 2 * n}% ability power instead of 4%.`,
     setup: (u, n) => { u.arcaneValue = 0.04 + 0.02 * n; } },
   { id: 'archmage', name: 'Archmage', tags: ['arcane'], tier: 4, max: 1,
-    desc: () => 'Your ability costs 40% less mana.',
-    setup: (u) => { u.m.castCost *= 0.6; } },
+    desc: () => 'Your ability costs 30% less mana.',
+    setup: (u) => { u.m.castCost *= 0.7; } },
 
   // ----------------------------------------------------------------- Armor
   { id: 'plating', name: 'Plating', tags: ['armor'], tier: 1, max: 5,
-    desc: (n) => `Start each fight with ${2 * n} Armor.`,
-    onStart: (f, u, n) => f.gain(u, 'armor', 2 * n) },
+    desc: (n) => `Start each fight with ${3 * n} Armor.`,
+    onStart: (f, u, n) => f.gain(u, 'armor', 3 * n) },
   { id: 'brace', name: 'Brace', tags: ['armor'], tier: 1, max: 5,
     desc: (n) => `When hit, 30% chance to gain ${n} Armor.`,
     onHitTaken: (f, u, n) => { if (chance(f)) f.gain(u, 'armor', n); } },
@@ -718,11 +751,11 @@ const CARDS = [
     desc: (n) => `Take ${30 * n}% less Bleed damage.`,
     setup: (u, n) => { u.m.bleedTaken -= 0.3 * n; } },
   { id: 'true_sight', name: 'True Sight', tags: [], tier: 'counter', max: 1, counters: 'evasion',
-    desc: () => 'Every 3rd attack cannot be dodged.',
-    setup: (u) => { u.m.trueSight = 3; } },
+    desc: () => 'Every 4th attack cannot be dodged.',
+    setup: (u) => { u.m.trueSight = 4; } },
   { id: 'unsettling', name: 'Unsettling Blows', tags: [], tier: 'counter', max: 2, counters: 'evasion',
-    desc: (n) => `Your hits remove ${25 * n}% of the enemy's Focus.`,
-    setup: (u, n) => { u.m.focusDrain = 0.25 * n; } },
+    desc: (n) => `Your hits remove ${10 * n}% of the enemy's Focus.`,
+    setup: (u, n) => { u.m.focusDrain = 0.1 * n; } },
   { id: 'shieldbreaker', name: 'Shieldbreaker', tags: [], tier: 'counter', max: 2, counters: 'shield',
     desc: (n) => `Deal +${50 * n}% damage to Shield.`,
     setup: (u, n) => { u.m.vsShield += 0.5 * n; } },
@@ -759,7 +792,7 @@ const hit = (f, u, amount) => f.damage(u, u.enemy, amount, 'ability');
 const CHARACTERS = [
   {
     id: 'cinder', name: 'Cinder', epithet: 'the Kindled', trigger: 'strike', resources: ['fire'],
-    stats: { hp: 530, ad: 29, as: 1.1 },
+    stats: { hp: 660, ad: 30, as: 1.1 },
     innate: { desc: 'On attack, gain 1 Fire.', onAttack: (f, u) => f.gain(u, 'fire', 1) },
     ability: { name: 'Blaze Rush', desc: (u) => `Deal 50 + 5 per Fire (${Math.round(50 + 5 * (u?.fire ?? 0))}).`,
       cast: (f, u, p) => { const d = (50 + 5 * u.fire) * p; hit(f, u, d); if (u.sig === 'cinder_twin') hit(f, u, d * 0.6); } },
@@ -770,7 +803,7 @@ const CHARACTERS = [
   },
   {
     id: 'glacia', name: 'Glacia', epithet: 'of the Long Winter', trigger: 'spell', resources: ['frost'],
-    stats: { hp: 610, ad: 27, manaMax: 80 },
+    stats: { hp: 640, ad: 26, manaMax: 85 },
     innate: { desc: 'Your casts apply 4 extra Frost.', onCast: (f, u) => f.apply(u, 'frost', 4) },
     ability: { name: 'Hailstorm', desc: () => 'Deal 55 and apply 8 Frost, plus 1 per 3 Frost already on the enemy.',
       cast: (f, u, p) => {
@@ -785,8 +818,8 @@ const CHARACTERS = [
   },
   {
     id: 'viper', name: 'Viper Saint', epithet: 'Twice-Fanged', trigger: 'precision', resources: ['poison', 'bleed'],
-    stats: { hp: 590, ad: 28, crit: 0.15 },
-    innate: { desc: 'Crits apply 3 Poison and 3 Bleed.', onCrit: (f, u) => { f.apply(u, 'poison', 3); f.apply(u, 'bleed', 3); } },
+    stats: { hp: 670, ad: 27, crit: 0.15 },
+    innate: { desc: 'Crits apply 2 Poison and 2 Bleed.', onCrit: (f, u) => { f.apply(u, 'poison', 2); f.apply(u, 'bleed', 2); } },
     ability: { name: 'Fang Flurry', desc: () => 'Make 3 quick attacks.',
       cast: (f, u) => { for (let i = 0; i < 3; i++) { if (u.sig === 'viper_lacerate') u.forceCrit += 1; f.queueExtraAttack(u); } } },
     signatures: [
@@ -796,10 +829,11 @@ const CHARACTERS = [
   },
   {
     id: 'wisp', name: 'Wisp Dancer', epithet: 'Never Where You Strike', trigger: 'evasion', resources: ['frost', 'fire'],
-    stats: { hp: 580, ad: 27, as: 1.15, focusGain: 0.08 },
-    innate: { desc: 'Gains 8% Focus each time she is hit, so she dodges on a steady rhythm.' },
-    ability: { name: 'Mirage', desc: () => 'Gain 40% Focus. Your next 2 attacks crit.',
-      cast: (f, u) => { f.gain(u, 'focus', 0.4); u.forceCrit += 2; } },
+    stats: { hp: 620, ad: 28, as: 1.15, focusGain: 0.1 },
+    innate: { desc: 'Gains 10% Focus each time she is hit. Each dodge shakes off 4 Poison and 4 Bleed.',
+      onEvade: (f, u) => { u.poison = Math.max(0, u.poison - 4); u.bleed = Math.max(0, u.bleed - 4); } },
+    ability: { name: 'Mirage', desc: (u) => `Deal 40 + 4 per Fire (${Math.round(40 + 4 * (u?.fire ?? 0))}) and apply 4 Frost. Gain 40% Focus; your next 2 attacks crit.`,
+      cast: (f, u, p) => { hit(f, u, (40 + 4 * u.fire) * p); f.apply(u, 'frost', 4); f.gain(u, 'focus', 0.4); u.forceCrit += 2; } },
     signatures: [
       { id: 'wisp_will', name: "Will-o'-Wisp", desc: 'Dodges grant 2 Fire and apply 2 Frost.',
         onEvade: (f, u) => { f.gain(u, 'fire', 2); f.apply(u, 'frost', 2); } },
@@ -808,10 +842,10 @@ const CHARACTERS = [
   },
   {
     id: 'martyr', name: 'Iron Martyr', epithet: 'Who Bleeds for Steel', trigger: 'pain', resources: ['armor', 'shield'],
-    stats: { hp: 650, ad: 26, as: 0.85 },
+    stats: { hp: 505, ad: 27, as: 0.85 },
     innate: { desc: 'Pain: gain 1 Armor.', onPain: (f, u) => f.gain(u, 'armor', 1) },
-    ability: { name: 'Martyrdom', desc: (u) => `Gain 40 Shield + 8 per Armor (${Math.round(40 + 8 * (u?.armor ?? 0))}).`,
-      cast: (f, u, p) => { const s = (40 + 8 * u.armor) * p; f.gain(u, 'shield', s); if (u.sig === 'martyr_penance') hit(f, u, s * 0.4); } },
+    ability: { name: 'Martyrdom', desc: (u) => `Gain 50 Shield + 10 per Armor (${Math.round(50 + 10 * (u?.armor ?? 0))}).`,
+      cast: (f, u, p) => { const s = (50 + 10 * u.armor) * p; f.gain(u, 'shield', s); if (u.sig === 'martyr_penance') hit(f, u, s * 0.4); } },
     signatures: [
       { id: 'martyr_penance', name: 'Penance', desc: 'Martyrdom also deals 40% of the Shield it grants as damage.' },
       { id: 'martyr_unbowed', name: 'Unbowed', desc: 'Start each fight with 6 Armor.', onStart: (f, u) => f.gain(u, 'armor', 6) },
@@ -819,10 +853,10 @@ const CHARACTERS = [
   },
   {
     id: 'stormseer', name: 'Stormseer', epithet: 'Speaker of Squalls', trigger: 'spell', resources: ['arcane', 'frost'],
-    stats: { hp: 610, ad: 25, manaMax: 75 },
+    stats: { hp: 520, ad: 24, manaMax: 85 },
     innate: { desc: 'On cast, gain 3 Mana stacks.', onCast: (f, u) => f.gain(u, 'arcane', 3) },
-    ability: { name: 'Blizzard', desc: () => 'Deal 100 and apply 5 Frost.',
-      cast: (f, u, p) => { hit(f, u, 100 * p); f.apply(u, 'frost', u.sig === 'storm_front' ? 10 : 5); } },
+    ability: { name: 'Blizzard', desc: () => 'Deal 75 and apply 5 Frost.',
+      cast: (f, u, p) => { hit(f, u, 75 * p); f.apply(u, 'frost', u.sig === 'storm_front' ? 10 : 5); } },
     signatures: [
       { id: 'storm_front', name: 'Storm Front', desc: 'Blizzard applies 10 Frost instead of 5.' },
       { id: 'storm_conduit', name: 'Conduit', desc: '+5 mana per attack.', setup: (u) => { u.manaPerAttack += 5; } },
@@ -830,11 +864,11 @@ const CHARACTERS = [
   },
   {
     id: 'grove', name: 'Grove Keeper', epithet: 'Rooted', trigger: 'pain', resources: ['regen'],
-    stats: { hp: 600, ad: 24, as: 0.9 },
-    innate: { desc: 'Start each fight with 2 Regen.', onStart: (f, u) => f.gain(u, 'regen', 2) },
-    ability: { name: 'Overgrowth', desc: () => 'Heal 4% of max HP plus 0.7% per Regen.',
+    stats: { hp: 490, ad: 24, as: 0.9 },
+    innate: { desc: 'Start each fight with 1 Regen.', onStart: (f, u) => f.gain(u, 'regen', 1) },
+    ability: { name: 'Overgrowth', desc: () => 'Heal 3% of max HP plus 0.5% per Regen.',
       cast: (f, u, p) => {
-        const h = u.maxHp * (0.04 + 0.007 * u.regen) * Math.min(p, 1.5);
+        const h = u.maxHp * (0.03 + 0.005 * u.regen) * Math.min(p, 1.5);
         const healed = f.heal(u, h);
         if (u.sig === 'grove_thorn') hit(f, u, healed * 0.6);
       } },
@@ -845,7 +879,7 @@ const CHARACTERS = [
   },
   {
     id: 'ashen', name: 'Ashen Witch', epithet: 'Mother of Smoke', trigger: 'spell', resources: ['fire', 'poison'],
-    stats: { hp: 540, ad: 25, manaMax: 90 },
+    stats: { hp: 545, ad: 25, manaMax: 90 },
     innate: { desc: 'On cast, gain 5 Fire.', onCast: (f, u) => f.gain(u, 'fire', 5) },
     ability: { name: 'Cinderplague', desc: () => 'Deal 30 and apply 8 Poison plus 1 per 2 Fire.',
       cast: (f, u, p) => { hit(f, u, 30 * p); f.apply(u, 'poison', Math.round((8 + u.fire / 2) * p)); } },
@@ -856,24 +890,24 @@ const CHARACTERS = [
   },
   {
     id: 'reaver', name: 'Bloodreaver', epithet: 'the Red Harvest', trigger: 'strike', resources: ['bleed', 'regen'],
-    stats: { hp: 700, ad: 32 },
-    innate: { desc: 'Heal for 15% of your Bleed damage.', setup: (u) => { u.m.bleedLeech += 0.15; } },
-    ability: { name: 'Rupture', desc: (u) => `Deal 30 + 5 per Bleed on the enemy (${Math.round(30 + 5 * (u?.enemy?.bleed ?? 0))}) and heal half of it.`,
+    stats: { hp: 580, ad: 31 },
+    innate: { desc: 'Heal for 10% of your Bleed damage.', setup: (u) => { u.m.bleedLeech += 0.1; } },
+    ability: { name: 'Rupture', desc: (u) => `Deal 20 + 4 per Bleed on the enemy (${Math.round(20 + 4 * (u?.enemy?.bleed ?? 0))}) and heal half of it.`,
       cast: (f, u, p) => {
-        const d = hit(f, u, ((u.sig === 'reaver_butcher' ? 7 : 5) * u.enemy.bleed + 30) * p);
+        const d = hit(f, u, ((u.sig === 'reaver_butcher' ? 6 : 4) * u.enemy.bleed + 20) * p);
         f.heal(u, d * 0.5);
       } },
     signatures: [
       { id: 'reaver_hemo', name: 'Hemophage', desc: 'Heal for another 25% of your Bleed damage.', setup: (u) => { u.m.bleedLeech += 0.25; } },
-      { id: 'reaver_butcher', name: 'Butcher', desc: 'Rupture deals 7 per Bleed instead of 5.' },
+      { id: 'reaver_butcher', name: 'Butcher', desc: 'Rupture deals 6 per Bleed instead of 4.' },
     ],
   },
   {
     id: 'sage', name: 'Bulwark Sage', epithet: 'Keeper of Wards', trigger: 'spell', resources: ['shield', 'arcane'],
-    stats: { hp: 640, ad: 25, manaMax: 80 },
+    stats: { hp: 485, ad: 24, manaMax: 85 },
     innate: { desc: 'All Shield you gain is increased by 15%.', setup: (u) => { u.m.shieldGain += 0.15; } },
-    ability: { name: 'Arcane Barrier', desc: () => 'Gain 60 Shield, then deal 40 plus 35% of your Shield as damage.',
-      cast: (f, u, p) => { f.gain(u, 'shield', 60 * p * (u.sig === 'sage_overflow' ? 1.5 : 1)); hit(f, u, 40 * p + u.shield * 0.35 * Math.min(p, 1.6)); } },
+    ability: { name: 'Arcane Barrier', desc: () => 'Gain 45 Shield, then deal 30 plus 30% of your Shield as damage.',
+      cast: (f, u, p) => { f.gain(u, 'shield', 45 * p * (u.sig === 'sage_overflow' ? 1.5 : 1)); hit(f, u, 30 * p + u.shield * 0.3 * Math.min(p, 1.6)); } },
     signatures: [
       { id: 'sage_rune', name: 'Runeward', desc: 'Start each fight with 50 Shield.', onStart: (f, u) => f.gain(u, 'shield', 50) },
       { id: 'sage_overflow', name: 'Overflow', desc: 'Arcane Barrier grants 50% more Shield.' },
@@ -881,18 +915,18 @@ const CHARACTERS = [
   },
   {
     id: 'duelist', name: 'Brass Duelist', epithet: 'First Blade of the Pit', trigger: 'precision', resources: ['fire', 'armor'],
-    stats: { hp: 630, ad: 31, crit: 0.14 },
-    innate: { desc: 'Crits grant 1 Armor.', onCrit: (f, u) => f.gain(u, 'armor', 1) },
-    ability: { name: 'Lunge', desc: (u) => `Deal 60 + 4 per Armor and Fire (${Math.round(60 + 4 * ((u?.armor ?? 0) + (u?.fire ?? 0)))}).`,
-      cast: (f, u, p) => hit(f, u, (60 + 4 * (u.armor + u.fire)) * p) },
+    stats: { hp: 560, ad: 33, crit: 0.14 },
+    innate: { desc: 'Crits grant 1 Armor and 3 Fire.', onCrit: (f, u) => { f.gain(u, 'armor', 1); f.gain(u, 'fire', 3); } },
+    ability: { name: 'Lunge', desc: (u) => `Deal 70 + 5 per Armor and Fire (${Math.round(70 + 5 * ((u?.armor ?? 0) + (u?.fire ?? 0)))}). Your next attack crits.`,
+      cast: (f, u, p) => { hit(f, u, (70 + 5 * (u.armor + u.fire)) * p); u.forceCrit += 1; } },
     signatures: [
-      { id: 'duelist_tempo', name: 'Steel Tempo', desc: 'Crits also grant 3 Fire.', onCrit: (f, u) => f.gain(u, 'fire', 3) },
+      { id: 'duelist_tempo', name: 'Steel Tempo', desc: 'Crits grant 3 more Fire.', onCrit: (f, u) => f.gain(u, 'fire', 3) },
       { id: 'duelist_guard', name: 'Guard Stance', desc: 'Start each fight with 5 Armor.', onStart: (f, u) => f.gain(u, 'armor', 5) },
     ],
   },
   {
     id: 'nightshade', name: 'Nightshade', epithet: 'Smoke and Needles', trigger: 'evasion', resources: ['poison', 'shield'],
-    stats: { hp: 520, ad: 24, as: 1.1, focusGain: 0.045 },
+    stats: { hp: 580, ad: 25, as: 1.1, focusGain: 0.045 },
     innate: { desc: 'Gains 4.5% Focus each time she is hit. Dodges apply 2 Poison.', onEvade: (f, u) => f.apply(u, 'poison', 2) },
     ability: { name: 'Smoke Veil', desc: () => 'Gain 25% Focus and 30 Shield, and apply 6 Poison.',
       cast: (f, u, p) => { f.gain(u, 'focus', 0.25); f.gain(u, 'shield', 30 * p); f.apply(u, 'poison', Math.round(6 * p)); } },
@@ -936,18 +970,18 @@ function buildUnit(loadout, side) {
     // stacks the enemy put on you
     frost: 0, poison: 0, bleed: 0,
     // freeze settings you impose on the enemy
-    freezeAt: 20, freezeDur: 1.5, freezesDone: 0, freezeImmune: 0,
+    freezeAt: 16, freezeDur: 1.5, freezesDone: 0, freezeImmune: 0,
     // evasion
     focus: 0, focusGain: s.focusGain, focusCap: 0.6, focusReset: 0, focusStart: 0,
     // pain
-    painStep: 0.06, painAcc: 0,
+    painStep: 0.12, painAcc: 0,
     // timers and counters
     frozen: 0, immune: 0, bastionCd: 0, attackTimer: 0, attackCount: 0, castCount: 0, forceCrit: 0,
     momentumCap: 0, pendingAttacks: 0, bleedApplied: 0,
     m: {
       poisonDmg: 1, bleedDmg: 1, bleedDecay: 1, frostDecay: 1, shieldGain: 1, shieldCap: 1, vsShield: 1,
       poisonTaken: 1, frostTaken: 1, bleedTaken: 1, abilityTaken: 1, enemyHealCut: 0, enemyFireCapCut: 0,
-      abilityPower: 1, castCost: 1, frozenBonus: 0, reflect: 0, manaShield: 0, armorPierce: 0,
+      abilityPower: 1, castCost: 1, frozenBonus: 0, reflect: 0, manaWard: 0, armorPierce: 0,
       focusDrain: 0, trueSight: 0, critMissing: 0, castRefund: 0, berserk: 0, bleedLeech: 0,
       pandemic: 0, secondWind: 0,
     },
@@ -977,9 +1011,9 @@ function buildUnit(loadout, side) {
   const tc = u.tagCounts;
   u.asBonus += 0.01 * (tc.strike || 0);
   u.crit += 0.01 * (tc.precision || 0);
-  u.focusGain += 0.02 * (tc.evasion || 0);
-  u.maxHp *= 1 + 0.01 * (tc.pain || 0);
-  u.manaPerAttack += tc.spell || 0;
+  u.focusGain += 0.03 * (tc.evasion || 0);
+  u.painStep -= 0.005 * (tc.pain || 0);
+  u.manaPerAttack += 0.5 * (tc.spell || 0);
 
   for (const { src, n } of sources) {
     if (src.setup) src.setup(u, n);
@@ -1095,7 +1129,7 @@ class Fight {
     if (this.t > SUDDEN_DEATH_AT) amt *= 1 + (this.t - SUDDEN_DEATH_AT) * 0.08;
     if (tgt.frozen > 0 && src.m.frozenBonus && (kind === 'attack' || kind === 'ability')) amt *= 1 + src.m.frozenBonus;
     if (kind === 'attack' || kind === 'thorns') {
-      const armor = Math.max(0, tgt.armor + (tgt.flags.moltenArmor ? Math.floor(tgt.fire / 5) : 0) - src.m.armorPierce);
+      const armor = 1.25 * Math.max(0, tgt.armor + (tgt.flags.moltenArmor ? Math.floor(tgt.fire / 5) : 0) - src.m.armorPierce);
       amt = Math.max(amt * 0.25, amt - armor);
     }
     if (kind === 'ability') amt *= Math.max(0, tgt.m.abilityTaken);
@@ -1118,11 +1152,7 @@ class Fight {
         }
       }
     }
-    if (tgt.m.manaShield && amt > 0) {
-      const draw = Math.min(tgt.mana, amt * tgt.m.manaShield);
-      tgt.mana -= draw;
-      amt -= draw;
-    }
+    if (tgt.m.manaWard && kind === 'attack' && tgt.arcane >= 5) amt *= 1 - tgt.m.manaWard;
     if (amt <= 0) return 0;
 
     tgt.hp -= amt;
@@ -1133,7 +1163,7 @@ class Fight {
 
     // Pain triggers
     tgt.painAcc += amt;
-    const step = Math.max(0.02, tgt.painStep) * tgt.maxHp;
+    const step = Math.max(0.04, tgt.painStep) * tgt.maxHp;
     let guard = 0;
     while (tgt.painAcc >= step && guard++ < 10 && tgt.hp > 0) {
       tgt.painAcc -= step;
@@ -1152,7 +1182,7 @@ class Fight {
     if (tgt.hp <= 0) {
       if (tgt.flags.phoenix && !tgt.used.phoenix) {
         tgt.used.phoenix = true;
-        tgt.hp = tgt.maxHp * Math.max(0.15, Math.min(1, tgt.fire * 0.03));
+        tgt.hp = tgt.maxHp * Math.max(0.1, Math.min(1, tgt.fire * 0.02));
         tgt.fire = 0;
         tgt.poison = Math.floor(tgt.poison / 2);
         tgt.bleed = 0;
@@ -1167,7 +1197,7 @@ class Fight {
   }
 
   attackSpeed(u) {
-    let as = u.asBase * (1 + u.asBonus + 0.02 * u.fire + Math.min(u.momentumCap, 0.01 * u.attackCount));
+    let as = u.asBase * (1 + u.asBonus + 0.025 * u.fire + Math.min(u.momentumCap, 0.01 * u.attackCount));
     if (u.m.berserk) as *= 1 + u.m.berserk * (1 - u.hp / u.maxHp);
     return as * this.slow(u);
   }
@@ -1249,12 +1279,12 @@ class Fight {
       if (u.bleed > 0.05 && !u.dead) {
         const d = this.damage(e, u, u.bleed * 0.0025 * u.maxHp * e.m.bleedDmg * dt, 'bleed');
         if (e.m.bleedLeech) this.heal(e, d * e.m.bleedLeech);
-        u.bleed = Math.max(0, u.bleed - u.bleed * 0.07 * e.m.bleedDecay * dt);
+        u.bleed = Math.max(0, u.bleed - u.bleed * 0.08 * e.m.bleedDecay * dt);
       }
       if (u.dead) continue;
       u.frost = Math.max(0, u.frost - 0.6 * e.m.frostDecay * dt);
 
-      if (u.regen > 0) this.heal(u, u.regen * 0.0022 * u.maxHp * dt);
+      if (u.regen > 0) this.heal(u, u.regen * 0.002 * u.maxHp * dt);
       u.fireIdle += dt;
       if (u.fireIdle > u.fireLinger) u.fire = Math.max(0, u.fire - 2.5 * dt);
 
@@ -1336,10 +1366,6 @@ function cardCost(card) {
   return CARD_COST[card.tier];
 }
 
-function sellValue(card) {
-  return Math.max(1, Math.floor(cardCost(card) / 2));
-}
-
 function isBanned(card, bans) {
   if (cardResources(card).some((r) => bans.includes(r))) return true;
   if (card.counters && bans.includes(card.counters)) return true;
@@ -1396,7 +1422,7 @@ function createMatch({ seed = Date.now() % 1e9, players }) {
   return {
     seed, nonce: 0, round: 0, phase: 'ban', bans: [], history: [],
     players: players.map((p, i) => ({
-      id: i, name: p.name, isBot: !!p.isBot, charId: null, hp: START_HP, gold: 0,
+      id: i, name: p.name, isBot: !!p.isBot, level: p.level || null, charId: null, hp: START_HP, gold: 0,
       cards: {}, shop: [], locked: false, sig: null, ban: null, wins: 0,
     })),
   };
@@ -1464,15 +1490,6 @@ function buy(m, playerId, slot) {
   p.gold -= cost;
   p.cards[id] = (p.cards[id] || 0) + 1;
   p.shop[slot] = null;
-  return true;
-}
-
-function sell(m, playerId, cardId) {
-  const p = m.players[playerId];
-  if (!p.cards[cardId]) return false;
-  p.cards[cardId]--;
-  if (p.cards[cardId] === 0) delete p.cards[cardId];
-  p.gold += sellValue(CARD_BY_ID[cardId]);
   return true;
 }
 
@@ -1545,14 +1562,169 @@ function finishRound(m) {
   startRound(m);
 }
 
+// ---- src/ai/cardValues.js
+// Generated by tools/cardvalue.mjs. Average change in fight score (-2..+2)
+// from one extra copy: across all builds, and for gladiators that share a tag.
+const CARD_VALUES = {
+  kindling: {"all":0.0705,"fit":0.0962,"perGold":0.0352},
+  rime_edge: {"all":0.101,"fit":0.0569,"perGold":0.0505},
+  serrated: {"all":0.1504,"fit":0.0737,"perGold":0.0752},
+  venom_coat: {"all":0.1646,"fit":0.1311,"perGold":0.0823},
+  guarded_swing: {"all":0.0739,"fit":0.0231,"perGold":0.0369},
+  iron_rhythm: {"all":0.0687,"fit":0.0494,"perGold":0.0344},
+  battle_trance: {"all":0.0242,"fit":0.0233,"perGold":0.0121},
+  pulse: {"all":0.1517,"fit":0.1909,"perGold":0.0759},
+  quick_hands: {"all":0.1087,"fit":0.0693,"perGold":0.0544},
+  momentum: {"all":0.0901,"fit":-0.0569,"perGold":0.03},
+  flurry: {"all":0.2139,"fit":0.1602,"perGold":0.0535},
+  whirlwind: {"all":0.3521,"fit":0.6041,"perGold":0.0587},
+  venom_crit: {"all":0.1019,"fit":0.0945,"perGold":0.051},
+  flash_freeze: {"all":0.0685,"fit":0.1026,"perGold":0.0343},
+  hemorrhage: {"all":0.0704,"fit":0.1491,"perGold":0.0352},
+  sparkfire: {"all":0.0031,"fit":0.0111,"perGold":0.0015},
+  lucky_guard: {"all":0.0273,"fit":-0.0101,"perGold":0.0137},
+  riposte_plate: {"all":0.0509,"fit":0.0518,"perGold":0.0255},
+  lifebloom: {"all":0.0285,"fit":0.0368,"perGold":0.0143},
+  insight: {"all":0.087,"fit":0.071,"perGold":0.0435},
+  keen_edge: {"all":0.0776,"fit":0.1623,"perGold":0.0388},
+  deadly_aim: {"all":0.0281,"fit":0.0603,"perGold":0.0094},
+  executioner: {"all":0.0005,"fit":-0.0372,"perGold":0.0001},
+  bullseye: {"all":0.0793,"fit":0.1953,"perGold":0.0132},
+  shadow_step: {"all":0.2252,"fit":0.2266,"perGold":0.1126},
+  chill_mirage: {"all":0.1431,"fit":0.1641,"perGold":0.0715},
+  riposte_venom: {"all":0.1555,"fit":0.1921,"perGold":0.0777},
+  wind_ward: {"all":0.1182,"fit":0.0876,"perGold":0.0591},
+  counter_cut: {"all":0.1382,"fit":0.041,"perGold":0.0691},
+  sidestep_guard: {"all":0.1318,"fit":0.1211,"perGold":0.0659},
+  second_breath: {"all":0.2164,"fit":0.2266,"perGold":0.1082},
+  mind_over_blade: {"all":0.2165,"fit":0.246,"perGold":0.1082},
+  light_feet: {"all":0.1246,"fit":0.1866,"perGold":0.0623},
+  second_nature: {"all":0.2269,"fit":0.1756,"perGold":0.0756},
+  afterimage: {"all":0.1876,"fit":0.1416,"perGold":0.0469},
+  phantom: {"all":0.2596,"fit":-0.0502,"perGold":0.0433},
+  pain_steel: {"all":0.1503,"fit":0.1619,"perGold":0.0752},
+  scar_tissue: {"all":0.1499,"fit":0.2201,"perGold":0.0749},
+  martyr_ward: {"all":0.1385,"fit":0.1846,"perGold":0.0692},
+  spiteful_blood: {"all":0.2175,"fit":0.1844,"perGold":0.1087},
+  rage: {"all":0.1568,"fit":0.1231,"perGold":0.0784},
+  bitter_frost: {"all":0.1804,"fit":0.2264,"perGold":0.0902},
+  venom_blood: {"all":0.233,"fit":0.2828,"perGold":0.1165},
+  pained_insight: {"all":0.3259,"fit":0.3036,"perGold":0.163},
+  thin_skin: {"all":0.1663,"fit":0.1931,"perGold":0.0831},
+  berserker: {"all":0.317,"fit":0.1742,"perGold":0.1057},
+  last_stand: {"all":0.4276,"fit":0.2424,"perGold":0.1069},
+  undying_spite: {"all":0.2794,"fit":0.4728,"perGold":0.0466},
+  arcane_echoes: {"all":0.0897,"fit":0.1746,"perGold":0.0448},
+  frost_nova: {"all":0.1527,"fit":0.177,"perGold":0.0763},
+  spellshield: {"all":0.1068,"fit":0.1437,"perGold":0.0534},
+  toxic_bolt: {"all":0.203,"fit":0.2271,"perGold":0.1015},
+  mend: {"all":0.1665,"fit":0.1965,"perGold":0.0833},
+  combustion: {"all":0.0976,"fit":0.118,"perGold":0.0488},
+  runic_plate: {"all":0.0462,"fit":0.0527,"perGold":0.0231},
+  hemomancy: {"all":0.1674,"fit":0.1714,"perGold":0.0837},
+  focused_mind: {"all":0.155,"fit":0.1643,"perGold":0.0775},
+  quick_study: {"all":0.1192,"fit":0.165,"perGold":0.0397},
+  spell_echo: {"all":0.0534,"fit":0.0232,"perGold":0.0134},
+  overcast: {"all":0.5066,"fit":0.782,"perGold":0.0844},
+  ember_heart: {"all":0.0752,"fit":0.0112,"perGold":0.0376},
+  smolder: {"all":0.0625,"fit":0.1059,"perGold":0.0313},
+  stoke: {"all":0.0756,"fit":0.1295,"perGold":0.0252},
+  flare: {"all":0.0693,"fit":0.07,"perGold":0.0231},
+  wildfire: {"all":0.0969,"fit":0.1167,"perGold":0.0242},
+  phoenix: {"all":0.7949,"fit":0.9126,"perGold":0.1325},
+  cold_snap: {"all":0.0873,"fit":0.067,"perGold":0.0436},
+  frostbite: {"all":0.0214,"fit":0.0325,"perGold":0.0107},
+  permafrost: {"all":0.06,"fit":0.1162,"perGold":0.02},
+  shatter: {"all":0.0579,"fit":0.0781,"perGold":0.0193},
+  deep_winter: {"all":0.072,"fit":0.114,"perGold":0.018},
+  ice_armor: {"all":0.0194,"fit":0.0349,"perGold":0.0048},
+  absolute_zero: {"all":0.0695,"fit":0.1204,"perGold":0.0116},
+  toxic_blade: {"all":0.1558,"fit":0.0603,"perGold":0.0779},
+  miasma: {"all":0.0662,"fit":0.0023,"perGold":0.0331},
+  virulence: {"all":0.0899,"fit":0.1869,"perGold":0.03},
+  lingering: {"all":0.0985,"fit":0.1447,"perGold":0.0328},
+  pandemic: {"all":0.3655,"fit":0.6558,"perGold":0.0914},
+  plague_lord: {"all":0.4904,"fit":0.6304,"perGold":0.0817},
+  rend: {"all":0.2195,"fit":0.363,"perGold":0.1097},
+  open_wounds: {"all":0.0356,"fit":0.05,"perGold":0.0178},
+  deep_cuts: {"all":0.034,"fit":0.0606,"perGold":0.0113},
+  bloodletting: {"all":0.0728,"fit":0.1388,"perGold":0.0243},
+  exsanguinate: {"all":0.0271,"fit":0.0122,"perGold":0.0068},
+  arterial: {"all":0.1158,"fit":0.1553,"perGold":0.0193},
+  barrier: {"all":0.0104,"fit":-0.0277,"perGold":0.0052},
+  reinforce: {"all":0.0574,"fit":0.0577,"perGold":0.0287},
+  bash: {"all":0.0359,"fit":0.0752,"perGold":0.012},
+  overcharge: {"all":0.0622,"fit":0.1159,"perGold":0.0207},
+  bastion: {"all":0.244,"fit":0.1625,"perGold":0.061},
+  reflect: {"all":0.0264,"fit":0.0642,"perGold":0.0066},
+  aegis: {"all":0.21,"fit":0.2713,"perGold":0.035},
+  hearty: {"all":0.1286,"fit":0.1061,"perGold":0.0643},
+  vitality: {"all":0.0682,"fit":0.0689,"perGold":0.0341},
+  second_wind: {"all":0.1034,"fit":0.0541,"perGold":0.0345},
+  giants_blood: {"all":0.0642,"fit":0.0134,"perGold":0.0214},
+  juggernaut: {"all":0.0606,"fit":0.0507,"perGold":0.0152},
+  titan: {"all":0.3479,"fit":0.4762,"perGold":0.058},
+  attunement: {"all":0.0493,"fit":0.0623,"perGold":0.0247},
+  mana_font: {"all":0.112,"fit":0.1734,"perGold":0.056},
+  spellweave: {"all":0.031,"fit":-0.0427,"perGold":0.0155},
+  mana_shield: {"all":0.0305,"fit":0.0872,"perGold":0.0102},
+  arcane_power: {"all":0.1326,"fit":0.2154,"perGold":0.0331},
+  archmage: {"all":0.6618,"fit":0.7862,"perGold":0.1103},
+  plating: {"all":0.0999,"fit":0.1611,"perGold":0.0499},
+  brace: {"all":0.0452,"fit":0.1264,"perGold":0.0226},
+  thorns: {"all":0.0751,"fit":0.1833,"perGold":0.025},
+  stalwart: {"all":0.1281,"fit":0.1214,"perGold":0.0427},
+  fortress: {"all":0.0171,"fit":0.088,"perGold":0.0043},
+  living_mountain: {"all":0.6445,"fit":0.708,"perGold":0.1074},
+  thermal_shock: {"all":0.0878,"fit":0.1211,"perGold":0.0219},
+  spellfire: {"all":0.1051,"fit":0.1385,"perGold":0.0263},
+  iron_will: {"all":0.0917,"fit":0.1495,"perGold":0.0229},
+  blood_ward: {"all":0.057,"fit":0.0601,"perGold":0.0143},
+  toxic_frost: {"all":0.101,"fit":0.1536,"perGold":0.0253},
+  molten_armor: {"all":0.1737,"fit":0.2267,"perGold":0.0434},
+  septic: {"all":0.2214,"fit":0.1939,"perGold":0.0553},
+  glacial_bulwark: {"all":0.0568,"fit":0.0781,"perGold":0.0142},
+  blood_rite: {"all":0.0666,"fit":0.1333,"perGold":0.0167},
+  antivenom: {"all":0.0292,"fit":null,"perGold":0.0146},
+  thaw: {"all":0.1494,"fit":null,"perGold":0.0747},
+  clotting: {"all":0.0914,"fit":null,"perGold":0.0457},
+  true_sight: {"all":0.1144,"fit":null,"perGold":0.0572},
+  unsettling: {"all":0.0278,"fit":null,"perGold":0.0139},
+  shieldbreaker: {"all":0.0565,"fit":null,"perGold":0.0283},
+  cauterize: {"all":0.0359,"fit":null,"perGold":0.018},
+  sunder: {"all":0.0269,"fit":null,"perGold":0.0134},
+  nullstone: {"all":0.0924,"fit":null,"perGold":0.0462},
+  cooling_draught: {"all":0.0554,"fit":null,"perGold":0.0277},
+};
+
 // ---- src/ai/bot.js
 
-// A simple opponent: commit to the character's trigger and resources, buy
-// what fits, answer the enemy's main resource with counters.
+// The rival. Three levels:
+//   easy    commits loosely to its gladiator's tags, buys on impulse
+//   normal  plans a two-resource build, manages gold, chases tier unlocks and
+//           hybrids, and buys counters to your main resource
+//   hard    everything normal does, then test-fights its top candidate cards
+//           against your current build before buying, and picks signatures
+//           the same way
+// The bot only sees what a human would see: your gladiator and your cards.
+
+const LEVELS = {
+  easy:   { noise: 3, rerolls: 1, counters: false, economy: false, sims: 0, spendAll: 0 },
+  normal: { noise: 0.6, rerolls: 4, counters: true, economy: true, sims: 0, spendAll: -1, valueWeight: 14, planWeight: 0.35 },
+  hard:   { noise: 0.2, rerolls: 7, counters: true, economy: true, sims: 4, simTop: 3, simWeight: 6, spendAll: -1, valueWeight: 14, planWeight: 0.35 },
+};
+const level = (p) => LEVELS[p.level] || LEVELS.normal;
+
+// Resources that tend to dominate bot-vs-bot play; smarter bots ban these.
+const THREAT = { poison: 3, regen: 3, bleed: 2, shield: 2, armor: 1.5, fire: 1.5, frost: 1.2, arcane: 1 };
 
 function botBan(m, id) {
+  const p = m.players[id];
   const rng = rngFor(m);
-  submitBan(m, id, rng.pick(RESOURCES));
+  if (p.level === 'easy') return submitBan(m, id, rng.pick(RESOURCES));
+  let r = rng() * RESOURCES.reduce((s, x) => s + THREAT[x], 0);
+  for (const x of RESOURCES) { r -= THREAT[x]; if (r <= 0) return submitBan(m, id, x); }
+  submitBan(m, id, RESOURCES[0]);
 }
 
 function botPick(m, id, preferred) {
@@ -1566,56 +1738,155 @@ function botPick(m, id, preferred) {
 
 function botSignature(m, id) {
   const p = m.players[id];
-  const rng = rngFor(m);
-  chooseSignature(m, id, rng.pick(CHAR_BY_ID[p.charId].signatures).id);
+  const sigs = CHAR_BY_ID[p.charId].signatures;
+  if (level(p).sims) {
+    const enemy = rivalOf(m, id);
+    let best = sigs[0], bestScore = -Infinity;
+    for (const s of sigs) {
+      const score = evaluate({ ...loadout(p), sig: s.id }, loadout(enemy), m, 6);
+      if (score > bestScore) { bestScore = score; best = s; }
+    }
+    return chooseSignature(m, id, best.id);
+  }
+  chooseSignature(m, id, rngFor(m).pick(sigs).id);
 }
+
+function rivalOf(m, id) {
+  return m.players.find((q) => q.id !== id && q.hp > 0) || m.players[(id + 1) % m.players.length];
+}
+
+// Pure gladiators get a second resource: the one their trigger feeds best.
+const PARTNER = { strike: ['bleed', 'shield', 'poison'], spell: ['arcane', 'shield', 'poison'], pain: ['armor', 'shield', 'bleed'],
+  precision: ['poison', 'bleed', 'fire'], evasion: ['poison', 'shield', 'frost'] };
 
 function plan(m, p) {
   if (p.plan) return p.plan;
   const ch = CHAR_BY_ID[p.charId];
   const rng = rngFor(m);
   const resources = ch.resources.filter((r) => !m.bans.includes(r));
-  if (resources.length < 2) {
-    const extra = RESOURCES.filter((r) => !m.bans.includes(r) && !resources.includes(r));
-    resources.push(rng.pick(extra));
+  const open = RESOURCES.filter((r) => !m.bans.includes(r) && !resources.includes(r));
+  while (resources.length < 2) {
+    const pref = p.level === 'easy' ? [] : PARTNER[ch.trigger].filter((r) => open.includes(r));
+    const pick = pref.length ? pref[0] : rng.pick(open);
+    resources.push(pick);
+    open.splice(open.indexOf(pick), 1);
   }
   p.plan = { trigger: ch.trigger, resources };
   return p.plan;
 }
 
-function scoreCard(card, p, enemy, plan, noise = 0) {
+// Heuristic value of one more copy of `card` for this player.
+function scoreCard(card, p, enemy, pl, lv = LEVELS.normal) {
   const res = cardResources(card);
   const trig = card.tags.filter((t) => TRIGGERS.includes(t));
-  let s = 0;
+  const counts = tagCounts(p.cards);
+  const have = p.cards[card.id] || 0;
+
   if (card.tier === 'counter') {
+    if (!lv.counters) return -1;
     const ec = tagCounts(enemy.cards);
-    return (ec[card.counters] || 0) >= 6 ? 5 + noise : -1;
+    const threat = card.counters === 'evasion' ? (ec.evasion || 0) + (CHAR_BY_ID[enemy.charId].trigger === 'evasion' ? 6 : 0) : ec[card.counters] || 0;
+    if (threat < 5) return -1;
+    return 3 + Math.min(5, (threat - 5) * 0.5) - have * 1.5;
   }
-  if (card.tier === 'hybrid') return res.every((r) => plan.resources.includes(r)) ? 8 + noise : -1;
-  for (const r of res) s += plan.resources.includes(r) ? 3 : -2;
-  for (const t of trig) s += t === plan.trigger ? 2.5 : -1.5;
-  if (res.length && trig.length && res.every((r) => plan.resources.includes(r)) && trig[0] === plan.trigger) s += 3;
-  s += (typeof card.tier === 'number' ? card.tier - 1 : 0) * 0.8;
-  return s + noise;
+  if (card.tier === 'hybrid') return res.every((r) => pl.resources.includes(r)) ? 9 : -1;
+
+  let s = 0;
+  if (!lv.economy) {
+    // Easy: commit to the gladiator's tags and favor higher tiers.
+    for (const r of res) s += pl.resources.includes(r) ? 3 : -2.5;
+    for (const t of trig) s += t === pl.trigger ? 2.5 : -1.5;
+    if (typeof card.tier === 'number') s += (card.tier - 1) * 1.1;
+    return s;
+  }
+
+  // Measured value of the card (see tools/cardvalue.mjs), using the value
+  // for gladiators that share its tags when this one does.
+  const ch = CHAR_BY_ID[p.charId];
+  const v = CARD_VALUES[card.id] || { all: 0, fit: null };
+  const fits = card.tags.some((t) => t === ch.trigger || ch.resources.includes(t));
+  s += ((fits && v.fit !== null ? v.fit : v.all) * lv.valueWeight) / Math.sqrt(cardCost(card) / 2);
+  // Plan synergy on top.
+  for (const r of res) s += pl.resources.includes(r) ? lv.planWeight : -lv.planWeight * 0.6;
+  for (const t of trig) s += t === pl.trigger ? lv.planWeight * 0.8 : -lv.planWeight * 0.3;
+
+  // Cards that push a planned tag over a tier threshold are worth more.
+  for (const t of card.tags) {
+    if (t !== pl.trigger && !pl.resources.includes(t)) continue;
+    const n = counts[t] || 0;
+    for (const k of [2, 3, 4]) if (n + 1 === TIER_UNLOCK[k]) s += 1.5;
+    if (pl.resources.includes(t) && n + 1 === HYBRID_REQ) s += 1;
+  }
+  // Pure trigger boosters only matter if the trigger is actually used.
+  if (!res.length && trig.length && trig[0] !== pl.trigger) s -= 2;
+  // Copies past the third give less.
+  if (have >= 3) s -= 0.5 * (have - 2);
+  return s;
+}
+
+// Average fight outcome of `mine` vs `theirs`: +1..+2 for wins (more for HP
+// left), -1..-2 for losses (more for the enemy's HP left).
+function evaluate(mine, theirs, m, n) {
+  let total = 0;
+  for (let i = 0; i < n; i++) {
+    const r = new Fight(mine, theirs, (m.seed + m.round * 977 + i * 7919) >>> 0).runToEnd();
+    if (r.winner === 0) total += 1 + r.survivorHpPct;
+    else if (r.winner === 1) total -= 1 + r.survivorHpPct;
+  }
+  return total / n;
 }
 
 function botShop(m, id) {
   const p = m.players[id];
-  const enemy = m.players.find((q) => q.id !== id && q.hp > 0) || m.players[(id + 1) % m.players.length];
+  const lv = level(p);
+  const enemy = rivalOf(m, id);
   const pl = plan(m, p);
   const rng = rngFor(m);
+  const enemyLo = loadout(enemy);
+  const simulate = lv.sims > 0 && Object.keys(enemy.cards).length > 0;
+  let base = simulate ? evaluate(loadout(p), enemyLo, m, lv.sims) : 0;
   let rerolls = 0;
+
   for (let guard = 0; guard < 40; guard++) {
-    let best = -1, bestScore = 2.5;
+    const options = [];
     p.shop.forEach((cid, i) => {
       if (!cid) return;
       const card = CARD_BY_ID[cid];
       if (cardCost(card) > p.gold || (p.cards[cid] || 0) >= card.max) return;
-      const s = scoreCard(card, p, enemy, pl, (rng() - 0.5));
-      if (s > bestScore) { bestScore = s; best = i; }
+      options.push({ i, card, s: scoreCard(card, p, enemy, pl, lv) + (rng() - 0.5) * 2 * lv.noise });
     });
-    if (best >= 0) { buy(m, id, best); continue; }
-    if (p.gold >= REROLL_COST + 2 && rerolls < 5) { reroll(m, id); rerolls++; continue; }
+    options.sort((a, b) => b.s - a.s);
+
+    if (simulate) {
+      // Test-fight the top candidates. Long-term synergy still counts, so
+      // blend the measured gain with the heuristic.
+      for (const o of options.slice(0, lv.simTop)) {
+        if (o.s < 1) continue;
+        const cards = { ...p.cards, [o.card.id]: (p.cards[o.card.id] || 0) + 1 };
+        o.gain = evaluate({ ...loadout(p), cards }, enemyLo, m, lv.sims) - base;
+        o.s += o.gain * lv.simWeight;
+      }
+      options.sort((a, b) => b.s - a.s);
+    }
+
+    const best = options[0];
+    const threshold = lv.economy && m.round <= 3 && p.gold - (best ? cardCost(best.card) : 0) < 10 && p.gold >= 8 ? 4.5 : 2.5;
+    if (best && best.s > threshold) {
+      buy(m, id, best.i);
+      if (simulate && best.gain !== undefined) base += best.gain;
+      continue;
+    }
+    // Reroll when nothing fits, but protect interest in the early rounds.
+    const keep = lv.economy && m.round <= 4 ? 10 : 0;
+    if (rerolls < lv.rerolls && p.gold - REROLL_COST >= Math.max(2, keep)) { reroll(m, id); rerolls++; continue; }
+    if (rerolls < lv.rerolls && p.gold >= REROLL_COST + 2 && m.round > 4) { reroll(m, id); rerolls++; continue; }
+    // Out of rerolls: unspent gold is wasted power, so take the best card
+    // that at least doesn't hurt the plan (beyond what interest would earn).
+    if (lv.spendAll && best && best.s > lv.spendAll && p.gold - cardCost(best.card) >= keep) {
+      buy(m, id, best.i);
+      if (simulate && best.gain !== undefined) base += best.gain;
+      continue;
+    }
     break;
   }
 }
@@ -1969,7 +2240,22 @@ function createArena(canvas) {
 const ME = 0, FOE = 1;
 const root = document.getElementById('app');
 let M = null;
-let ui = { screen: 'title', speed: 2, banner: null, mobileTab: null, toast: null };
+let ui = { screen: 'title', speed: 2, banner: null, mobileTab: null, toast: null, level: loadLevel() };
+
+const DIFFICULTY = {
+  easy: { name: 'Squire', desc: 'Buys on impulse. Good for learning the cards.' },
+  normal: { name: 'Gladiator', desc: 'Plans a build, manages gold and counters your main resource.' },
+  hard: { name: 'Champion', desc: 'Also test-fights cards against your build before buying them.' },
+};
+function loadLevel() {
+  try { return localStorage.getItem('stack-arena-level') || 'normal'; } catch { return 'normal'; }
+}
+function newMatch() {
+  try { localStorage.setItem('stack-arena-level', ui.level); } catch { /* storage unavailable */ }
+  M = createMatch({ seed: Math.floor(Math.random() * 1e9), players: [{ name: 'You' }, { name: 'Rival', isBot: true, level: ui.level }] });
+  ui.screen = 'ban';
+  render();
+}
 let arena = null;
 let fighting = false;
 let toastTimer = 0;
@@ -1991,14 +2277,14 @@ function cardTags(card) {
   return card.tags.map((t) => chip(t, true)).join('');
 }
 
-function record() {
-  try { return JSON.parse(localStorage.getItem('stack-arena-record') || '{"w":0,"l":0}'); } catch { return { w: 0, l: 0 }; }
+function record(level) {
+  try { return JSON.parse(localStorage.getItem('stack-arena-record-' + level) || '{"w":0,"l":0}'); } catch { return { w: 0, l: 0 }; }
 }
-function saveRecord(won) {
+function saveRecord(level, won) {
   try {
-    const r = record();
+    const r = record(level);
     if (won) r.w++; else r.l++;
-    localStorage.setItem('stack-arena-record', JSON.stringify(r));
+    localStorage.setItem('stack-arena-record-' + level, JSON.stringify(r));
   } catch { /* storage unavailable */ }
 }
 
@@ -2024,7 +2310,6 @@ function render() {
 }
 
 function renderTitle() {
-  const r = record();
   root.innerHTML = `
   <div class="screen"><div class="screen-inner">
     <div>
@@ -2033,9 +2318,19 @@ function renderTitle() {
     </div>
     <p class="lede">Pick a gladiator, buy buff cards from the shop between rounds, and watch the fight play out by itself.
       Cards give you <b>stacks</b>. The more cards you own of one kind, the better the cards that show up.</p>
+    <div>
+      <div class="eyebrow" style="margin-bottom:8px">Choose your rival</div>
+      <div class="levels" role="radiogroup" aria-label="Rival difficulty">
+        ${Object.entries(DIFFICULTY).map(([id, d]) => {
+          const r = record(id);
+          return `<button class="level ${ui.level === id ? 'on' : ''}" role="radio" aria-checked="${ui.level === id}" data-level="${id}">
+            <b>${d.name}</b><span>${d.desc}</span>${r.w + r.l ? `<span class="rec num">Your record: ${r.w}-${r.l}</span>` : ''}
+          </button>`;
+        }).join('')}
+      </div>
+    </div>
     <div class="row">
       <button class="btn primary" id="start" style="font-family:var(--display);font-size:26px;font-weight:400;padding:6px 28px">Enter the arena</button>
-      ${r.w + r.l ? `<span class="eyebrow">Your record: ${r.w} won, ${r.l} lost</span>` : ''}
     </div>
     <div class="rules">
       <div class="rule"><h3>Triggers and resources</h3><p>Triggers decide <i>when</i> you gain stacks (Strike, Crit, Dodge, Pain, Spell). Resources decide <i>what</i> stacks do. A card like ${chip('precision', true)} <span class="arrow">&#9656;</span> ${chip('poison', true)} always fires. Cards with only a resource fire 30% of the time.</p></div>
@@ -2050,11 +2345,8 @@ function renderTitle() {
       </div>
     </div>
   </div></div>`;
-  root.querySelector('#start').onclick = () => {
-    M = createMatch({ seed: Math.floor(Math.random() * 1e9), players: [{ name: 'You' }, { name: 'Rival', isBot: true }] });
-    ui.screen = 'ban';
-    render();
-  };
+  root.querySelectorAll('[data-level]').forEach((b) => b.onclick = () => { ui.level = b.dataset.level; renderTitle(); });
+  root.querySelector('#start').onclick = newMatch;
 }
 
 function renderBan() {
@@ -2174,7 +2466,7 @@ function renderHud() {
   const me = M.players[ME], foe = M.players[FOE];
   const life = (p, cls) => `
     <div class="life ${cls}">
-      <div class="top"><span>${esc(p.name)} · ${esc(CHAR_BY_ID[p.charId].name)}</span><span class="num">${p.hp} / ${START_HP}</span></div>
+      <div class="top"><span>${esc(p.isBot ? DIFFICULTY[p.level || 'normal'].name : p.name)} · ${esc(CHAR_BY_ID[p.charId].name)}</span><span class="num">${p.hp} / ${START_HP}</span></div>
       <div class="bar"><i style="width:${(p.hp / START_HP) * 100}%"></i></div>
     </div>`;
   root.querySelector('#hud').innerHTML = `
@@ -2210,7 +2502,7 @@ function renderSide(id, p, mine) {
   const hybrids = mine ? CARDS.filter((h) => h.tier === 'hybrid' && !h.tags.some((t) => M.bans.includes(t)) && h.tags.every((t) => (counts[t] || 0) >= 2) && !h.tags.every((t) => (counts[t] || 0) >= HYBRID_REQ)) : [];
   el.innerHTML = `
     <div>
-      <div class="eyebrow">${mine ? 'Your gladiator' : 'Rival'}</div>
+      <div class="eyebrow">${mine ? 'Your gladiator' : `Rival · ${DIFFICULTY[p.level || 'normal'].name}`}</div>
       <h2>${esc(c.name)}</h2>
       <div class="sub">${chip(c.trigger, true)} ${c.resources.map((r) => chip(r, true)).join(' ')}</div>
     </div>
@@ -2220,14 +2512,9 @@ function renderSide(id, p, mine) {
     <div><div class="eyebrow" style="margin-bottom:6px">Cards (${owned.reduce((s, [, n]) => s + n, 0)})</div>
       <div class="owned">${owned.length ? owned.map(([cid, n]) => {
         const card = CARD_BY_ID[cid];
-        return `<div class="own" title="${esc(card.desc(n))}"><span>${esc(card.name)}</span><span class="n num">x${n}</span>${mine && !fighting ? `<button class="sellb" data-sell="${cid}" title="Sell one copy">Sell +${sellValue(card)}</button>` : '<span></span>'}</div>`;
+        return `<div class="own" title="${esc(card.desc(n))}"><span>${esc(card.name)}</span><span class="n num">x${n}</span></div>`;
       }).join('') : '<p class="empty">Nothing yet.</p>'}</div>
     </div>`;
-  el.querySelectorAll('[data-sell]').forEach((b) => b.onclick = () => {
-    sell(M, ME, b.dataset.sell);
-    arena.setPreview(loadout(M.players[ME]), loadout(M.players[FOE]));
-    updateGame();
-  });
 }
 
 function renderTray() {
@@ -2335,7 +2622,7 @@ function nextRound() {
   ui.banner = null;
   finishRound(M);
   if (M.phase === 'over') {
-    saveRecord(M.players[ME].hp > 0);
+    saveRecord(M.players[FOE].level || 'normal', M.players[ME].hp > 0);
     ui.screen = 'over';
     render();
     return;
@@ -2393,7 +2680,7 @@ function renderOver() {
   root.innerHTML = `
   <div class="screen"><div class="screen-inner">
     <div>
-      <div class="eyebrow">After ${M.round} rounds · ${me.wins} fights won, ${foe.wins} lost</div>
+      <div class="eyebrow">After ${M.round} rounds · ${me.wins} fights won, ${foe.wins} lost · Rival: ${DIFFICULTY[foe.level || 'normal'].name}</div>
       <h1 class="brand" style="color:${won ? 'var(--bronze)' : 'var(--blood)'}">${won ? 'Champion' : 'Fallen'}</h1>
     </div>
     <div class="rules">
@@ -2402,11 +2689,7 @@ function renderOver() {
     </div>
     <div class="row"><button class="btn primary" id="again">Play again</button><button class="btn" id="home">Back to title</button></div>
   </div></div>`;
-  root.querySelector('#again').onclick = () => {
-    M = createMatch({ seed: Math.floor(Math.random() * 1e9), players: [{ name: 'You' }, { name: 'Rival', isBot: true }] });
-    ui.screen = 'ban';
-    render();
-  };
+  root.querySelector('#again').onclick = newMatch;
   root.querySelector('#home').onclick = () => { ui.screen = 'title'; render(); };
 }
 
@@ -2426,15 +2709,13 @@ document.addEventListener('keydown', (e) => {
 function start(data) {
   if (data && data.M) {
     M = data.M;
-    ui = { ...ui, ...data.ui, banner: data.ui?.banner || null, modal: null };
+    ui = { ...ui, ...data.ui, banner: data.ui?.banner || null, modal: null, level: data.ui?.level || ui.level };
   }
   render();
 }
-window.claude?.hot?.snapshot?.(() => ({ M, ui: { screen: ui.screen, speed: ui.speed, banner: ui.banner } }));
+window.claude?.hot?.snapshot?.(() => ({ M, ui: { screen: ui.screen, speed: ui.speed, banner: ui.banner, level: ui.level } }));
 if (window.claude?.hot?.ready) window.claude.hot.ready(start);
 else start(window.claude?.hot?.data ?? {});
 
 })();
 </script>
-
-</body></html>

@@ -52,6 +52,10 @@ for (let i = 0; i < N; i++) {
   }
 }
 
+if (process.argv.includes('--json')) {
+  console.log(JSON.stringify(Object.fromEntries(Object.entries(charStats).map(([id, s]) => [id, s.wins / s.games]))));
+  process.exit(0);
+}
 const fmt = (s) => `${((s.wins / Math.max(1, s.games)) * 100).toFixed(1).padStart(5)}%  (${s.games})`;
 console.log(`matches ${N}  avg rounds ${(rounds / N).toFixed(1)}  avg fight ${(fightTime / fights).toFixed(1)}s  draws ${(draws / fights * 100).toFixed(1)}%  past-30s ${(sudden / fights * 100).toFixed(1)}%  timeouts ${(timeouts / fights * 100).toFixed(1)}%`);
 console.log(`avg cards at end ${(cardsEnd / N / 2).toFixed(1)}`);

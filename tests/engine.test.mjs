@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { Fight } from '../src/engine/combat.js';
 import { CARDS } from '../src/data/cards.js';
 import { CHARACTERS, CHAR_BY_ID, characterStatus } from '../src/data/characters.js';
-import { createMatch, submitBan, pickCharacter, buy, sell, reroll, visibleCharacters } from '../src/engine/match.js';
+import { createMatch, submitBan, pickCharacter, buy, reroll, visibleCharacters } from '../src/engine/match.js';
 import { eligibleCards, rollShop, isBanned } from '../src/engine/shop.js';
 import { makeRng } from '../src/rng.js';
 import { playMatchForTest } from './helpers.mjs';
@@ -96,7 +96,7 @@ test('shop has 5 distinct cards', () => {
   assert.equal(new Set(s).size, 5);
 });
 
-test('match flow: ban, pick, buy, sell, reroll', () => {
+test('match flow: ban, pick, buy, reroll', () => {
   const m = createMatch({ seed: 5, players: [{ name: 'You' }, { name: 'Bot', isBot: true }] });
   submitBan(m, 0, 'fire');
   submitBan(m, 1, 'regen');
@@ -109,8 +109,7 @@ test('match flow: ban, pick, buy, sell, reroll', () => {
   const gold = p.gold;
   assert.ok(buy(m, 0, 0));
   assert.ok(p.gold < gold);
-  const id = Object.keys(p.cards)[0];
-  assert.ok(sell(m, 0, id));
+  assert.equal(Object.values(p.cards).reduce((a, b) => a + b, 0), 1);
   assert.ok(reroll(m, 0));
 });
 
@@ -120,4 +119,24 @@ test('full bot matches finish', () => {
     assert.equal(m.phase, 'over');
     assert.ok(m.players.some((p) => p.hp === 0));
   }
+});
+
+test('difficulty ladder: normal rival beats easy rival most of the time', async () => {
+  const { createMatch, pairings, makeFight, resolveFight, finishRound } = await import('../src/engine/match.js');
+  const { botBan, botPick, botShop, botSignature } = await import('../src/ai/bot.js');
+  let normalWins = 0;
+  const N = 40;
+  for (let i = 0; i < N; i++) {
+    const levels = i % 2 ? ['normal', 'easy'] : ['easy', 'normal'];
+    const m = createMatch({ seed: 300 + i, players: levels.map((level) => ({ name: level, isBot: true, level })) });
+    botBan(m, 0); botBan(m, 1); botPick(m, 0); botPick(m, 1);
+    while (m.phase !== 'over' && m.round < 40) {
+      if (m.phase === 'signature') { botSignature(m, 0); botSignature(m, 1); }
+      botShop(m, 0); botShop(m, 1);
+      for (const [a, b, g] of pairings(m)) resolveFight(m, a, b, makeFight(m, a, b).runToEnd(), g);
+      finishRound(m);
+    }
+    if (m.players.find((p) => p.hp > 0)?.level === 'normal') normalWins++;
+  }
+  assert.ok(normalWins / N > 0.7, `normal won ${normalWins}/${N}`);
 });

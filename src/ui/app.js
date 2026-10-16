@@ -1,9 +1,9 @@
 import { TAGS, TRIGGERS, RESOURCES, TIER_UNLOCK, TIER_NAMES, HYBRID_REQ } from '../data/tags.js';
 import { CARDS, CARD_BY_ID, cardResources } from '../data/cards.js';
 import { CHARACTERS, CHAR_BY_ID, characterStatus } from '../data/characters.js';
-import { tagCounts, cardCost, sellValue, REROLL_COST } from '../engine/shop.js';
+import { tagCounts, cardCost, REROLL_COST } from '../engine/shop.js';
 import {
-  createMatch, submitBan, pickCharacter, visibleCharacters, buy, sell, reroll, toggleLock,
+  createMatch, submitBan, pickCharacter, visibleCharacters, buy, reroll, toggleLock,
   makeFight, resolveFight, finishRound, chooseSignature, loadout, income, interest, START_HP, SIGNATURE_ROUND,
 } from '../engine/match.js';
 import { botBan, botPick, botShop, botSignature } from '../ai/bot.js';
@@ -12,7 +12,22 @@ import { createArena } from './arena.js';
 const ME = 0, FOE = 1;
 const root = document.getElementById('app');
 let M = null;
-let ui = { screen: 'title', speed: 2, banner: null, mobileTab: null, toast: null };
+let ui = { screen: 'title', speed: 2, banner: null, mobileTab: null, toast: null, level: loadLevel() };
+
+const DIFFICULTY = {
+  easy: { name: 'Squire', desc: 'Buys on impulse. Good for learning the cards.' },
+  normal: { name: 'Gladiator', desc: 'Plans a build, manages gold and counters your main resource.' },
+  hard: { name: 'Champion', desc: 'Also test-fights cards against your build before buying them.' },
+};
+function loadLevel() {
+  try { return localStorage.getItem('stack-arena-level') || 'normal'; } catch { return 'normal'; }
+}
+function newMatch() {
+  try { localStorage.setItem('stack-arena-level', ui.level); } catch { /* storage unavailable */ }
+  M = createMatch({ seed: Math.floor(Math.random() * 1e9), players: [{ name: 'You' }, { name: 'Rival', isBot: true, level: ui.level }] });
+  ui.screen = 'ban';
+  render();
+}
 let arena = null;
 let fighting = false;
 let toastTimer = 0;
@@ -34,14 +49,14 @@ function cardTags(card) {
   return card.tags.map((t) => chip(t, true)).join('');
 }
 
-function record() {
-  try { return JSON.parse(localStorage.getItem('stack-arena-record') || '{"w":0,"l":0}'); } catch { return { w: 0, l: 0 }; }
+function record(level) {
+  try { return JSON.parse(localStorage.getItem('stack-arena-record-' + level) || '{"w":0,"l":0}'); } catch { return { w: 0, l: 0 }; }
 }
-function saveRecord(won) {
+function saveRecord(level, won) {
   try {
-    const r = record();
+    const r = record(level);
     if (won) r.w++; else r.l++;
-    localStorage.setItem('stack-arena-record', JSON.stringify(r));
+    localStorage.setItem('stack-arena-record-' + level, JSON.stringify(r));
   } catch { /* storage unavailable */ }
 }
 
@@ -67,7 +82,6 @@ function render() {
 }
 
 function renderTitle() {
-  const r = record();
   root.innerHTML = `
   <div class="screen"><div class="screen-inner">
     <div>
@@ -76,9 +90,19 @@ function renderTitle() {
     </div>
     <p class="lede">Pick a gladiator, buy buff cards from the shop between rounds, and watch the fight play out by itself.
       Cards give you <b>stacks</b>. The more cards you own of one kind, the better the cards that show up.</p>
+    <div>
+      <div class="eyebrow" style="margin-bottom:8px">Choose your rival</div>
+      <div class="levels" role="radiogroup" aria-label="Rival difficulty">
+        ${Object.entries(DIFFICULTY).map(([id, d]) => {
+          const r = record(id);
+          return `<button class="level ${ui.level === id ? 'on' : ''}" role="radio" aria-checked="${ui.level === id}" data-level="${id}">
+            <b>${d.name}</b><span>${d.desc}</span>${r.w + r.l ? `<span class="rec num">Your record: ${r.w}-${r.l}</span>` : ''}
+          </button>`;
+        }).join('')}
+      </div>
+    </div>
     <div class="row">
       <button class="btn primary" id="start" style="font-family:var(--display);font-size:26px;font-weight:400;padding:6px 28px">Enter the arena</button>
-      ${r.w + r.l ? `<span class="eyebrow">Your record: ${r.w} won, ${r.l} lost</span>` : ''}
     </div>
     <div class="rules">
       <div class="rule"><h3>Triggers and resources</h3><p>Triggers decide <i>when</i> you gain stacks (Strike, Crit, Dodge, Pain, Spell). Resources decide <i>what</i> stacks do. A card like ${chip('precision', true)} <span class="arrow">&#9656;</span> ${chip('poison', true)} always fires. Cards with only a resource fire 30% of the time.</p></div>
@@ -93,11 +117,8 @@ function renderTitle() {
       </div>
     </div>
   </div></div>`;
-  root.querySelector('#start').onclick = () => {
-    M = createMatch({ seed: Math.floor(Math.random() * 1e9), players: [{ name: 'You' }, { name: 'Rival', isBot: true }] });
-    ui.screen = 'ban';
-    render();
-  };
+  root.querySelectorAll('[data-level]').forEach((b) => b.onclick = () => { ui.level = b.dataset.level; renderTitle(); });
+  root.querySelector('#start').onclick = newMatch;
 }
 
 function renderBan() {
@@ -217,7 +238,7 @@ function renderHud() {
   const me = M.players[ME], foe = M.players[FOE];
   const life = (p, cls) => `
     <div class="life ${cls}">
-      <div class="top"><span>${esc(p.name)} · ${esc(CHAR_BY_ID[p.charId].name)}</span><span class="num">${p.hp} / ${START_HP}</span></div>
+      <div class="top"><span>${esc(p.isBot ? DIFFICULTY[p.level || 'normal'].name : p.name)} · ${esc(CHAR_BY_ID[p.charId].name)}</span><span class="num">${p.hp} / ${START_HP}</span></div>
       <div class="bar"><i style="width:${(p.hp / START_HP) * 100}%"></i></div>
     </div>`;
   root.querySelector('#hud').innerHTML = `
@@ -253,7 +274,7 @@ function renderSide(id, p, mine) {
   const hybrids = mine ? CARDS.filter((h) => h.tier === 'hybrid' && !h.tags.some((t) => M.bans.includes(t)) && h.tags.every((t) => (counts[t] || 0) >= 2) && !h.tags.every((t) => (counts[t] || 0) >= HYBRID_REQ)) : [];
   el.innerHTML = `
     <div>
-      <div class="eyebrow">${mine ? 'Your gladiator' : 'Rival'}</div>
+      <div class="eyebrow">${mine ? 'Your gladiator' : `Rival · ${DIFFICULTY[p.level || 'normal'].name}`}</div>
       <h2>${esc(c.name)}</h2>
       <div class="sub">${chip(c.trigger, true)} ${c.resources.map((r) => chip(r, true)).join(' ')}</div>
     </div>
@@ -263,14 +284,9 @@ function renderSide(id, p, mine) {
     <div><div class="eyebrow" style="margin-bottom:6px">Cards (${owned.reduce((s, [, n]) => s + n, 0)})</div>
       <div class="owned">${owned.length ? owned.map(([cid, n]) => {
         const card = CARD_BY_ID[cid];
-        return `<div class="own" title="${esc(card.desc(n))}"><span>${esc(card.name)}</span><span class="n num">x${n}</span>${mine && !fighting ? `<button class="sellb" data-sell="${cid}" title="Sell one copy">Sell +${sellValue(card)}</button>` : '<span></span>'}</div>`;
+        return `<div class="own" title="${esc(card.desc(n))}"><span>${esc(card.name)}</span><span class="n num">x${n}</span></div>`;
       }).join('') : '<p class="empty">Nothing yet.</p>'}</div>
     </div>`;
-  el.querySelectorAll('[data-sell]').forEach((b) => b.onclick = () => {
-    sell(M, ME, b.dataset.sell);
-    arena.setPreview(loadout(M.players[ME]), loadout(M.players[FOE]));
-    updateGame();
-  });
 }
 
 function renderTray() {
@@ -378,7 +394,7 @@ function nextRound() {
   ui.banner = null;
   finishRound(M);
   if (M.phase === 'over') {
-    saveRecord(M.players[ME].hp > 0);
+    saveRecord(M.players[FOE].level || 'normal', M.players[ME].hp > 0);
     ui.screen = 'over';
     render();
     return;
@@ -436,7 +452,7 @@ function renderOver() {
   root.innerHTML = `
   <div class="screen"><div class="screen-inner">
     <div>
-      <div class="eyebrow">After ${M.round} rounds · ${me.wins} fights won, ${foe.wins} lost</div>
+      <div class="eyebrow">After ${M.round} rounds · ${me.wins} fights won, ${foe.wins} lost · Rival: ${DIFFICULTY[foe.level || 'normal'].name}</div>
       <h1 class="brand" style="color:${won ? 'var(--bronze)' : 'var(--blood)'}">${won ? 'Champion' : 'Fallen'}</h1>
     </div>
     <div class="rules">
@@ -445,11 +461,7 @@ function renderOver() {
     </div>
     <div class="row"><button class="btn primary" id="again">Play again</button><button class="btn" id="home">Back to title</button></div>
   </div></div>`;
-  root.querySelector('#again').onclick = () => {
-    M = createMatch({ seed: Math.floor(Math.random() * 1e9), players: [{ name: 'You' }, { name: 'Rival', isBot: true }] });
-    ui.screen = 'ban';
-    render();
-  };
+  root.querySelector('#again').onclick = newMatch;
   root.querySelector('#home').onclick = () => { ui.screen = 'title'; render(); };
 }
 
@@ -469,10 +481,10 @@ document.addEventListener('keydown', (e) => {
 function start(data) {
   if (data && data.M) {
     M = data.M;
-    ui = { ...ui, ...data.ui, banner: data.ui?.banner || null, modal: null };
+    ui = { ...ui, ...data.ui, banner: data.ui?.banner || null, modal: null, level: data.ui?.level || ui.level };
   }
   render();
 }
-window.claude?.hot?.snapshot?.(() => ({ M, ui: { screen: ui.screen, speed: ui.speed, banner: ui.banner } }));
+window.claude?.hot?.snapshot?.(() => ({ M, ui: { screen: ui.screen, speed: ui.speed, banner: ui.banner, level: ui.level } }));
 if (window.claude?.hot?.ready) window.claude.hot.ready(start);
 else start(window.claude?.hot?.data ?? {});
