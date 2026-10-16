@@ -1,7 +1,7 @@
 // Plays bot levels against each other (seats alternate) to check that each
 // difficulty is actually stronger than the one below it.
 //   node tools/duel.mjs [matches=300] [levelA=hard] [levelB=normal]
-import { createMatch, pairings, makeFight, resolveFight, finishRound } from '../src/engine/match.js';
+import { createMatch, makeFight, resolveFight, finishRound } from '../src/engine/match.js';
 import { botBan, botPick, botShop, botSignature } from '../src/ai/bot.js';
 
 const N = Number(process.argv[2] || 300);
@@ -18,7 +18,7 @@ for (let i = 0; i < N; i++) {
       botShop(m, id);
       if (m.players[id].level === A) { shopMs += performance.now() - t; shops++; }
     }
-    for (const [a, b, ghost] of pairings(m)) resolveFight(m, a, b, makeFight(m, a, b).runToEnd(), ghost);
+    for (const [a, b, ghost] of m.pairs) resolveFight(m, a, b, makeFight(m, a, b).runToEnd(), ghost);
     finishRound(m);
   }
   const winner = m.players.find((p) => p.hp > 0);

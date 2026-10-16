@@ -1,7 +1,7 @@
 // Headless balance simulator: plays full bot-vs-bot matches and reports
 // win rates by character and by build resource.
 //   node tools/sim.mjs [matches=600]
-import { createMatch, pairings, makeFight, resolveFight, finishRound } from '../src/engine/match.js';
+import { createMatch, makeFight, resolveFight, finishRound } from '../src/engine/match.js';
 import { botBan, botPick, botShop, botSignature } from '../src/ai/bot.js';
 import { CHARACTERS } from '../src/data/characters.js';
 
@@ -19,7 +19,7 @@ export function playMatch(seed) {
   while (m.phase !== 'over' && m.round < 40) {
     if (m.phase === 'signature') { botSignature(m, 0); botSignature(m, 1); }
     botShop(m, 0); botShop(m, 1);
-    for (const [a, b, ghost] of pairings(m)) {
+    for (const [a, b, ghost] of m.pairs) {
       const f = makeFight(m, a, b);
       const r = f.runToEnd();
       fights++; fightTime += r.time;

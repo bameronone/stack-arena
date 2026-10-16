@@ -81,6 +81,48 @@ h1, h2, h3 { font-family: var(--display); font-weight: 400; margin: 0; text-wrap
 .tag-legend div { display: flex; gap: 8px; align-items: baseline; color: var(--dust); font-size: 13px; min-width: 0; }
 .tag-legend .chip { flex: none; }
 .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.lobby { display: flex; flex-direction: column; gap: 10px; max-width: 760px; }
+.lobby .rec { color: var(--sand); }
+.slots { display: flex; flex-direction: column; gap: 6px; }
+.slot {
+  display: grid; grid-template-columns: 28px 110px minmax(0, 1fr) auto; gap: 10px; align-items: center;
+  background: var(--pit); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; min-width: 0;
+}
+.slot b { font-family: var(--display); font-size: 22px; font-weight: 400; line-height: 1; }
+.slot.you { border-color: var(--bronze); }
+.slot.you b { color: var(--bronze); }
+.slot-n { color: var(--dust); font-size: 13px; }
+.slot-note { color: var(--dust); font-size: 13px; }
+.slot.add { text-align: left; border-style: dashed; color: var(--dust); }
+.slot.add:hover { border-color: var(--bronze); color: var(--sand); }
+.slot-x { background: none; border: 1px solid var(--line); border-radius: 4px; color: var(--dust); font-size: 12px; padding: 3px 8px; }
+.slot-x:hover { color: var(--blood); border-color: var(--blood); }
+.seg { display: flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; width: max-content; max-width: 100%; }
+.seg button { background: none; border: 0; border-right: 1px solid var(--line); padding: 4px 10px; font-size: 13px; color: var(--dust); }
+.seg button:last-child { border-right: 0; }
+.seg button.on { background: var(--bronze); color: var(--bronze-ink); font-weight: 700; }
+.seg button:not(.on):hover { color: var(--sand); }
+
+.standings { display: flex; flex-direction: column; gap: 3px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.st { display: grid; grid-template-columns: 26px minmax(0, 1fr) 50px 24px; gap: 6px; align-items: center; font-size: 12px; padding: 2px 4px; border-radius: 4px; }
+.st-n { color: var(--dust); }
+.st-name { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
+.st-name small { color: var(--dust); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.st-bar { height: 5px; background: var(--night); border-radius: 3px; overflow: hidden; }
+.st-bar i { display: block; height: 100%; background: var(--life); }
+.st-hp { text-align: right; }
+.st.me { background: color-mix(in srgb, var(--bronze) 14%, transparent); }
+.st.opp { box-shadow: inset 0 0 0 1px var(--blood); }
+.st.opp .st-bar i { background: var(--blood); }
+.st.out { opacity: 0.45; }
+
+.others { margin: 0; padding: 0; list-style: none; font-size: 12px; color: var(--dust); display: flex; flex-direction: column; gap: 2px; }
+.final { border-collapse: collapse; width: 100%; max-width: 640px; font-size: 14px; }
+.final th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--dust); font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.final td { padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.final .num { text-align: right; }
+.final tr.me td { color: var(--bronze); font-weight: 700; }
+
 .levels { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; max-width: 760px; }
 .level {
   text-align: left; background: var(--pit); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px;
@@ -271,6 +313,8 @@ h1, h2, h3 { font-family: var(--display); font-weight: 400; margin: 0; text-wrap
   .card { flex: 0 0 150px; }
   .go { flex-direction: row; align-items: center; }
   .hint { display: none; }
+  .slot { grid-template-columns: 22px minmax(0, 1fr) auto; }
+  .slot .seg { grid-column: 1 / -1; order: 5; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1459,16 +1503,17 @@ function rollShop(player, bans, round, rng) {
 
 const START_HP = 60;
 const SIGNATURE_ROUND = 7;
-const BANS_PER_PLAYER = 1;
+const BAN_COUNT = 2; // resources banned per match, by vote
+const MAX_PLAYERS = 8;
 
 // Match state is plain JSON so it can be saved, snapshotted or sent over a
 // network later. Players are an array so more than two can be added.
 function createMatch({ seed = Date.now() % 1e9, players }) {
   return {
-    seed, nonce: 0, round: 0, phase: 'ban', bans: [], history: [],
+    seed, nonce: 0, round: 0, phase: 'ban', bans: [], history: [], pairs: [],
     players: players.map((p, i) => ({
       id: i, name: p.name, isBot: !!p.isBot, level: p.level || null, charId: null, hp: START_HP, gold: 0,
-      cards: {}, shop: [], locked: false, sig: null, ban: null, wins: 0,
+      cards: {}, shop: [], locked: false, sig: null, ban: null, wins: 0, placement: null, lastOpp: null,
     })),
   };
 }
@@ -1482,10 +1527,20 @@ function visibleCharacters(bans) {
   return CHARACTERS.map((c) => ({ char: c, status: characterStatus(c, bans) })).filter((x) => x.status !== 'hidden');
 }
 
+// Everyone votes to ban one resource; the BAN_COUNT most-voted are banned,
+// ties broken at random. In 1v1 that is simply both players' picks.
 function submitBan(m, playerId, resource) {
   m.players[playerId].ban = resource;
   if (m.players.every((p) => p.ban)) {
-    m.bans = [...new Set(m.players.map((p) => p.ban))];
+    const rng = rngFor(m);
+    const votes = {};
+    for (const p of m.players) votes[p.ban] = (votes[p.ban] || 0) + 1;
+    m.banVotes = votes;
+    m.bans = Object.keys(votes)
+      .map((r) => ({ r, v: votes[r], tie: rng() }))
+      .sort((a, b) => b.v - a.v || a.tie - b.tie)
+      .slice(0, BAN_COUNT)
+      .map((x) => x.r);
     m.phase = 'pick';
   }
 }
@@ -1513,7 +1568,17 @@ function startRound(m) {
     if (!p.locked || p.shop.length === 0) p.shop = rollShop(p, m.bans, m.round, rngFor(m));
     p.locked = false;
   }
+  m.pairs = pairings(m);
   m.phase = m.round === SIGNATURE_ROUND ? 'signature' : 'shop';
+}
+
+// This round's opponent: { id, ghost } or null.
+function opponentOf(m, id) {
+  for (const [a, b, ghost] of m.pairs) {
+    if (a === id) return { id: b, ghost: !!ghost };
+    if (b === id && !ghost) return { id: a, ghost: false };
+  }
+  return null;
 }
 
 function chooseSignature(m, playerId, sigId) {
@@ -1555,22 +1620,33 @@ function loadout(p) {
   return { charId: p.charId, cards: { ...p.cards }, sig: p.sig };
 }
 
-// Pairings: with 2 players it's always a duel. With more, pair neighbours in
-// a rotating order; an odd player out fights a copy ("ghost") of another.
+// Random pairings each round, avoiding last round's opponent where possible.
+// With an odd number alive, the player left over fights a "ghost": a copy of
+// another living player's build. Losing to a ghost costs HP; beating one
+// doesn't hurt the player it copies.
 function pairings(m) {
-  const live = alive(m);
+  const live = alive(m).map((p) => p.id);
   if (live.length < 2) return [];
-  const order = live.map((p) => p.id);
-  const shift = m.round % order.length;
-  const rotated = order.slice(shift).concat(order.slice(0, shift));
-  const pairs = [];
-  for (let i = 0; i + 1 < rotated.length; i += 2) pairs.push([rotated[i], rotated[i + 1]]);
-  if (rotated.length % 2) pairs.push([rotated[rotated.length - 1], rotated[0], 'ghost']);
-  return pairs;
+  const rng = rngFor(m);
+  let best = null, bestRepeats = Infinity;
+  for (let attempt = 0; attempt < 12 && bestRepeats > 0; attempt++) {
+    const order = live.slice();
+    for (let i = order.length - 1; i > 0; i--) { const j = rng.int(i + 1); [order[i], order[j]] = [order[j], order[i]]; }
+    const pairs = [];
+    for (let i = 0; i + 1 < order.length; i += 2) pairs.push([order[i], order[i + 1]]);
+    if (order.length % 2) {
+      const odd = order[order.length - 1];
+      const others = live.filter((x) => x !== odd);
+      pairs.push([odd, others[rng.int(others.length)], 'ghost']);
+    }
+    const repeats = live.length > 2 ? pairs.filter(([a, b]) => m.players[a].lastOpp === b).length : 0;
+    if (repeats < bestRepeats) { best = pairs; bestRepeats = repeats; }
+  }
+  return best;
 }
 
 function makeFight(m, a, b) {
-  return new Fight(loadout(m.players[a]), loadout(m.players[b]), (m.seed + m.round * 31337) >>> 0);
+  return new Fight(loadout(m.players[a]), loadout(m.players[b]), (m.seed + m.round * 31337 + a * 101 + b * 7) >>> 0);
 }
 
 function damageFor(round, survivorHpPct) {
@@ -1594,17 +1670,45 @@ function resolveFight(m, a, b, result, ghost = false) {
     winner.wins++;
     summary = { round: m.round, winner: winner.id, loser: loser.id, damage: d, time: result.time };
   }
+  summary.a = a; summary.b = b; summary.ghost = !!ghost;
+  pa.lastOpp = b;
+  if (!ghost) pb.lastOpp = a;
   m.history.push(summary);
-  for (const p of m.players) p.hp = Math.max(0, p.hp);
   return summary;
 }
 
+// Plays every fight of the round except `skip` (pairs the UI animates itself).
+function resolveOtherFights(m, skip = []) {
+  const out = [];
+  for (const [a, b, ghost] of m.pairs) {
+    if (skip.includes(a) || (!ghost && skip.includes(b))) continue;
+    out.push(resolveFight(m, a, b, makeFight(m, a, b).runToEnd(), ghost));
+  }
+  return out;
+}
+
+// Eliminates players at 0 HP (placing them), then starts the next round or
+// ends the match. Players knocked out in the same round are ranked by HP left
+// (most negative is worse), then by fights won.
 function finishRound(m) {
-  if (alive(m).length <= 1) {
+  const out = m.players.filter((p) => p.hp <= 0 && p.placement === null)
+    .sort((a, b) => b.hp - a.hp || b.wins - a.wins);
+  let place = alive(m).length + out.length;
+  for (const p of out.reverse()) p.placement = place--;
+  for (const p of m.players) p.hp = Math.max(0, p.hp);
+  const live = alive(m);
+  if (live.length <= 1) {
+    // If the last players all fell at once, the best-ranked of them already
+    // holds 1st place from the ordering above.
+    if (live.length === 1) live[0].placement = 1;
     m.phase = 'over';
     return;
   }
   startRound(m);
+}
+
+function standings(m) {
+  return m.players.slice().sort((a, b) => (a.placement ?? 0) - (b.placement ?? 0) || b.hp - a.hp || b.wins - a.wins);
 }
 
 // ---- src/ai/cardValues.js
@@ -1796,7 +1900,11 @@ function botSignature(m, id) {
   chooseSignature(m, id, rngFor(m).pick(sigs).id);
 }
 
+// The bot plans against this round's opponent (pairings are public once the
+// round starts, as they would be for a player).
 function rivalOf(m, id) {
+  const opp = opponentOf(m, id);
+  if (opp) return m.players[opp.id];
   return m.players.find((q) => q.id !== id && q.hp > 0) || m.players[(id + 1) % m.players.length];
 }
 
@@ -2282,22 +2390,47 @@ function createArena(canvas) {
 
 // ---- src/ui/app.js
 
-const ME = 0, FOE = 1;
+const ME = 0;
 const root = document.getElementById('app');
 let M = null;
-let ui = { screen: 'title', speed: 2, banner: null, mobileTab: null, toast: null, level: loadLevel() };
+let ui = { screen: 'title', speed: 2, banner: null, mobileTab: null, toast: null, lobby: loadLobby() };
+const BOT_NAMES = ['Varro', 'Lucia', 'Crixus', 'Flamma', 'Priscus', 'Verus', 'Tetraites'];
+
+// This round's opponent as { p, ghost }, or null if you're out.
+function foe() {
+  const o = M && opponentOf(M, ME);
+  return o ? { p: M.players[o.id], ghost: o.ghost } : null;
+}
+function foeLoadout() {
+  const f = foe();
+  return f ? loadout(f.p) : loadout(M.players.find((p) => p.id !== ME));
+}
+function playerLabel(p) {
+  return p.isBot ? `${p.name} (${DIFFICULTY[p.level || 'normal'].name})` : p.name;
+}
+const ordinal = (n) => n + (['th', 'st', 'nd', 'rd'][(n % 100 - 20) % 10] || ['th', 'st', 'nd', 'rd'][n % 100] || 'th');
+const isDuel = () => M.players.length === 2;
 
 const DIFFICULTY = {
   easy: { name: 'Squire', desc: 'Buys on impulse. Good for learning the cards.' },
   normal: { name: 'Gladiator', desc: 'Plans a build, manages gold and counters your main resource.' },
   hard: { name: 'Champion', desc: 'Also test-fights cards against your build before buying them.' },
 };
-function loadLevel() {
-  try { return localStorage.getItem('stack-arena-level') || 'normal'; } catch { return 'normal'; }
+const DIFFICULTY_IDS = Object.keys(DIFFICULTY);
+// The lobby is the list of bot rivals' difficulty levels (1 to 7 of them).
+function loadLobby() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('stack-arena-lobby'));
+    if (Array.isArray(saved) && saved.length && saved.every((l) => DIFFICULTY_IDS.includes(l))) return saved.slice(0, MAX_PLAYERS - 1);
+  } catch { /* storage unavailable */ }
+  return ['normal'];
 }
 function newMatch() {
-  try { localStorage.setItem('stack-arena-level', ui.level); } catch { /* storage unavailable */ }
-  M = createMatch({ seed: Math.floor(Math.random() * 1e9), players: [{ name: 'You' }, { name: 'Rival', isBot: true, level: ui.level }] });
+  try { localStorage.setItem('stack-arena-lobby', JSON.stringify(ui.lobby)); } catch { /* storage unavailable */ }
+  M = createMatch({
+    seed: Math.floor(Math.random() * 1e9),
+    players: [{ name: 'You' }, ...ui.lobby.map((level, i) => ({ name: BOT_NAMES[i], isBot: true, level }))],
+  });
   ui.fightStats = null;
   ui.screen = 'ban';
   render();
@@ -2371,7 +2504,7 @@ function statsPanel(side) {
     ${statGroup('Damage dealt', s.dmg)}${statGroup('Healing', s.heal)}${statGroup('Damage prevented', s.mit)}`;
 }
 function refreshStats() {
-  for (const [id, side] of [['stats-mine', ME], ['stats-foe', FOE]]) {
+  for (const [id, side] of [['stats-mine', 0], ['stats-foe', 1]]) {
     const el = root.querySelector('#' + id);
     if (el) el.innerHTML = statsPanel(side);
   }
@@ -2385,6 +2518,18 @@ function cardTags(card) {
   return card.tags.map((t) => chip(t, true)).join('');
 }
 
+function ffaRecord() {
+  try { return JSON.parse(localStorage.getItem('stack-arena-ffa') || '{"games":0,"wins":0,"places":0}'); } catch { return { games: 0, wins: 0, places: 0 }; }
+}
+function saveResult() {
+  const me = M.players[ME];
+  if (isDuel()) return saveRecord(M.players[1].level || 'normal', me.placement === 1);
+  try {
+    const r = ffaRecord();
+    r.games++; r.places += me.placement; if (me.placement === 1) r.wins++;
+    localStorage.setItem('stack-arena-ffa', JSON.stringify(r));
+  } catch { /* storage unavailable */ }
+}
 function record(level) {
   try { return JSON.parse(localStorage.getItem('stack-arena-record-' + level) || '{"w":0,"l":0}'); } catch { return { w: 0, l: 0 }; }
 }
@@ -2410,6 +2555,8 @@ function toast(msg) {
 
 function render() {
   if (ui.screen !== 'game' && arena) { arena.destroy(); arena = null; }
+  const t = document.querySelector('.toast');
+  if (t) t.hidden = true;
   if (ui.screen === 'title') return renderTitle();
   if (ui.screen === 'ban') return renderBan();
   if (ui.screen === 'pick') return renderPick();
@@ -2421,29 +2568,19 @@ function renderTitle() {
   root.innerHTML = `
   <div class="screen"><div class="screen-inner">
     <div>
-      <div class="eyebrow">A 1v1 auto-battler</div>
+      <div class="eyebrow">An auto-battler for 2 to 8 gladiators</div>
       <h1 class="brand">Stack <span>Arena</span></h1>
     </div>
     <p class="lede">Pick a gladiator, buy buff cards from the shop between rounds, and watch the fight play out by itself.
       Cards give you <b>stacks</b>. The more cards you own of one kind, the better the cards that show up.</p>
-    <div>
-      <div class="eyebrow" style="margin-bottom:8px">Choose your rival</div>
-      <div class="levels" role="radiogroup" aria-label="Rival difficulty">
-        ${Object.entries(DIFFICULTY).map(([id, d]) => {
-          const r = record(id);
-          return `<button class="level ${ui.level === id ? 'on' : ''}" role="radio" aria-checked="${ui.level === id}" data-level="${id}">
-            <b>${d.name}</b><span>${d.desc}</span>${r.w + r.l ? `<span class="rec num">Your record: ${r.w}-${r.l}</span>` : ''}
-          </button>`;
-        }).join('')}
-      </div>
-    </div>
+    ${renderLobby()}
     <div class="row">
       <button class="btn primary" id="start" style="font-family:var(--display);font-size:26px;font-weight:400;padding:6px 28px">Enter the arena</button>
     </div>
     <div class="rules">
       <div class="rule"><h3>Triggers and resources</h3><p>Triggers decide <i>when</i> you gain stacks (Strike, Crit, Dodge, Wounded, Spell). Resources decide <i>what</i> stacks do. A card like ${chip('precision', true)} <span class="arrow">&#9656;</span> ${chip('poison', true)} always fires. Cards with only a resource fire 30% of the time.</p></div>
       <div class="rule"><h3>Build up, unlock more</h3><p>Own ${TIER_UNLOCK[2]}, ${TIER_UNLOCK[3]} and ${TIER_UNLOCK[4]} cards of a tag to unlock its Uncommon, Rare and Mythic cards. Own ${HYBRID_REQ} of two resources to unlock their Hybrid card.</p></div>
-      <div class="rule"><h3>Bans</h3><p>You and your rival each secretly ban one resource. Banned cards never appear, and gladiators who only use banned resources sit the match out.</p></div>
+      <div class="rule"><h3>Bans</h3><p>Every gladiator secretly votes to ban one resource, and the two with the most votes are banned. Banned cards never appear, and gladiators who only use banned resources sit the match out.</p></div>
       <div class="rule"><h3>Focus, not luck</h3><p>Dodging builds Focus. Every hit you take adds to your dodge chance, and a dodge resets it, so you can never dodge twice in a row. Poison, Bleed and abilities can't be dodged.</p></div>
     </div>
     <div>
@@ -2453,8 +2590,39 @@ function renderTitle() {
       </div>
     </div>
   </div></div>`;
-  root.querySelectorAll('[data-level]').forEach((b) => b.onclick = () => { ui.level = b.dataset.level; renderTitle(); });
+  root.querySelectorAll('[data-slot-level]').forEach((b) => b.onclick = () => {
+    ui.lobby[Number(b.dataset.slot)] = b.dataset.slotLevel;
+    renderTitle();
+  });
+  root.querySelectorAll('[data-remove]').forEach((b) => b.onclick = () => { ui.lobby.splice(Number(b.dataset.remove), 1); renderTitle(); });
+  root.querySelector('#add-bot')?.addEventListener('click', () => { ui.lobby.push(ui.lobby[ui.lobby.length - 1] || 'normal'); renderTitle(); });
   root.querySelector('#start').onclick = newMatch;
+}
+
+function renderLobby() {
+  const duel = ui.lobby.length === 1;
+  const ffa = ffaRecord();
+  const r = duel ? record(ui.lobby[0]) : null;
+  const recLine = duel
+    ? (r.w + r.l ? `Your record against ${DIFFICULTY[ui.lobby[0]].name}: ${r.w}-${r.l}` : '')
+    : (ffa.games ? `Free-for-all: ${ffa.games} played, ${ffa.wins} won, average place ${(ffa.places / ffa.games).toFixed(1)}` : '');
+  return `<div class="lobby">
+    <div class="row" style="justify-content:space-between">
+      <div class="eyebrow">Lobby · ${ui.lobby.length + 1} of ${MAX_PLAYERS} slots · ${duel ? '1v1 duel' : 'free-for-all'}</div>
+      ${recLine ? `<span class="eyebrow rec">${recLine}</span>` : ''}
+    </div>
+    <div class="slots">
+      <div class="slot you"><span class="slot-n num">1</span><b>You</b><span class="slot-note">Human</span></div>
+      ${ui.lobby.map((lv, i) => `
+        <div class="slot"><span class="slot-n num">${i + 2}</span><b>${BOT_NAMES[i]}</b>
+          <div class="seg" role="radiogroup" aria-label="${BOT_NAMES[i]} difficulty">
+            ${DIFFICULTY_IDS.map((id) => `<button class="${lv === id ? 'on' : ''}" role="radio" aria-checked="${lv === id}" data-slot="${i}" data-slot-level="${id}" data-tip="${esc(`<b>${DIFFICULTY[id].name}</b><br>${DIFFICULTY[id].desc}`)}">${DIFFICULTY[id].name}</button>`).join('')}
+          </div>
+          ${ui.lobby.length > 1 ? `<button class="slot-x" data-remove="${i}" aria-label="Remove ${BOT_NAMES[i]}">Remove</button>` : '<span></span>'}
+        </div>`).join('')}
+      ${ui.lobby.length < MAX_PLAYERS - 1 ? `<button class="slot add" id="add-bot"><span class="slot-n">+</span><b>Add a rival</b><span class="slot-note">Bot</span></button>` : ''}
+    </div>
+  </div>`;
 }
 
 function renderBan() {
@@ -2465,25 +2633,28 @@ function renderBan() {
       <div class="eyebrow">Step 1 of 2</div>
       <h1 style="font-size:48px">${banned ? 'The bans are in' : 'Ban one resource'}</h1>
       <p class="lede">${banned
-        ? 'Neither of you saw the other\'s choice. These resources are gone for the whole match.'
-        : 'Your rival is choosing at the same time. Ban what you least want to fight.'}</p>
+        ? 'Nobody saw anyone else\'s vote. These resources are gone for the whole match.'
+        : isDuel()
+          ? 'Your rival is choosing at the same time. Ban what you least want to fight.'
+          : `Every gladiator votes at the same time. The ${BAN_COUNT} resources with the most votes are banned (ties are broken at random).`}</p>
     </div>
     <div class="ban-grid">
       ${RESOURCES.map((r) => {
         const t = TAGS[r];
-        const mine = M.players[ME].ban === r, theirs = M.players[FOE].ban === r;
-        const isBanned = banned && (mine || theirs);
-        const who = mine && theirs ? 'Banned by both of you' : mine ? 'Your ban' : theirs ? 'Rival\'s ban' : '';
+        const mine = M.players[ME].ban === r;
+        const votes = (M.banVotes || {})[r] || 0;
+        const isBanned = banned && M.bans.includes(r);
+        const who = !banned ? '' : `${plural(votes, 'vote')}${mine ? ', including yours' : ''}`;
         return `<button class="ban-tile ${isBanned ? 'banned' : ''}" style="--c:${t.color}" data-res="${r}" ${banned ? 'disabled' : ''}>
           <span class="name">${t.name}</span><p>${esc(t.stack)}</p>
-          ${isBanned ? `<span class="stamp">Banned</span><span class="who">${who}</span>` : ''}
+          ${isBanned ? '<span class="stamp">Banned</span>' : ''}${banned && votes ? `<span class="who">${who}</span>` : ''}
         </button>`;
       }).join('')}
     </div>
     ${banned ? `<div><button class="btn primary" id="next">Choose your gladiator</button></div>` : ''}
   </div></div>`;
   root.querySelectorAll('[data-res]').forEach((b) => b.onclick = () => {
-    botBan(M, FOE);
+    for (const p of M.players) if (p.isBot) botBan(M, p.id);
     submitBan(M, ME, b.dataset.res);
     render();
   });
@@ -2519,7 +2690,7 @@ function renderPick() {
     ${hidden.length ? `<p class="hidden-note">Sitting out (all their resources are banned): ${hidden.map((c) => esc(c.name)).join(', ')}.</p>` : ''}
   </div></div>`;
   root.querySelectorAll('[data-char]').forEach((b) => b.onclick = () => {
-    botPick(M, FOE);
+    for (const p of M.players) if (p.isBot) botPick(M, p.id);
     pickCharacter(M, ME, b.dataset.char);
     afterRoundStart();
     ui.screen = 'game';
@@ -2528,8 +2699,9 @@ function renderPick() {
 }
 
 function afterRoundStart() {
-  if (M.phase === 'signature') botSignature(M, FOE);
-  if (M.phase === 'shop') botShop(M, FOE);
+  const bots = M.players.filter((p) => p.isBot && p.hp > 0);
+  if (M.phase === 'signature') for (const p of bots) botSignature(M, p.id);
+  if (M.phase === 'shop') for (const p of bots) botShop(M, p.id);
 }
 
 // ---------------------------------------------------------------- game
@@ -2555,14 +2727,14 @@ function renderGame() {
     arena = createArena(root.querySelector('#arena'));
     arena.setSpeed(ui.speed);
   }
-  if (!fighting) arena.setPreview(loadout(M.players[ME]), loadout(M.players[FOE]));
+  if (!fighting) arena.setPreview(loadout(M.players[ME]), foeLoadout());
   updateGame();
 }
 
 function updateGame() {
   renderHud();
   renderSide('mine', M.players[ME], true);
-  renderSide('foe', M.players[FOE], false);
+  renderSide('foe', (foe() || { p: M.players[1] }).p, false);
   renderTray();
   renderSpeed();
   renderBanner();
@@ -2571,17 +2743,17 @@ function updateGame() {
 }
 
 function renderHud() {
-  const me = M.players[ME], foe = M.players[FOE];
-  const life = (p, cls) => `
+  const me = M.players[ME], f = foe();
+  const life = (p, cls, ghost) => `
     <div class="life ${cls}">
-      <div class="top"><span>${esc(p.isBot ? DIFFICULTY[p.level || 'normal'].name : p.name)} · ${esc(CHAR_BY_ID[p.charId].name)}</span><span class="num">${p.hp} / ${START_HP}</span></div>
-      <div class="bar"><i style="width:${(p.hp / START_HP) * 100}%"></i></div>
+      <div class="top"><span>${ghost ? 'Ghost of ' : ''}${esc(p.isBot ? p.name : 'You')} · ${esc(CHAR_BY_ID[p.charId].name)}</span><span class="num">${Math.max(0, p.hp)} / ${START_HP}</span></div>
+      <div class="bar"><i style="width:${(Math.max(0, p.hp) / START_HP) * 100}%"></i></div>
     </div>`;
   root.querySelector('#hud').innerHTML = `
     <div class="logo">Stack <span>Arena</span></div>
     <div class="round"><span class="eyebrow">Round</span><b class="num">${M.round}</b></div>
     <div class="eyebrow">Bans: ${M.bans.map((b) => chip(b, true)).join(' ')}</div>
-    <div class="vs">${life(me, 'me')}${life(foe, 'foe')}</div>
+    <div class="vs">${life(me, 'me')}${f ? life(f.p, 'foe', f.ghost) : ''}</div>
     <div class="tools"><button class="btn" id="codex" title="What every tag does">Tags</button></div>`;
   root.querySelector('#codex').onclick = () => { ui.modal = 'codex'; renderModal(); };
 }
@@ -2606,17 +2778,19 @@ function renderSide(id, p, mine) {
   const c = CHAR_BY_ID[p.charId];
   const counts = tagCounts(p.cards);
   const sig = p.sig && c.signatures.find((s) => s.id === p.sig);
+  const f = foe();
+  const ghost = !mine && f && f.ghost;
   const hybrids = mine ? CARDS.filter((h) => h.tier === 'hybrid' && !h.tags.some((t) => M.bans.includes(t)) && h.tags.every((t) => (counts[t] || 0) >= 2) && !h.tags.every((t) => (counts[t] || 0) >= HYBRID_REQ)) : [];
-  el.innerHTML = `
+  el.innerHTML = `${mine || isDuel() ? '' : standingsPanel()}
     <div>
-      <div class="eyebrow">${mine ? 'Your gladiator' : `Rival · ${DIFFICULTY[p.level || 'normal'].name}`}</div>
+      <div class="eyebrow">${mine ? 'Your gladiator' : `${isDuel() ? 'Rival' : ghost ? 'Opponent: a ghost copy of' : 'This round\'s opponent'} · ${esc(playerLabel(p))}`}</div>
       <h2>${esc(c.name)}</h2>
       <div class="sub">${chip(c.trigger, true)} ${c.resources.map((r) => chip(r, true)).join(' ')}</div>
     </div>
     <div class="sub"><b style="color:var(--bronze)">${esc(c.ability.name)}</b>: ${esc(c.ability.desc())}${sig ? `<br><b style="color:var(--bronze)">${esc(sig.name)}</b>: ${esc(sig.desc)}` : ''}</div>
     <div><div class="eyebrow" style="margin-bottom:6px">Tag progress</div><div class="progress">${tierProgress(counts)}</div></div>
     ${hybrids.length ? `<div class="sub">Close to a Hybrid: ${hybrids.map((h) => `${esc(h.name)} (${h.tags.map((t) => `${TAGS[t].name} ${counts[t] || 0}/${HYBRID_REQ}`).join(', ')})`).join('; ')}</div>` : ''}
-    <div class="stats-panel" id="stats-${id}">${statsPanel(mine ? ME : FOE)}</div>`;
+    <div class="stats-panel" id="stats-${id}">${statsPanel(mine ? 0 : 1)}</div>`;
 }
 
 function renderTray() {
@@ -2671,8 +2845,22 @@ function doBuy(slot) {
   for (const h of CARDS.filter((c) => c.tier === 'hybrid')) {
     if (h.tags.every((t) => (after[t] || 0) >= HYBRID_REQ) && !h.tags.every((t) => (before[t] || 0) >= HYBRID_REQ) && !h.tags.some((t) => M.bans.includes(t))) toast(`Hybrid unlocked: ${h.name}`);
   }
-  arena.setPreview(loadout(M.players[ME]), loadout(M.players[FOE]));
+  arena.setPreview(loadout(M.players[ME]), foeLoadout());
   updateGame();
+}
+
+function standingsPanel() {
+  const f = foe();
+  return `<div class="standings">
+    <div class="eyebrow">Standings · ${M.players.filter((p) => p.hp > 0).length} of ${M.players.length} alive</div>
+    ${standings(M).map((p) => `
+      <div class="st ${p.id === ME ? 'me' : ''} ${p.hp <= 0 ? 'out' : ''} ${f && f.p.id === p.id ? 'opp' : ''}">
+        <span class="st-n">${p.placement ? ordinal(p.placement) : ''}</span>
+        <span class="st-name">${esc(p.id === ME ? 'You' : p.name)}<small>${esc(CHAR_BY_ID[p.charId].name)}</small></span>
+        <span class="st-bar"><i style="width:${(Math.max(0, p.hp) / START_HP) * 100}%"></i></span>
+        <span class="st-hp num">${Math.max(0, p.hp)}</span>
+      </div>`).join('')}
+  </div>`;
 }
 
 function renderSpeed() {
@@ -2685,18 +2873,26 @@ function renderSpeed() {
 
 function startFight() {
   if (fighting || M.phase !== 'shop' || ui.banner) return;
+  const opp = opponentOf(M, ME);
+  if (!opp) return;
   fighting = true;
-  const f = makeFight(M, ME, FOE);
+  const f = makeFight(M, ME, opp.id);
   ui.fightStats = { live: true, round: M.round, stats: [f.units[0].stats, f.units[1].stats] };
   const statsTimer = setInterval(refreshStats, 250);
   arena.play(f, (result) => {
     fighting = false;
     clearInterval(statsTimer);
     ui.fightStats = { live: false, round: M.round, stats: JSON.parse(JSON.stringify(result.stats)) };
-    const summary = resolveFight(M, ME, FOE, result);
-    const s = result.stats[ME], o = result.stats[FOE];
+    const summary = resolveFight(M, ME, opp.id, result, opp.ghost);
+    const others = resolveOtherFights(M, [ME]);
+    const s = result.stats[0], o = result.stats[1];
+    const name = (id) => (id === ME ? 'You' : M.players[id].name);
     ui.banner = {
-      outcome: summary.winner === ME ? 'win' : summary.winner === FOE ? 'loss' : 'draw',
+      ghost: opp.ghost,
+      others: others.map((r) => r.winner === null
+        ? `${name(r.a)} and ${name(r.b)}${r.ghost ? ' (ghost)' : ''} drew`
+        : `${name(r.winner)}${r.ghost && r.winner === r.b ? ' (ghost)' : ''} beat ${name(r.loser)}${r.ghost && r.loser === r.b ? ' (ghost)' : ''}${r.ghost && r.loser === r.b ? '' : `, -${r.damage} HP`}`),
+      outcome: summary.winner === ME ? 'win' : summary.winner === opp.id ? 'loss' : 'draw',
       damage: summary.damage,
       time: result.time,
       line: `You dealt ${Math.round(s.dealt)} damage and took ${Math.round(s.taken)}.` +
@@ -2712,13 +2908,17 @@ function renderBanner() {
   const el = root.querySelector('#banner');
   const b = ui.banner;
   if (!b) { el.innerHTML = ''; return; }
-  const over = M.players.some((p) => p.hp <= 0);
-  const title = b.outcome === 'win' ? 'Victory' : b.outcome === 'loss' ? 'Defeat' : 'Draw';
-  const sub = b.outcome === 'win' ? `Your rival loses ${b.damage} HP.` : b.outcome === 'loss' ? `You lose ${b.damage} HP.` : `You both lose ${Math.ceil(b.damage)} HP.`;
+  const meOut = M.players[ME].hp <= 0;
+  const over = meOut || M.players.filter((p) => p.hp > 0).length <= 1;
+  const title = meOut && !isDuel() ? 'Knocked out' : b.outcome === 'win' ? 'Victory' : b.outcome === 'loss' ? 'Defeat' : 'Draw';
+  const sub = b.outcome === 'win'
+    ? (b.ghost ? 'You beat the ghost. Ghosts lose no HP.' : `Your opponent loses ${b.damage} HP.`)
+    : b.outcome === 'loss' ? `You lose ${b.damage} HP.` : `You ${b.ghost ? '' : 'both '}lose ${Math.ceil(b.damage)} HP.`;
   el.innerHTML = `<div class="banner ${b.outcome}" role="status">
     <span class="eyebrow">Round ${M.round} · ${b.time.toFixed(1)}s</span>
     <h2>${title}</h2><p>${sub}</p><p style="font-size:13px">${esc(b.line)}</p>
-    <button class="btn primary" id="cont">${over ? 'See the result' : 'Next round'}</button>
+    ${b.others?.length ? `<ul class="others">${b.others.map((o) => `<li>${esc(o)}</li>`).join('')}</ul>` : ''}
+    <button class="btn primary" id="cont">${over ? (meOut && !isDuel() && M.players.filter((p) => p.hp > 0).length > 1 ? 'Finish the match' : 'See the result') : 'Next round'}</button>
   </div>`;
   el.querySelector('#cont').onclick = nextRound;
   el.querySelector('#cont').focus({ preventScroll: true });
@@ -2727,14 +2927,20 @@ function renderBanner() {
 function nextRound() {
   ui.banner = null;
   finishRound(M);
+  // Once you're out, the bots play out the rest of the match instantly.
+  while (M.phase !== 'over' && M.players[ME].hp <= 0 && M.round < 80) {
+    afterRoundStart();
+    resolveOtherFights(M, []);
+    finishRound(M);
+  }
   if (M.phase === 'over') {
-    saveRecord(M.players[FOE].level || 'normal', M.players[ME].hp > 0);
+    saveResult();
     ui.screen = 'over';
     render();
     return;
   }
   afterRoundStart();
-  arena.setPreview(loadout(M.players[ME]), loadout(M.players[FOE]));
+  arena.setPreview(loadout(M.players[ME]), foeLoadout());
   updateGame();
 }
 
@@ -2750,8 +2956,8 @@ function renderModal() {
     </div></div>`;
     el.querySelectorAll('[data-sig]').forEach((b) => b.onclick = () => {
       chooseSignature(M, ME, b.dataset.sig);
-      if (M.phase === 'shop') botShop(M, FOE);
-      arena.setPreview(loadout(M.players[ME]), loadout(M.players[FOE]));
+      if (M.phase === 'shop') for (const p of M.players) if (p.isBot && p.hp > 0) botShop(M, p.id);
+      arena.setPreview(loadout(M.players[ME]), foeLoadout());
       updateGame();
     });
     return;
@@ -2773,25 +2979,30 @@ function renderModal() {
 
 function renderTabs() {
   const el = root.querySelector('#mtabs');
-  el.innerHTML = `<button class="btn ${ui.mobileTab === 'mine' ? 'on' : ''}" data-tab="mine">Your build</button><button class="btn ${ui.mobileTab === 'foe' ? 'on' : ''}" data-tab="foe">Rival</button>`;
+  el.innerHTML = `<button class="btn ${ui.mobileTab === 'mine' ? 'on' : ''}" data-tab="mine">Your build</button><button class="btn ${ui.mobileTab === 'foe' ? 'on' : ''}" data-tab="foe">${isDuel() ? 'Rival' : 'Opponent and standings'}</button>`;
   el.querySelectorAll('[data-tab]').forEach((b) => b.onclick = () => { ui.mobileTab = ui.mobileTab === b.dataset.tab ? null : b.dataset.tab; renderTabs(); });
   root.querySelector('#mine').classList.toggle('show', ui.mobileTab === 'mine');
   root.querySelector('#foe').classList.toggle('show', ui.mobileTab === 'foe');
 }
 
 function renderOver() {
-  const me = M.players[ME], foe = M.players[FOE];
-  const won = me.hp > 0;
+  const me = M.players[ME];
+  const won = me.placement === 1;
   const list = (p) => Object.entries(p.cards).map(([id, n]) => `${esc(CARD_BY_ID[id].name)} x${n}`).join(', ') || 'No cards';
+  const winner = M.players.find((p) => p.placement === 1);
   root.innerHTML = `
   <div class="screen"><div class="screen-inner">
     <div>
-      <div class="eyebrow">After ${M.round} rounds · ${me.wins} fights won, ${foe.wins} lost · Rival: ${DIFFICULTY[foe.level || 'normal'].name}</div>
-      <h1 class="brand" style="color:${won ? 'var(--bronze)' : 'var(--blood)'}">${won ? 'Champion' : 'Fallen'}</h1>
+      <div class="eyebrow">After ${M.round} rounds · you won ${plural(me.wins, 'fight')}</div>
+      <h1 class="brand" style="color:${won ? 'var(--bronze)' : 'var(--blood)'}">${won ? 'Champion' : isDuel() ? 'Fallen' : `${ordinal(me.placement)} of ${M.players.length}`}</h1>
     </div>
+    <table class="final">
+      <thead><tr><th>Place</th><th>Gladiator</th><th>Player</th><th class="num">Fights won</th></tr></thead>
+      <tbody>${standings(M).map((p) => `<tr class="${p.id === ME ? 'me' : ''}"><td class="num">${ordinal(p.placement)}</td><td>${esc(CHAR_BY_ID[p.charId].name)}</td><td>${esc(playerLabel(p))}</td><td class="num">${p.wins}</td></tr>`).join('')}</tbody>
+    </table>
     <div class="rules">
       <div class="rule"><h3>${esc(CHAR_BY_ID[me.charId].name)} (you)</h3><div class="progress">${tierProgress(tagCounts(me.cards))}</div><p>${list(me)}</p></div>
-      <div class="rule"><h3>${esc(CHAR_BY_ID[foe.charId].name)} (rival)</h3><div class="progress">${tierProgress(tagCounts(foe.cards))}</div><p>${list(foe)}</p></div>
+      ${winner && winner.id !== ME ? `<div class="rule"><h3>${esc(CHAR_BY_ID[winner.charId].name)} (${esc(winner.name)}, winner)</h3><div class="progress">${tierProgress(tagCounts(winner.cards))}</div><p>${list(winner)}</p></div>` : ''}
     </div>
     <div class="row"><button class="btn primary" id="again">Play again</button><button class="btn" id="home">Back to title</button></div>
   </div></div>`;
@@ -2844,11 +3055,11 @@ document.addEventListener('keydown', (e) => {
 function start(data) {
   if (data && data.M) {
     M = data.M;
-    ui = { ...ui, ...data.ui, banner: data.ui?.banner || null, modal: null, level: data.ui?.level || ui.level };
+    ui = { ...ui, ...data.ui, banner: data.ui?.banner || null, modal: null, lobby: data.ui?.lobby || ui.lobby };
   }
   render();
 }
-window.claude?.hot?.snapshot?.(() => ({ M, ui: { screen: ui.screen, speed: ui.speed, banner: ui.banner, level: ui.level, fightStats: ui.fightStats && !ui.fightStats.live ? ui.fightStats : null } }));
+window.claude?.hot?.snapshot?.(() => ({ M, ui: { screen: ui.screen, speed: ui.speed, banner: ui.banner, lobby: ui.lobby, fightStats: ui.fightStats && !ui.fightStats.live ? ui.fightStats : null } }));
 if (window.claude?.hot?.ready) window.claude.hot.ready(start);
 else start(window.claude?.hot?.data ?? {});
 

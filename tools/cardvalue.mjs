@@ -4,7 +4,7 @@
 // Writes src/ai/cardValues.js, which the bot uses as its base card value.
 //   node tools/cardvalue.mjs [samplesPerCard=160]
 import { writeFileSync } from 'node:fs';
-import { createMatch, pairings, makeFight, resolveFight, finishRound, loadout } from '../src/engine/match.js';
+import { createMatch, makeFight, resolveFight, finishRound, loadout } from '../src/engine/match.js';
 import { botBan, botPick, botShop, botSignature, LEVELS } from '../src/ai/bot.js';
 import { CARDS } from '../src/data/cards.js';
 import { CHAR_BY_ID } from '../src/data/characters.js';
@@ -22,7 +22,7 @@ for (let i = 0; snaps.length < 1500; i++) {
     if (m.phase === 'signature') { botSignature(m, 0); botSignature(m, 1); }
     botShop(m, 0); botShop(m, 1);
     if ([3, 5, 7, 9, 11].includes(m.round)) for (const p of m.players) snaps.push({ lo: loadout(p), bans: m.bans, round: m.round });
-    for (const [a, b, g] of pairings(m)) resolveFight(m, a, b, makeFight(m, a, b).runToEnd(), g);
+    for (const [a, b, g] of m.pairs) resolveFight(m, a, b, makeFight(m, a, b).runToEnd(), g);
     finishRound(m);
   }
 }

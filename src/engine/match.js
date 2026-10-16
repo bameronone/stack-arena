@@ -6,16 +6,17 @@ import { Fight } from './combat.js';
 
 export const START_HP = 60;
 export const SIGNATURE_ROUND = 7;
-export const BANS_PER_PLAYER = 1;
+export const BAN_COUNT = 2; // resources banned per match, by vote
+export const MAX_PLAYERS = 8;
 
 // Match state is plain JSON so it can be saved, snapshotted or sent over a
 // network later. Players are an array so more than two can be added.
 export function createMatch({ seed = Date.now() % 1e9, players }) {
   return {
-    seed, nonce: 0, round: 0, phase: 'ban', bans: [], history: [],
+    seed, nonce: 0, round: 0, phase: 'ban', bans: [], history: [], pairs: [],
     players: players.map((p, i) => ({
       id: i, name: p.name, isBot: !!p.isBot, level: p.level || null, charId: null, hp: START_HP, gold: 0,
-      cards: {}, shop: [], locked: false, sig: null, ban: null, wins: 0,
+      cards: {}, shop: [], locked: false, sig: null, ban: null, wins: 0, placement: null, lastOpp: null,
     })),
   };
 }
@@ -29,10 +30,20 @@ export function visibleCharacters(bans) {
   return CHARACTERS.map((c) => ({ char: c, status: characterStatus(c, bans) })).filter((x) => x.status !== 'hidden');
 }
 
+// Everyone votes to ban one resource; the BAN_COUNT most-voted are banned,
+// ties broken at random. In 1v1 that is simply both players' picks.
 export function submitBan(m, playerId, resource) {
   m.players[playerId].ban = resource;
   if (m.players.every((p) => p.ban)) {
-    m.bans = [...new Set(m.players.map((p) => p.ban))];
+    const rng = rngFor(m);
+    const votes = {};
+    for (const p of m.players) votes[p.ban] = (votes[p.ban] || 0) + 1;
+    m.banVotes = votes;
+    m.bans = Object.keys(votes)
+      .map((r) => ({ r, v: votes[r], tie: rng() }))
+      .sort((a, b) => b.v - a.v || a.tie - b.tie)
+      .slice(0, BAN_COUNT)
+      .map((x) => x.r);
     m.phase = 'pick';
   }
 }
@@ -60,7 +71,17 @@ export function startRound(m) {
     if (!p.locked || p.shop.length === 0) p.shop = rollShop(p, m.bans, m.round, rngFor(m));
     p.locked = false;
   }
+  m.pairs = pairings(m);
   m.phase = m.round === SIGNATURE_ROUND ? 'signature' : 'shop';
+}
+
+// This round's opponent: { id, ghost } or null.
+export function opponentOf(m, id) {
+  for (const [a, b, ghost] of m.pairs) {
+    if (a === id) return { id: b, ghost: !!ghost };
+    if (b === id && !ghost) return { id: a, ghost: false };
+  }
+  return null;
 }
 
 export function chooseSignature(m, playerId, sigId) {
@@ -102,22 +123,33 @@ export function loadout(p) {
   return { charId: p.charId, cards: { ...p.cards }, sig: p.sig };
 }
 
-// Pairings: with 2 players it's always a duel. With more, pair neighbours in
-// a rotating order; an odd player out fights a copy ("ghost") of another.
+// Random pairings each round, avoiding last round's opponent where possible.
+// With an odd number alive, the player left over fights a "ghost": a copy of
+// another living player's build. Losing to a ghost costs HP; beating one
+// doesn't hurt the player it copies.
 export function pairings(m) {
-  const live = alive(m);
+  const live = alive(m).map((p) => p.id);
   if (live.length < 2) return [];
-  const order = live.map((p) => p.id);
-  const shift = m.round % order.length;
-  const rotated = order.slice(shift).concat(order.slice(0, shift));
-  const pairs = [];
-  for (let i = 0; i + 1 < rotated.length; i += 2) pairs.push([rotated[i], rotated[i + 1]]);
-  if (rotated.length % 2) pairs.push([rotated[rotated.length - 1], rotated[0], 'ghost']);
-  return pairs;
+  const rng = rngFor(m);
+  let best = null, bestRepeats = Infinity;
+  for (let attempt = 0; attempt < 12 && bestRepeats > 0; attempt++) {
+    const order = live.slice();
+    for (let i = order.length - 1; i > 0; i--) { const j = rng.int(i + 1); [order[i], order[j]] = [order[j], order[i]]; }
+    const pairs = [];
+    for (let i = 0; i + 1 < order.length; i += 2) pairs.push([order[i], order[i + 1]]);
+    if (order.length % 2) {
+      const odd = order[order.length - 1];
+      const others = live.filter((x) => x !== odd);
+      pairs.push([odd, others[rng.int(others.length)], 'ghost']);
+    }
+    const repeats = live.length > 2 ? pairs.filter(([a, b]) => m.players[a].lastOpp === b).length : 0;
+    if (repeats < bestRepeats) { best = pairs; bestRepeats = repeats; }
+  }
+  return best;
 }
 
 export function makeFight(m, a, b) {
-  return new Fight(loadout(m.players[a]), loadout(m.players[b]), (m.seed + m.round * 31337) >>> 0);
+  return new Fight(loadout(m.players[a]), loadout(m.players[b]), (m.seed + m.round * 31337 + a * 101 + b * 7) >>> 0);
 }
 
 export function damageFor(round, survivorHpPct) {
@@ -141,15 +173,43 @@ export function resolveFight(m, a, b, result, ghost = false) {
     winner.wins++;
     summary = { round: m.round, winner: winner.id, loser: loser.id, damage: d, time: result.time };
   }
+  summary.a = a; summary.b = b; summary.ghost = !!ghost;
+  pa.lastOpp = b;
+  if (!ghost) pb.lastOpp = a;
   m.history.push(summary);
-  for (const p of m.players) p.hp = Math.max(0, p.hp);
   return summary;
 }
 
+// Plays every fight of the round except `skip` (pairs the UI animates itself).
+export function resolveOtherFights(m, skip = []) {
+  const out = [];
+  for (const [a, b, ghost] of m.pairs) {
+    if (skip.includes(a) || (!ghost && skip.includes(b))) continue;
+    out.push(resolveFight(m, a, b, makeFight(m, a, b).runToEnd(), ghost));
+  }
+  return out;
+}
+
+// Eliminates players at 0 HP (placing them), then starts the next round or
+// ends the match. Players knocked out in the same round are ranked by HP left
+// (most negative is worse), then by fights won.
 export function finishRound(m) {
-  if (alive(m).length <= 1) {
+  const out = m.players.filter((p) => p.hp <= 0 && p.placement === null)
+    .sort((a, b) => b.hp - a.hp || b.wins - a.wins);
+  let place = alive(m).length + out.length;
+  for (const p of out.reverse()) p.placement = place--;
+  for (const p of m.players) p.hp = Math.max(0, p.hp);
+  const live = alive(m);
+  if (live.length <= 1) {
+    // If the last players all fell at once, the best-ranked of them already
+    // holds 1st place from the ordering above.
+    if (live.length === 1) live[0].placement = 1;
     m.phase = 'over';
     return;
   }
   startRound(m);
+}
+
+export function standings(m) {
+  return m.players.slice().sort((a, b) => (a.placement ?? 0) - (b.placement ?? 0) || b.hp - a.hp || b.wins - a.wins);
 }

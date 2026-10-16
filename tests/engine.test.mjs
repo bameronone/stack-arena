@@ -122,7 +122,7 @@ test('full bot matches finish', () => {
 });
 
 test('difficulty ladder: normal rival beats easy rival most of the time', async () => {
-  const { createMatch, pairings, makeFight, resolveFight, finishRound } = await import('../src/engine/match.js');
+  const { createMatch, makeFight, resolveFight, finishRound } = await import('../src/engine/match.js');
   const { botBan, botPick, botShop, botSignature } = await import('../src/ai/bot.js');
   let normalWins = 0;
   const N = 40;
@@ -133,10 +133,33 @@ test('difficulty ladder: normal rival beats easy rival most of the time', async 
     while (m.phase !== 'over' && m.round < 40) {
       if (m.phase === 'signature') { botSignature(m, 0); botSignature(m, 1); }
       botShop(m, 0); botShop(m, 1);
-      for (const [a, b, g] of pairings(m)) resolveFight(m, a, b, makeFight(m, a, b).runToEnd(), g);
+      for (const [a, b, g] of m.pairs) resolveFight(m, a, b, makeFight(m, a, b).runToEnd(), g);
       finishRound(m);
     }
     if (m.players.find((p) => p.hp > 0)?.level === 'normal') normalWins++;
   }
   assert.ok(normalWins / N > 0.7, `normal won ${normalWins}/${N}`);
+});
+
+test('8-player free-for-all: everyone gets a unique placement and bans are capped at 2', async () => {
+  const { playFFA } = await import('../tools/ffa.mjs');
+  for (let s = 0; s < 6; s++) {
+    const m = playFFA(900 + s, 8, ['normal', 'easy']);
+    assert.equal(m.phase, 'over');
+    assert.deepEqual(m.players.map((p) => p.placement).sort((a, b) => a - b), [1, 2, 3, 4, 5, 6, 7, 8]);
+    assert.ok(m.bans.length <= 2 && m.bans.length >= 1);
+  }
+});
+
+test('pairings: everyone alive fights once; odd counts get one ghost fight', async () => {
+  const { createMatch, pairings, submitBan, pickCharacter } = await import('../src/engine/match.js');
+  for (const n of [2, 3, 5, 8]) {
+    const m = createMatch({ seed: 11, players: Array.from({ length: n }, (_, i) => ({ name: 'P' + i, isBot: true })) });
+    for (const p of m.players) submitBan(m, p.id, 'fire');
+    for (const p of m.players) pickCharacter(m, p.id, 'viper');
+    const pairs = pairings(m);
+    const fighters = pairs.flatMap(([a, b, g]) => (g ? [a] : [a, b])).sort((x, y) => x - y);
+    assert.deepEqual(fighters, Array.from({ length: n }, (_, i) => i));
+    assert.equal(pairs.filter((p) => p[2]).length, n % 2);
+  }
 });

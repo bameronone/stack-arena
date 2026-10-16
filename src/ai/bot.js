@@ -2,7 +2,7 @@ import { CARD_BY_ID, cardResources } from '../data/cards.js';
 import { CHAR_BY_ID } from '../data/characters.js';
 import { RESOURCES, TRIGGERS, TIER_UNLOCK, HYBRID_REQ } from '../data/tags.js';
 import { cardCost, tagCounts, REROLL_COST } from '../engine/shop.js';
-import { buy, reroll, rngFor, visibleCharacters, submitBan, pickCharacter, chooseSignature, loadout } from '../engine/match.js';
+import { buy, reroll, rngFor, visibleCharacters, submitBan, pickCharacter, chooseSignature, loadout, opponentOf } from '../engine/match.js';
 import { Fight } from '../engine/combat.js';
 import { CARD_VALUES } from './cardValues.js';
 
@@ -58,7 +58,11 @@ export function botSignature(m, id) {
   chooseSignature(m, id, rngFor(m).pick(sigs).id);
 }
 
+// The bot plans against this round's opponent (pairings are public once the
+// round starts, as they would be for a player).
 function rivalOf(m, id) {
+  const opp = opponentOf(m, id);
+  if (opp) return m.players[opp.id];
   return m.players.find((q) => q.id !== id && q.hp > 0) || m.players[(id + 1) % m.players.length];
 }
 

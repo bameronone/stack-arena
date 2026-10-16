@@ -1,12 +1,12 @@
 # Stack Arena
 
-A 1v1 auto-battler inspired by Dota 2's *Auto Gladiators* custom game. Pick a gladiator, buy buff cards between rounds, and watch the fight resolve on its own.
+An auto-battler for 2 to 8 gladiators, inspired by Dota 2's *Auto Gladiators* custom game. Pick a gladiator, buy buff cards between rounds, and watch the fight resolve on its own.
 
 ## Play
 
 Open `dist/index.html` in a browser. It's one self-contained file with no server and no install. It loads fonts from Google Fonts and falls back to system fonts offline.
 
-You play against an AI rival at one of three levels: **Squire** (easy), **Gladiator** (normal) or **Champion** (hard).
+Set up a lobby of 1 to 7 AI rivals, each at its own level: **Squire** (easy), **Gladiator** (normal) or **Champion** (hard). One rival is a 1v1 duel; more is a free-for-all where the last gladiator standing wins.
 
 ## Host it free on GitHub Pages
 
@@ -26,6 +26,7 @@ Requires Node 18+. There are no dependencies.
 | `npm test` | Engine and AI unit tests (`node:test`) |
 | `npm run sim -- 2000` | Plays 2000 bot-vs-bot matches and prints win rates by character, resource and card |
 | `node tools/duel.mjs 400 hard normal` | Plays two AI levels against each other to check that the harder one is stronger |
+| `node tools/ffa.mjs 200 8 easy,normal,hard` | Plays free-for-all bot matches; reports match length and average placement by gladiator and level |
 | `node tools/cardvalue.mjs` | Measures each card's value by simulation and regenerates `src/ai/cardValues.js` (run this after balance changes) |
 | `node tools/autotune.mjs 3` | Nudges each gladiator's base HP toward a 50% win rate (edits `characters.js`; review the diff) |
 | `NODE_PATH=$(npm root -g) node tools/playtest.cjs <outdir> [w] [h]` | Plays a full match in headless Chromium, saves screenshots, reports JS errors and sideways scrolling |
@@ -40,7 +41,7 @@ src/
   data/characters.js    12 gladiators, abilities, signatures, ban visibility rule
   engine/combat.js      deterministic fight simulation (20 ticks/s)
   engine/shop.js        shop pool, tier unlocks, weighting
-  engine/match.js       match state (plain JSON), rounds, bans, damage, pairings
+  engine/match.js       match state (plain JSON), rounds, ban votes, pairings, ghosts, placements
   ai/bot.js             the rival: three difficulty levels
   ai/cardValues.js      generated: measured value of each card
   ui/arena.js           canvas renderer for fights
@@ -56,6 +57,6 @@ The engine has no DOM dependencies. The same code runs in the browser, the simul
 
 - **A card:** add an entry to `CARDS` in `src/data/cards.js`. Give it `tags`, `tier` (1-4, `'hybrid'` or `'counter'`), `max` copies, a `desc(n)` and one or more hooks (`onAttack`, `onCrit`, `onEvade`, `onPain`, `onCast`, `onFreeze`, `onHitTaken`, `every`, `bonusDamage`, `setup`). Then run `node tools/cardvalue.mjs` so the AI knows its value, and `npm run sim` to see how it performs.
 - **A gladiator:** add an entry to `CHARACTERS` with a `trigger`, 1-2 `resources`, `stats`, an `innate`, an `ability.cast` and two `signatures`.
-- **More players:** match state already holds a `players` array, and `pairings()` handles any count, including a ghost opponent for odd numbers. What's still missing is UI for more than one rival, plus networking.
+- **More players:** matches support 2 to 8 players (`MAX_PLAYERS`). Networked play is the missing piece; see DESIGN.md.
 
 See `DESIGN.md` for the rules and balance notes.

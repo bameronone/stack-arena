@@ -1,4 +1,4 @@
-import { createMatch, pairings, makeFight, resolveFight, finishRound } from '../src/engine/match.js';
+import { createMatch, makeFight, resolveFight, finishRound } from '../src/engine/match.js';
 import { botBan, botPick, botShop, botSignature } from '../src/ai/bot.js';
 
 export function playMatchForTest(seed) {
@@ -8,7 +8,7 @@ export function playMatchForTest(seed) {
   while (m.phase !== 'over' && m.round < 40) {
     if (m.phase === 'signature') { botSignature(m, 0); botSignature(m, 1); }
     botShop(m, 0); botShop(m, 1);
-    for (const [a, b, ghost] of pairings(m)) resolveFight(m, a, b, makeFight(m, a, b).runToEnd(), ghost);
+    for (const [a, b, ghost] of m.pairs) resolveFight(m, a, b, makeFight(m, a, b).runToEnd(), ghost);
     finishRound(m);
   }
   return m;

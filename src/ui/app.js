@@ -4,27 +4,53 @@ import { CHARACTERS, CHAR_BY_ID, characterStatus } from '../data/characters.js';
 import { tagCounts, cardCost, REROLL_COST } from '../engine/shop.js';
 import {
   createMatch, submitBan, pickCharacter, visibleCharacters, buy, reroll, toggleLock,
-  makeFight, resolveFight, finishRound, chooseSignature, loadout, income, interest, START_HP, SIGNATURE_ROUND,
+  makeFight, resolveFight, resolveOtherFights, finishRound, chooseSignature, loadout, income, interest, START_HP, SIGNATURE_ROUND,
+  opponentOf, standings, MAX_PLAYERS, BAN_COUNT,
 } from '../engine/match.js';
 import { botBan, botPick, botShop, botSignature } from '../ai/bot.js';
 import { createArena } from './arena.js';
 
-const ME = 0, FOE = 1;
+const ME = 0;
 const root = document.getElementById('app');
 let M = null;
-let ui = { screen: 'title', speed: 2, banner: null, mobileTab: null, toast: null, level: loadLevel() };
+let ui = { screen: 'title', speed: 2, banner: null, mobileTab: null, toast: null, lobby: loadLobby() };
+const BOT_NAMES = ['Varro', 'Lucia', 'Crixus', 'Flamma', 'Priscus', 'Verus', 'Tetraites'];
+
+// This round's opponent as { p, ghost }, or null if you're out.
+function foe() {
+  const o = M && opponentOf(M, ME);
+  return o ? { p: M.players[o.id], ghost: o.ghost } : null;
+}
+function foeLoadout() {
+  const f = foe();
+  return f ? loadout(f.p) : loadout(M.players.find((p) => p.id !== ME));
+}
+function playerLabel(p) {
+  return p.isBot ? `${p.name} (${DIFFICULTY[p.level || 'normal'].name})` : p.name;
+}
+const ordinal = (n) => n + (['th', 'st', 'nd', 'rd'][(n % 100 - 20) % 10] || ['th', 'st', 'nd', 'rd'][n % 100] || 'th');
+const isDuel = () => M.players.length === 2;
 
 const DIFFICULTY = {
   easy: { name: 'Squire', desc: 'Buys on impulse. Good for learning the cards.' },
   normal: { name: 'Gladiator', desc: 'Plans a build, manages gold and counters your main resource.' },
   hard: { name: 'Champion', desc: 'Also test-fights cards against your build before buying them.' },
 };
-function loadLevel() {
-  try { return localStorage.getItem('stack-arena-level') || 'normal'; } catch { return 'normal'; }
+const DIFFICULTY_IDS = Object.keys(DIFFICULTY);
+// The lobby is the list of bot rivals' difficulty levels (1 to 7 of them).
+function loadLobby() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('stack-arena-lobby'));
+    if (Array.isArray(saved) && saved.length && saved.every((l) => DIFFICULTY_IDS.includes(l))) return saved.slice(0, MAX_PLAYERS - 1);
+  } catch { /* storage unavailable */ }
+  return ['normal'];
 }
 function newMatch() {
-  try { localStorage.setItem('stack-arena-level', ui.level); } catch { /* storage unavailable */ }
-  M = createMatch({ seed: Math.floor(Math.random() * 1e9), players: [{ name: 'You' }, { name: 'Rival', isBot: true, level: ui.level }] });
+  try { localStorage.setItem('stack-arena-lobby', JSON.stringify(ui.lobby)); } catch { /* storage unavailable */ }
+  M = createMatch({
+    seed: Math.floor(Math.random() * 1e9),
+    players: [{ name: 'You' }, ...ui.lobby.map((level, i) => ({ name: BOT_NAMES[i], isBot: true, level }))],
+  });
   ui.fightStats = null;
   ui.screen = 'ban';
   render();
@@ -98,7 +124,7 @@ function statsPanel(side) {
     ${statGroup('Damage dealt', s.dmg)}${statGroup('Healing', s.heal)}${statGroup('Damage prevented', s.mit)}`;
 }
 function refreshStats() {
-  for (const [id, side] of [['stats-mine', ME], ['stats-foe', FOE]]) {
+  for (const [id, side] of [['stats-mine', 0], ['stats-foe', 1]]) {
     const el = root.querySelector('#' + id);
     if (el) el.innerHTML = statsPanel(side);
   }
@@ -112,6 +138,18 @@ function cardTags(card) {
   return card.tags.map((t) => chip(t, true)).join('');
 }
 
+function ffaRecord() {
+  try { return JSON.parse(localStorage.getItem('stack-arena-ffa') || '{"games":0,"wins":0,"places":0}'); } catch { return { games: 0, wins: 0, places: 0 }; }
+}
+function saveResult() {
+  const me = M.players[ME];
+  if (isDuel()) return saveRecord(M.players[1].level || 'normal', me.placement === 1);
+  try {
+    const r = ffaRecord();
+    r.games++; r.places += me.placement; if (me.placement === 1) r.wins++;
+    localStorage.setItem('stack-arena-ffa', JSON.stringify(r));
+  } catch { /* storage unavailable */ }
+}
 function record(level) {
   try { return JSON.parse(localStorage.getItem('stack-arena-record-' + level) || '{"w":0,"l":0}'); } catch { return { w: 0, l: 0 }; }
 }
@@ -137,6 +175,8 @@ function toast(msg) {
 
 function render() {
   if (ui.screen !== 'game' && arena) { arena.destroy(); arena = null; }
+  const t = document.querySelector('.toast');
+  if (t) t.hidden = true;
   if (ui.screen === 'title') return renderTitle();
   if (ui.screen === 'ban') return renderBan();
   if (ui.screen === 'pick') return renderPick();
@@ -148,29 +188,19 @@ function renderTitle() {
   root.innerHTML = `
   <div class="screen"><div class="screen-inner">
     <div>
-      <div class="eyebrow">A 1v1 auto-battler</div>
+      <div class="eyebrow">An auto-battler for 2 to 8 gladiators</div>
       <h1 class="brand">Stack <span>Arena</span></h1>
     </div>
     <p class="lede">Pick a gladiator, buy buff cards from the shop between rounds, and watch the fight play out by itself.
       Cards give you <b>stacks</b>. The more cards you own of one kind, the better the cards that show up.</p>
-    <div>
-      <div class="eyebrow" style="margin-bottom:8px">Choose your rival</div>
-      <div class="levels" role="radiogroup" aria-label="Rival difficulty">
-        ${Object.entries(DIFFICULTY).map(([id, d]) => {
-          const r = record(id);
-          return `<button class="level ${ui.level === id ? 'on' : ''}" role="radio" aria-checked="${ui.level === id}" data-level="${id}">
-            <b>${d.name}</b><span>${d.desc}</span>${r.w + r.l ? `<span class="rec num">Your record: ${r.w}-${r.l}</span>` : ''}
-          </button>`;
-        }).join('')}
-      </div>
-    </div>
+    ${renderLobby()}
     <div class="row">
       <button class="btn primary" id="start" style="font-family:var(--display);font-size:26px;font-weight:400;padding:6px 28px">Enter the arena</button>
     </div>
     <div class="rules">
       <div class="rule"><h3>Triggers and resources</h3><p>Triggers decide <i>when</i> you gain stacks (Strike, Crit, Dodge, Wounded, Spell). Resources decide <i>what</i> stacks do. A card like ${chip('precision', true)} <span class="arrow">&#9656;</span> ${chip('poison', true)} always fires. Cards with only a resource fire 30% of the time.</p></div>
       <div class="rule"><h3>Build up, unlock more</h3><p>Own ${TIER_UNLOCK[2]}, ${TIER_UNLOCK[3]} and ${TIER_UNLOCK[4]} cards of a tag to unlock its Uncommon, Rare and Mythic cards. Own ${HYBRID_REQ} of two resources to unlock their Hybrid card.</p></div>
-      <div class="rule"><h3>Bans</h3><p>You and your rival each secretly ban one resource. Banned cards never appear, and gladiators who only use banned resources sit the match out.</p></div>
+      <div class="rule"><h3>Bans</h3><p>Every gladiator secretly votes to ban one resource, and the two with the most votes are banned. Banned cards never appear, and gladiators who only use banned resources sit the match out.</p></div>
       <div class="rule"><h3>Focus, not luck</h3><p>Dodging builds Focus. Every hit you take adds to your dodge chance, and a dodge resets it, so you can never dodge twice in a row. Poison, Bleed and abilities can't be dodged.</p></div>
     </div>
     <div>
@@ -180,8 +210,39 @@ function renderTitle() {
       </div>
     </div>
   </div></div>`;
-  root.querySelectorAll('[data-level]').forEach((b) => b.onclick = () => { ui.level = b.dataset.level; renderTitle(); });
+  root.querySelectorAll('[data-slot-level]').forEach((b) => b.onclick = () => {
+    ui.lobby[Number(b.dataset.slot)] = b.dataset.slotLevel;
+    renderTitle();
+  });
+  root.querySelectorAll('[data-remove]').forEach((b) => b.onclick = () => { ui.lobby.splice(Number(b.dataset.remove), 1); renderTitle(); });
+  root.querySelector('#add-bot')?.addEventListener('click', () => { ui.lobby.push(ui.lobby[ui.lobby.length - 1] || 'normal'); renderTitle(); });
   root.querySelector('#start').onclick = newMatch;
+}
+
+function renderLobby() {
+  const duel = ui.lobby.length === 1;
+  const ffa = ffaRecord();
+  const r = duel ? record(ui.lobby[0]) : null;
+  const recLine = duel
+    ? (r.w + r.l ? `Your record against ${DIFFICULTY[ui.lobby[0]].name}: ${r.w}-${r.l}` : '')
+    : (ffa.games ? `Free-for-all: ${ffa.games} played, ${ffa.wins} won, average place ${(ffa.places / ffa.games).toFixed(1)}` : '');
+  return `<div class="lobby">
+    <div class="row" style="justify-content:space-between">
+      <div class="eyebrow">Lobby · ${ui.lobby.length + 1} of ${MAX_PLAYERS} slots · ${duel ? '1v1 duel' : 'free-for-all'}</div>
+      ${recLine ? `<span class="eyebrow rec">${recLine}</span>` : ''}
+    </div>
+    <div class="slots">
+      <div class="slot you"><span class="slot-n num">1</span><b>You</b><span class="slot-note">Human</span></div>
+      ${ui.lobby.map((lv, i) => `
+        <div class="slot"><span class="slot-n num">${i + 2}</span><b>${BOT_NAMES[i]}</b>
+          <div class="seg" role="radiogroup" aria-label="${BOT_NAMES[i]} difficulty">
+            ${DIFFICULTY_IDS.map((id) => `<button class="${lv === id ? 'on' : ''}" role="radio" aria-checked="${lv === id}" data-slot="${i}" data-slot-level="${id}" data-tip="${esc(`<b>${DIFFICULTY[id].name}</b><br>${DIFFICULTY[id].desc}`)}">${DIFFICULTY[id].name}</button>`).join('')}
+          </div>
+          ${ui.lobby.length > 1 ? `<button class="slot-x" data-remove="${i}" aria-label="Remove ${BOT_NAMES[i]}">Remove</button>` : '<span></span>'}
+        </div>`).join('')}
+      ${ui.lobby.length < MAX_PLAYERS - 1 ? `<button class="slot add" id="add-bot"><span class="slot-n">+</span><b>Add a rival</b><span class="slot-note">Bot</span></button>` : ''}
+    </div>
+  </div>`;
 }
 
 function renderBan() {
@@ -192,25 +253,28 @@ function renderBan() {
       <div class="eyebrow">Step 1 of 2</div>
       <h1 style="font-size:48px">${banned ? 'The bans are in' : 'Ban one resource'}</h1>
       <p class="lede">${banned
-        ? 'Neither of you saw the other\'s choice. These resources are gone for the whole match.'
-        : 'Your rival is choosing at the same time. Ban what you least want to fight.'}</p>
+        ? 'Nobody saw anyone else\'s vote. These resources are gone for the whole match.'
+        : isDuel()
+          ? 'Your rival is choosing at the same time. Ban what you least want to fight.'
+          : `Every gladiator votes at the same time. The ${BAN_COUNT} resources with the most votes are banned (ties are broken at random).`}</p>
     </div>
     <div class="ban-grid">
       ${RESOURCES.map((r) => {
         const t = TAGS[r];
-        const mine = M.players[ME].ban === r, theirs = M.players[FOE].ban === r;
-        const isBanned = banned && (mine || theirs);
-        const who = mine && theirs ? 'Banned by both of you' : mine ? 'Your ban' : theirs ? 'Rival\'s ban' : '';
+        const mine = M.players[ME].ban === r;
+        const votes = (M.banVotes || {})[r] || 0;
+        const isBanned = banned && M.bans.includes(r);
+        const who = !banned ? '' : `${plural(votes, 'vote')}${mine ? ', including yours' : ''}`;
         return `<button class="ban-tile ${isBanned ? 'banned' : ''}" style="--c:${t.color}" data-res="${r}" ${banned ? 'disabled' : ''}>
           <span class="name">${t.name}</span><p>${esc(t.stack)}</p>
-          ${isBanned ? `<span class="stamp">Banned</span><span class="who">${who}</span>` : ''}
+          ${isBanned ? '<span class="stamp">Banned</span>' : ''}${banned && votes ? `<span class="who">${who}</span>` : ''}
         </button>`;
       }).join('')}
     </div>
     ${banned ? `<div><button class="btn primary" id="next">Choose your gladiator</button></div>` : ''}
   </div></div>`;
   root.querySelectorAll('[data-res]').forEach((b) => b.onclick = () => {
-    botBan(M, FOE);
+    for (const p of M.players) if (p.isBot) botBan(M, p.id);
     submitBan(M, ME, b.dataset.res);
     render();
   });
@@ -246,7 +310,7 @@ function renderPick() {
     ${hidden.length ? `<p class="hidden-note">Sitting out (all their resources are banned): ${hidden.map((c) => esc(c.name)).join(', ')}.</p>` : ''}
   </div></div>`;
   root.querySelectorAll('[data-char]').forEach((b) => b.onclick = () => {
-    botPick(M, FOE);
+    for (const p of M.players) if (p.isBot) botPick(M, p.id);
     pickCharacter(M, ME, b.dataset.char);
     afterRoundStart();
     ui.screen = 'game';
@@ -255,8 +319,9 @@ function renderPick() {
 }
 
 function afterRoundStart() {
-  if (M.phase === 'signature') botSignature(M, FOE);
-  if (M.phase === 'shop') botShop(M, FOE);
+  const bots = M.players.filter((p) => p.isBot && p.hp > 0);
+  if (M.phase === 'signature') for (const p of bots) botSignature(M, p.id);
+  if (M.phase === 'shop') for (const p of bots) botShop(M, p.id);
 }
 
 // ---------------------------------------------------------------- game
@@ -282,14 +347,14 @@ function renderGame() {
     arena = createArena(root.querySelector('#arena'));
     arena.setSpeed(ui.speed);
   }
-  if (!fighting) arena.setPreview(loadout(M.players[ME]), loadout(M.players[FOE]));
+  if (!fighting) arena.setPreview(loadout(M.players[ME]), foeLoadout());
   updateGame();
 }
 
 function updateGame() {
   renderHud();
   renderSide('mine', M.players[ME], true);
-  renderSide('foe', M.players[FOE], false);
+  renderSide('foe', (foe() || { p: M.players[1] }).p, false);
   renderTray();
   renderSpeed();
   renderBanner();
@@ -298,17 +363,17 @@ function updateGame() {
 }
 
 function renderHud() {
-  const me = M.players[ME], foe = M.players[FOE];
-  const life = (p, cls) => `
+  const me = M.players[ME], f = foe();
+  const life = (p, cls, ghost) => `
     <div class="life ${cls}">
-      <div class="top"><span>${esc(p.isBot ? DIFFICULTY[p.level || 'normal'].name : p.name)} · ${esc(CHAR_BY_ID[p.charId].name)}</span><span class="num">${p.hp} / ${START_HP}</span></div>
-      <div class="bar"><i style="width:${(p.hp / START_HP) * 100}%"></i></div>
+      <div class="top"><span>${ghost ? 'Ghost of ' : ''}${esc(p.isBot ? p.name : 'You')} · ${esc(CHAR_BY_ID[p.charId].name)}</span><span class="num">${Math.max(0, p.hp)} / ${START_HP}</span></div>
+      <div class="bar"><i style="width:${(Math.max(0, p.hp) / START_HP) * 100}%"></i></div>
     </div>`;
   root.querySelector('#hud').innerHTML = `
     <div class="logo">Stack <span>Arena</span></div>
     <div class="round"><span class="eyebrow">Round</span><b class="num">${M.round}</b></div>
     <div class="eyebrow">Bans: ${M.bans.map((b) => chip(b, true)).join(' ')}</div>
-    <div class="vs">${life(me, 'me')}${life(foe, 'foe')}</div>
+    <div class="vs">${life(me, 'me')}${f ? life(f.p, 'foe', f.ghost) : ''}</div>
     <div class="tools"><button class="btn" id="codex" title="What every tag does">Tags</button></div>`;
   root.querySelector('#codex').onclick = () => { ui.modal = 'codex'; renderModal(); };
 }
@@ -333,17 +398,19 @@ function renderSide(id, p, mine) {
   const c = CHAR_BY_ID[p.charId];
   const counts = tagCounts(p.cards);
   const sig = p.sig && c.signatures.find((s) => s.id === p.sig);
+  const f = foe();
+  const ghost = !mine && f && f.ghost;
   const hybrids = mine ? CARDS.filter((h) => h.tier === 'hybrid' && !h.tags.some((t) => M.bans.includes(t)) && h.tags.every((t) => (counts[t] || 0) >= 2) && !h.tags.every((t) => (counts[t] || 0) >= HYBRID_REQ)) : [];
-  el.innerHTML = `
+  el.innerHTML = `${mine || isDuel() ? '' : standingsPanel()}
     <div>
-      <div class="eyebrow">${mine ? 'Your gladiator' : `Rival · ${DIFFICULTY[p.level || 'normal'].name}`}</div>
+      <div class="eyebrow">${mine ? 'Your gladiator' : `${isDuel() ? 'Rival' : ghost ? 'Opponent: a ghost copy of' : 'This round\'s opponent'} · ${esc(playerLabel(p))}`}</div>
       <h2>${esc(c.name)}</h2>
       <div class="sub">${chip(c.trigger, true)} ${c.resources.map((r) => chip(r, true)).join(' ')}</div>
     </div>
     <div class="sub"><b style="color:var(--bronze)">${esc(c.ability.name)}</b>: ${esc(c.ability.desc())}${sig ? `<br><b style="color:var(--bronze)">${esc(sig.name)}</b>: ${esc(sig.desc)}` : ''}</div>
     <div><div class="eyebrow" style="margin-bottom:6px">Tag progress</div><div class="progress">${tierProgress(counts)}</div></div>
     ${hybrids.length ? `<div class="sub">Close to a Hybrid: ${hybrids.map((h) => `${esc(h.name)} (${h.tags.map((t) => `${TAGS[t].name} ${counts[t] || 0}/${HYBRID_REQ}`).join(', ')})`).join('; ')}</div>` : ''}
-    <div class="stats-panel" id="stats-${id}">${statsPanel(mine ? ME : FOE)}</div>`;
+    <div class="stats-panel" id="stats-${id}">${statsPanel(mine ? 0 : 1)}</div>`;
 }
 
 function renderTray() {
@@ -398,8 +465,22 @@ function doBuy(slot) {
   for (const h of CARDS.filter((c) => c.tier === 'hybrid')) {
     if (h.tags.every((t) => (after[t] || 0) >= HYBRID_REQ) && !h.tags.every((t) => (before[t] || 0) >= HYBRID_REQ) && !h.tags.some((t) => M.bans.includes(t))) toast(`Hybrid unlocked: ${h.name}`);
   }
-  arena.setPreview(loadout(M.players[ME]), loadout(M.players[FOE]));
+  arena.setPreview(loadout(M.players[ME]), foeLoadout());
   updateGame();
+}
+
+function standingsPanel() {
+  const f = foe();
+  return `<div class="standings">
+    <div class="eyebrow">Standings · ${M.players.filter((p) => p.hp > 0).length} of ${M.players.length} alive</div>
+    ${standings(M).map((p) => `
+      <div class="st ${p.id === ME ? 'me' : ''} ${p.hp <= 0 ? 'out' : ''} ${f && f.p.id === p.id ? 'opp' : ''}">
+        <span class="st-n">${p.placement ? ordinal(p.placement) : ''}</span>
+        <span class="st-name">${esc(p.id === ME ? 'You' : p.name)}<small>${esc(CHAR_BY_ID[p.charId].name)}</small></span>
+        <span class="st-bar"><i style="width:${(Math.max(0, p.hp) / START_HP) * 100}%"></i></span>
+        <span class="st-hp num">${Math.max(0, p.hp)}</span>
+      </div>`).join('')}
+  </div>`;
 }
 
 function renderSpeed() {
@@ -412,18 +493,26 @@ function renderSpeed() {
 
 function startFight() {
   if (fighting || M.phase !== 'shop' || ui.banner) return;
+  const opp = opponentOf(M, ME);
+  if (!opp) return;
   fighting = true;
-  const f = makeFight(M, ME, FOE);
+  const f = makeFight(M, ME, opp.id);
   ui.fightStats = { live: true, round: M.round, stats: [f.units[0].stats, f.units[1].stats] };
   const statsTimer = setInterval(refreshStats, 250);
   arena.play(f, (result) => {
     fighting = false;
     clearInterval(statsTimer);
     ui.fightStats = { live: false, round: M.round, stats: JSON.parse(JSON.stringify(result.stats)) };
-    const summary = resolveFight(M, ME, FOE, result);
-    const s = result.stats[ME], o = result.stats[FOE];
+    const summary = resolveFight(M, ME, opp.id, result, opp.ghost);
+    const others = resolveOtherFights(M, [ME]);
+    const s = result.stats[0], o = result.stats[1];
+    const name = (id) => (id === ME ? 'You' : M.players[id].name);
     ui.banner = {
-      outcome: summary.winner === ME ? 'win' : summary.winner === FOE ? 'loss' : 'draw',
+      ghost: opp.ghost,
+      others: others.map((r) => r.winner === null
+        ? `${name(r.a)} and ${name(r.b)}${r.ghost ? ' (ghost)' : ''} drew`
+        : `${name(r.winner)}${r.ghost && r.winner === r.b ? ' (ghost)' : ''} beat ${name(r.loser)}${r.ghost && r.loser === r.b ? ' (ghost)' : ''}${r.ghost && r.loser === r.b ? '' : `, -${r.damage} HP`}`),
+      outcome: summary.winner === ME ? 'win' : summary.winner === opp.id ? 'loss' : 'draw',
       damage: summary.damage,
       time: result.time,
       line: `You dealt ${Math.round(s.dealt)} damage and took ${Math.round(s.taken)}.` +
@@ -439,13 +528,17 @@ function renderBanner() {
   const el = root.querySelector('#banner');
   const b = ui.banner;
   if (!b) { el.innerHTML = ''; return; }
-  const over = M.players.some((p) => p.hp <= 0);
-  const title = b.outcome === 'win' ? 'Victory' : b.outcome === 'loss' ? 'Defeat' : 'Draw';
-  const sub = b.outcome === 'win' ? `Your rival loses ${b.damage} HP.` : b.outcome === 'loss' ? `You lose ${b.damage} HP.` : `You both lose ${Math.ceil(b.damage)} HP.`;
+  const meOut = M.players[ME].hp <= 0;
+  const over = meOut || M.players.filter((p) => p.hp > 0).length <= 1;
+  const title = meOut && !isDuel() ? 'Knocked out' : b.outcome === 'win' ? 'Victory' : b.outcome === 'loss' ? 'Defeat' : 'Draw';
+  const sub = b.outcome === 'win'
+    ? (b.ghost ? 'You beat the ghost. Ghosts lose no HP.' : `Your opponent loses ${b.damage} HP.`)
+    : b.outcome === 'loss' ? `You lose ${b.damage} HP.` : `You ${b.ghost ? '' : 'both '}lose ${Math.ceil(b.damage)} HP.`;
   el.innerHTML = `<div class="banner ${b.outcome}" role="status">
     <span class="eyebrow">Round ${M.round} · ${b.time.toFixed(1)}s</span>
     <h2>${title}</h2><p>${sub}</p><p style="font-size:13px">${esc(b.line)}</p>
-    <button class="btn primary" id="cont">${over ? 'See the result' : 'Next round'}</button>
+    ${b.others?.length ? `<ul class="others">${b.others.map((o) => `<li>${esc(o)}</li>`).join('')}</ul>` : ''}
+    <button class="btn primary" id="cont">${over ? (meOut && !isDuel() && M.players.filter((p) => p.hp > 0).length > 1 ? 'Finish the match' : 'See the result') : 'Next round'}</button>
   </div>`;
   el.querySelector('#cont').onclick = nextRound;
   el.querySelector('#cont').focus({ preventScroll: true });
@@ -454,14 +547,20 @@ function renderBanner() {
 function nextRound() {
   ui.banner = null;
   finishRound(M);
+  // Once you're out, the bots play out the rest of the match instantly.
+  while (M.phase !== 'over' && M.players[ME].hp <= 0 && M.round < 80) {
+    afterRoundStart();
+    resolveOtherFights(M, []);
+    finishRound(M);
+  }
   if (M.phase === 'over') {
-    saveRecord(M.players[FOE].level || 'normal', M.players[ME].hp > 0);
+    saveResult();
     ui.screen = 'over';
     render();
     return;
   }
   afterRoundStart();
-  arena.setPreview(loadout(M.players[ME]), loadout(M.players[FOE]));
+  arena.setPreview(loadout(M.players[ME]), foeLoadout());
   updateGame();
 }
 
@@ -477,8 +576,8 @@ function renderModal() {
     </div></div>`;
     el.querySelectorAll('[data-sig]').forEach((b) => b.onclick = () => {
       chooseSignature(M, ME, b.dataset.sig);
-      if (M.phase === 'shop') botShop(M, FOE);
-      arena.setPreview(loadout(M.players[ME]), loadout(M.players[FOE]));
+      if (M.phase === 'shop') for (const p of M.players) if (p.isBot && p.hp > 0) botShop(M, p.id);
+      arena.setPreview(loadout(M.players[ME]), foeLoadout());
       updateGame();
     });
     return;
@@ -500,25 +599,30 @@ function renderModal() {
 
 function renderTabs() {
   const el = root.querySelector('#mtabs');
-  el.innerHTML = `<button class="btn ${ui.mobileTab === 'mine' ? 'on' : ''}" data-tab="mine">Your build</button><button class="btn ${ui.mobileTab === 'foe' ? 'on' : ''}" data-tab="foe">Rival</button>`;
+  el.innerHTML = `<button class="btn ${ui.mobileTab === 'mine' ? 'on' : ''}" data-tab="mine">Your build</button><button class="btn ${ui.mobileTab === 'foe' ? 'on' : ''}" data-tab="foe">${isDuel() ? 'Rival' : 'Opponent and standings'}</button>`;
   el.querySelectorAll('[data-tab]').forEach((b) => b.onclick = () => { ui.mobileTab = ui.mobileTab === b.dataset.tab ? null : b.dataset.tab; renderTabs(); });
   root.querySelector('#mine').classList.toggle('show', ui.mobileTab === 'mine');
   root.querySelector('#foe').classList.toggle('show', ui.mobileTab === 'foe');
 }
 
 function renderOver() {
-  const me = M.players[ME], foe = M.players[FOE];
-  const won = me.hp > 0;
+  const me = M.players[ME];
+  const won = me.placement === 1;
   const list = (p) => Object.entries(p.cards).map(([id, n]) => `${esc(CARD_BY_ID[id].name)} x${n}`).join(', ') || 'No cards';
+  const winner = M.players.find((p) => p.placement === 1);
   root.innerHTML = `
   <div class="screen"><div class="screen-inner">
     <div>
-      <div class="eyebrow">After ${M.round} rounds · ${me.wins} fights won, ${foe.wins} lost · Rival: ${DIFFICULTY[foe.level || 'normal'].name}</div>
-      <h1 class="brand" style="color:${won ? 'var(--bronze)' : 'var(--blood)'}">${won ? 'Champion' : 'Fallen'}</h1>
+      <div class="eyebrow">After ${M.round} rounds · you won ${plural(me.wins, 'fight')}</div>
+      <h1 class="brand" style="color:${won ? 'var(--bronze)' : 'var(--blood)'}">${won ? 'Champion' : isDuel() ? 'Fallen' : `${ordinal(me.placement)} of ${M.players.length}`}</h1>
     </div>
+    <table class="final">
+      <thead><tr><th>Place</th><th>Gladiator</th><th>Player</th><th class="num">Fights won</th></tr></thead>
+      <tbody>${standings(M).map((p) => `<tr class="${p.id === ME ? 'me' : ''}"><td class="num">${ordinal(p.placement)}</td><td>${esc(CHAR_BY_ID[p.charId].name)}</td><td>${esc(playerLabel(p))}</td><td class="num">${p.wins}</td></tr>`).join('')}</tbody>
+    </table>
     <div class="rules">
       <div class="rule"><h3>${esc(CHAR_BY_ID[me.charId].name)} (you)</h3><div class="progress">${tierProgress(tagCounts(me.cards))}</div><p>${list(me)}</p></div>
-      <div class="rule"><h3>${esc(CHAR_BY_ID[foe.charId].name)} (rival)</h3><div class="progress">${tierProgress(tagCounts(foe.cards))}</div><p>${list(foe)}</p></div>
+      ${winner && winner.id !== ME ? `<div class="rule"><h3>${esc(CHAR_BY_ID[winner.charId].name)} (${esc(winner.name)}, winner)</h3><div class="progress">${tierProgress(tagCounts(winner.cards))}</div><p>${list(winner)}</p></div>` : ''}
     </div>
     <div class="row"><button class="btn primary" id="again">Play again</button><button class="btn" id="home">Back to title</button></div>
   </div></div>`;
@@ -571,10 +675,10 @@ document.addEventListener('keydown', (e) => {
 function start(data) {
   if (data && data.M) {
     M = data.M;
-    ui = { ...ui, ...data.ui, banner: data.ui?.banner || null, modal: null, level: data.ui?.level || ui.level };
+    ui = { ...ui, ...data.ui, banner: data.ui?.banner || null, modal: null, lobby: data.ui?.lobby || ui.lobby };
   }
   render();
 }
-window.claude?.hot?.snapshot?.(() => ({ M, ui: { screen: ui.screen, speed: ui.speed, banner: ui.banner, level: ui.level, fightStats: ui.fightStats && !ui.fightStats.live ? ui.fightStats : null } }));
+window.claude?.hot?.snapshot?.(() => ({ M, ui: { screen: ui.screen, speed: ui.speed, banner: ui.banner, lobby: ui.lobby, fightStats: ui.fightStats && !ui.fightStats.live ? ui.fightStats : null } }));
 if (window.claude?.hot?.ready) window.claude.hot.ready(start);
 else start(window.claude?.hot?.data ?? {});

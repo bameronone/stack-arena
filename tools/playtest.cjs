@@ -1,10 +1,11 @@
 // Drives a full match in headless Chromium: ban, pick, then buy/fight until
 // the match ends. Reports console errors and saves screenshots.
-//   NODE_PATH=$(npm root -g) node tools/playtest.cjs <outdir> [width] [height]
+//   NODE_PATH=$(npm root -g) node tools/playtest.cjs <outdir> [width] [height] [players=2]
 const { chromium } = require('playwright');
 const path = require('path');
 const out = process.argv[2] || '.';
 const W = Number(process.argv[3] || 1360), H = Number(process.argv[4] || 860);
+const PLAYERS = Number(process.argv[5] || 2);
 (async () => {
   const browser = await chromium.launch();
   const page = await browser.newPage({ viewport: { width: W, height: H } });
@@ -13,9 +14,13 @@ const W = Number(process.argv[3] || 1360), H = Number(process.argv[4] || 860);
   page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
   await page.goto('file://' + path.resolve(__dirname, '../dist/index.html'));
   await page.waitForTimeout(400);
-  const tag = `${W}x${H}`;
+  const tag = `${W}x${H}-p${PLAYERS}`;
+  // Fresh lobby: one rival, then add more.
+  await page.evaluate(() => { try { localStorage.clear(); } catch {} });
+  await page.reload();
   await page.screenshot({ path: `${out}/${tag}-1-title.png`, fullPage: false });
-  await page.click('[data-level="hard"]');
+  for (let i = 2; i < PLAYERS; i++) await page.click('#add-bot');
+  await page.click('[data-slot="0"][data-slot-level="hard"]');
   await page.screenshot({ path: `${out}/${tag}-1b-level.png` });
   await page.click('#start');
   await page.click('[data-res="regen"]');
@@ -45,11 +50,13 @@ const W = Number(process.argv[3] || 1360), H = Number(process.argv[4] || 860);
     if (rounds === 5) await page.screenshot({ path: `${out}/${tag}-7-result.png` });
     const label = await page.textContent('#cont');
     await page.click('#cont');
-    if (label.includes('See the result')) break;
+    if (label.includes('See the result') || label.includes('Finish the match')) break;
   }
   await page.waitForTimeout(200);
   await page.screenshot({ path: `${out}/${tag}-8-over.png` });
   const heading = await page.textContent('h1');
+  const placesOk = PLAYERS === 2 || (await page.$$('.final tbody tr')).length === PLAYERS;
+  if (!placesOk) errors.push('final standings table has the wrong number of rows');
   console.log(JSON.stringify({ rounds: rounds + 1, result: heading, errors }, null, 1));
   await browser.close();
 })().catch((e) => { console.error(e); process.exit(1); });
