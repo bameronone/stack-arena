@@ -4,7 +4,7 @@ import { CHARACTERS, CHAR_BY_ID, characterStatus } from '../data/characters.js';
 import { tagCounts, cardCost, REROLL_COST, SHOP_SIZE } from '../engine/shop.js';
 import { hpScale } from '../engine/combat.js';
 import {
-  visibleCharacters, makeFight, loadout, income, interest, START_HP, SIGNATURE_ROUND,
+  visibleCharacters, makeFight, loadout, income, interest, INTEREST_STEP, INTEREST_MAX, START_HP, SIGNATURE_ROUND,
   opponentOf, standings, MAX_PLAYERS, BAN_COUNT,
 } from '../engine/match.js';
 import { SHOP_TIMES } from '../game/host.js';
@@ -47,7 +47,7 @@ const ui = {
   name: store.get('name', ''),
   joinCode: cleanCode(params.get('room') || ''),
   error: null, busy: false,
-  fightStats: null, animRound: null, fighting: false,
+  fightStats: null, animRound: null, fighting: false, watching: null, savedStats: null,
 };
 
 const M = () => S?.M;
@@ -88,8 +88,8 @@ function chip(tag, withName = false) {
 }
 
 // Keywords in card text get their tag's color and a hover explanation.
-const KEYWORDS = /\b(On attack|On crit|On dodge|On cast|Wounded|Fire|Frost|Poison|Bleed|Shield|Regen|Mana stacks?|Armor|Focus)\b/g;
-const KEYWORD_TAG = { 'On attack': 'strike', 'On crit': 'precision', 'On dodge': 'evasion', 'On cast': 'spell', Wounded: 'pain', Focus: 'evasion' };
+const KEYWORDS = /\b(On attack|On crit|On dodge|On cast|On heal|When hurt|Fire|Frost|Toxin|Bleed|Shield|Regen|Mana stacks?|Armor|Focus)\b/g;
+const KEYWORD_TAG = { 'On attack': 'strike', 'On crit': 'precision', 'On dodge': 'evasion', 'On cast': 'spell', 'On heal': 'regen', 'When hurt': 'pain', Toxin: 'poison', Focus: 'evasion' };
 function richText(text) {
   return esc(text).replace(KEYWORDS, (w) => {
     const tag = KEYWORD_TAG[w] || (w.startsWith('Mana') ? 'arcane' : w.toLowerCase());
@@ -125,7 +125,7 @@ function cardTags(card) {
 // ---------------------------------------------------------------- fight stats
 
 const SOURCE_COLOR = {
-  Attacks: '#c9b79c', Poison: TAGS.poison.color, Bleed: TAGS.bleed.color, Thorns: TAGS.armor.color, 'Molten Armor': TAGS.fire.color,
+  Attacks: '#c9b79c', Toxin: TAGS.poison.color, 'Bloom Burst': TAGS.regen.color, Bleed: TAGS.bleed.color, Thorns: TAGS.armor.color, 'Molten Armor': TAGS.fire.color,
   Shatter: TAGS.frost.color, Pandemic: TAGS.poison.color, 'Reflective Plating': TAGS.shield.color, 'Undying Spite': TAGS.pain.color,
   Regen: TAGS.regen.color, 'Bleed lifesteal': TAGS.bleed.color, 'Plague Lord': TAGS.poison.color, 'Phoenix Core': TAGS.fire.color,
   Armor: TAGS.armor.color, Shield: TAGS.shield.color, Dodge: TAGS.evasion.color, Resistances: '#b9b2a6', Immunity: '#e9dcc0',
@@ -144,7 +144,7 @@ function statsPanel(side) {
   const fs = ui.fightStats;
   if (!fs) return `<div class="eyebrow">Fight stats</div><p class="empty">Damage, healing and damage prevented, by source, show here once a fight starts.</p>`;
   const s = fs.stats[side];
-  return `<div class="eyebrow">${fs.live ? 'This fight' : `Last fight · round ${fs.round}`}</div>
+  return `<div class="eyebrow">${fs.watched ? 'Watched fight' : fs.live ? 'This fight' : `Last fight · round ${fs.round}`}</div>
     ${statGroup('Damage dealt', s.dmg)}${statGroup('Healing', s.heal)}${statGroup('Damage prevented', s.mit)}`;
 }
 function refreshStats() {
@@ -188,7 +188,7 @@ function toast(msg) {
 function useSession(session) {
   S?.close?.();
   S = session;
-  ui.banner = null; ui.fightStats = null; ui.animRound = null; ui.fighting = false; ui.error = null;
+  ui.banner = null; ui.fightStats = null; ui.animRound = null; ui.fighting = false; ui.watching = null; ui.error = null;
   lastCounts = null;
   S.onChange(onSessionChange);
   render();
@@ -242,7 +242,7 @@ function onSessionChange() {
     }
     lastCounts = counts;
     if (m.phase !== 'fight' && ui.banner) ui.banner = null;
-    if (m.phase !== 'fight' && ui.fighting) arena?.skip();
+    if (m.phase !== 'fight' && (ui.fighting || ui.watching)) arena?.skip();
   }
   render();
   if (m && S.stage === 'game' && m.phase === 'fight' && ui.animRound !== m.fightRound) {
@@ -297,10 +297,10 @@ setInterval(() => {
 
 const RULES = () => `
   <div class="rules">
-    <div class="rule"><h3>Triggers and resources</h3><p>Triggers decide <i>when</i> you gain stacks (Strike, Crit, Dodge, Wounded, Spell). Resources decide <i>what</i> stacks do. A card like ${chip('precision', true)} <span class="arrow">&#9656;</span> ${chip('poison', true)} always fires. Cards with only a resource fire 30% of the time.</p></div>
+    <div class="rule"><h3>Triggers and resources</h3><p>Triggers decide <i>when</i> you gain stacks (Strike, Crit, Dodge, Health, Spell). Resources decide <i>what</i> stacks do. A card like ${chip('precision', true)} <span class="arrow">&#9656;</span> ${chip('poison', true)} always fires. Cards with only a resource fire 30% of the time.</p></div>
     <div class="rule"><h3>Build up, unlock more</h3><p>Own ${TIER_UNLOCK[2]}, ${TIER_UNLOCK[3]} and ${TIER_UNLOCK[4]} cards of a tag to unlock its Uncommon, Rare and Mythic cards. Own ${HYBRID_REQ} of two resources to unlock their Hybrid card.</p></div>
     <div class="rule"><h3>Bans</h3><p>Every gladiator secretly votes to ban one resource, and the ${BAN_COUNT} with the most votes are banned. Banned cards never appear, and gladiators who only use banned resources sit the match out.</p></div>
-    <div class="rule"><h3>Focus, not luck</h3><p>Dodging builds Focus. Every hit you take adds to your dodge chance, and a dodge resets it, so you can never dodge twice in a row. Poison, Bleed and abilities can't be dodged.</p></div>
+    <div class="rule"><h3>Focus, not luck</h3><p>Dodging builds Focus. Every hit you take adds to your dodge chance, and a dodge resets it, so you can never dodge twice in a row. Toxin, Bleed and abilities can't be dodged.</p></div>
   </div>
   <div>
     <div class="eyebrow" style="margin-bottom:10px">The thirteen tags</div>
@@ -328,6 +328,10 @@ function renderTitle() {
     </div>
     ${ui.tab === 'solo' ? soloLobby() : onlineLobby()}
     ${RULES()}
+    <div>
+      <div class="eyebrow" style="margin-bottom:10px">The ${CHARACTERS.length} gladiators</div>
+      <div class="char-grid">${CHARACTERS.map((c) => `<div class="char">${charInfo(c)}</div>`).join('')}</div>
+    </div>
   </div></div>`;
   root.querySelectorAll('[data-tab]').forEach((b) => b.onclick = () => { ui.tab = b.dataset.tab; ui.error = null; render(); });
   if (ui.tab === 'solo') {
@@ -421,7 +425,7 @@ function renderRoom() {
         ${hosting ? timeSeg('room-time', lobby.shopTime, SHOP_TIMES.filter(Boolean)) : `<b class="num">${lobby.shopTime}s</b>`}</div>
       <div class="row">
         ${hosting ? `<button class="btn primary big" id="start" ${S.canStart() ? '' : 'disabled'}>Start the match</button>
-          <span class="slot-note">${S.canStart() ? 'Open slots nobody joined are left out.' : 'You need at least one rival: a player or a bot.'}</span>`
+          <span class="slot-note">${S.canStart() ? 'Slots still marked Open are dropped when the match starts.' : 'You need at least one rival: a player or a bot.'}</span>`
           : '<span class="slot-note waiting">Waiting for the host to start the match...</span>'}
         <button class="btn" id="leave">${hosting ? 'Close the room' : 'Leave the room'}</button>
       </div>
@@ -506,7 +510,16 @@ function renderBan() {
 
 function charStats(c) {
   const s = { hp: 600, ad: 30, as: 1.0, crit: 0.05, manaMax: 100, ...c.stats };
-  return `${s.hp} HP · ${s.ad} damage · ${s.as.toFixed(2)} attacks/s · ${Math.round(s.crit * 100)}% crit · ${s.manaMax} mana`;
+  return `${s.hp} HP · ${s.ad} damage · ${s.as.toFixed(2)} attacks/s · ${Math.round(s.crit * 100)}% crit · ${s.manaMax} mana${s.focusGain ? ` · +${+(s.focusGain * 100).toFixed(1)}% Focus per hit taken` : ''}`;
+}
+
+function charInfo(c) {
+  return `<div class="row" style="gap:6px">${chip(c.trigger, true)}<span class="arrow">&#9656;</span>${c.resources.map((r) => chip(r, true)).join('')}</div>
+    <div><div class="nm">${esc(c.name)}</div><div class="ep">${esc(c.epithet)}</div></div>
+    <div class="ab"><b>${esc(c.ability.name)}:</b> ${esc(c.ability.desc())}</div>
+    <div class="inn">Innate: ${esc(c.innate.desc)}</div>
+    <div class="stats num">${charStats(c)}</div>
+    <div class="inn">Signatures (round ${SIGNATURE_ROUND}): ${c.signatures.map((s) => `<b>${esc(s.name)}</b> ${esc(s.desc)}`).join(' · ')}</div>`;
 }
 
 function renderPick() {
@@ -524,11 +537,7 @@ function renderPick() {
     <div class="char-grid">
       ${vis.map(({ char: c, status }) => `
         <button class="char ${mine === c.id ? 'chosen' : ''}" data-char="${c.id}" ${mine ? 'disabled' : ''}>
-          <div class="row" style="gap:6px">${chip(c.trigger, true)}<span class="arrow">&#9656;</span>${c.resources.map((r) => chip(r, true)).join('')}</div>
-          <div><div class="nm">${esc(c.name)}</div><div class="ep">${esc(c.epithet)}</div></div>
-          <div class="ab"><b>${esc(c.ability.name)}:</b> ${esc(c.ability.desc())}</div>
-          <div class="inn">Innate: ${esc(c.innate.desc)}</div>
-          <div class="stats num">${charStats(c)}</div>
+          ${charInfo(c)}
           ${status === 'weakened' ? `<div class="warn">${c.resources.filter((r) => m.bans.includes(r)).map((r) => TAGS[r].name).join(', ')} is banned. This build is weaker.</div>` : ''}
         </button>`).join('')}
     </div>
@@ -561,7 +570,7 @@ function renderGame() {
     arena = createArena(root.querySelector('#arena'));
     arena.setSpeed(ui.speed);
   }
-  if (!ui.fighting) arena.setPreview(myLoadout(), foeLoadout());
+  if (!ui.fighting && !ui.watching) showPreview();
   updateGame();
 }
 
@@ -569,8 +578,14 @@ function updateGame() {
   if (!root.querySelector('.game')) return;
   const m = M();
   renderHud();
-  renderSide('mine', m.players[ME()], true);
-  renderSide('foe', (foe() || { p: m.players.find((p) => p.id !== ME()) }).p, false);
+  const w = ui.watching;
+  if (w) {
+    renderSide('mine', m.players[w.a], false, 'Watching');
+    renderSide('foe', m.players[w.b], false, w.ghost ? 'Watching · a ghost copy of' : 'Watching');
+  } else {
+    renderSide('mine', m.players[ME()], true);
+    renderSide('foe', (foe() || { p: m.players.find((p) => p.id !== ME()) }).p, false);
+  }
   renderTray();
   renderSpeed();
   renderPreview();
@@ -659,7 +674,7 @@ function tierProgress(counts) {
   }).join('');
 }
 
-function renderSide(id, p, mine) {
+function renderSide(id, p, mine, watchLabel = null) {
   const m = M();
   const el = root.querySelector('#' + id);
   const c = CHAR_BY_ID[p.charId];
@@ -668,8 +683,8 @@ function renderSide(id, p, mine) {
   const f = foe();
   const ghost = !mine && f && f.ghost;
   const hybrids = mine ? CARDS.filter((h) => h.tier === 'hybrid' && !h.tags.some((t) => m.bans.includes(t)) && h.tags.every((t) => (counts[t] || 0) >= 2) && !h.tags.every((t) => (counts[t] || 0) >= HYBRID_REQ)) : [];
-  const label = mine ? 'Your gladiator' : `${isDuel() ? 'Rival' : ghost ? 'Opponent: a ghost copy of' : f ? 'This round\'s opponent' : 'Gladiator'} · ${esc(playerLabel(p))}`;
-  el.innerHTML = `${mine || isDuel() ? '' : standingsPanel()}
+  const label = watchLabel ? `${watchLabel} · ${esc(playerLabel(p))}` : mine ? 'Your gladiator' : `${isDuel() ? 'Rival' : ghost ? 'Opponent: a ghost copy of' : f ? 'This round\'s opponent' : 'Gladiator'} · ${esc(playerLabel(p))}`;
+  el.innerHTML = `${id === 'mine' || isDuel() ? '' : standingsPanel()}
     <div>
       <div class="eyebrow">${label}</div>
       <h2>${esc(c.name)}</h2>
@@ -741,20 +756,21 @@ function renderTray() {
   el.querySelector('#fight').onclick = toggleReady;
 }
 
-// Gold and what saving it earns: income plus 1 interest per 10 kept (max 2).
+// Gold and what saving it earns: income plus interest on what you keep.
 function purseHtml(p, m) {
   const inc = income(m.round + 1), bonus = interest(p.gold);
-  const cap = 20;
-  const hint = p.gold < 10 ? `Keep ${10 - p.gold} more for +1 interest`
-    : p.gold < cap ? `Keep ${cap - p.gold} more for +2 interest`
-      : `Max interest. Gold over ${cap} earns nothing more`;
-  const tip = `<b>Next round you get ${inc + bonus} gold</b><div class="tip-rows" style="grid-template-columns:1fr"><span>Income (4 + round, max 10)<b class="num">+${inc}</b></span><span>Interest (1 per 10 kept, max 2)<b class="num">+${bonus}</b></span></div>Interest counts the gold you have left when the fight starts.`;
+  const cap = INTEREST_STEP * INTEREST_MAX;
+  const next = bonus < INTEREST_MAX ? (bonus + 1) * INTEREST_STEP : null;
+  const hint = next ? `Keep ${next - p.gold} more for +${bonus + 1} interest` : `Max interest. Gold over ${cap} earns nothing more`;
+  const rule = `1 per ${INTEREST_STEP} kept, max ${INTEREST_MAX}`;
+  const tip = `<b>Next round you get ${inc + bonus} gold</b><div class="tip-rows" style="grid-template-columns:1fr"><span>Income (4 + round, max 10)<b class="num">+${inc}</b></span><span>Interest (${rule})<b class="num">+${bonus}</b></span></div>Interest counts the gold you have left when the fight starts.`;
+  const marks = Array.from({ length: INTEREST_MAX - 1 }, (_, k) => `<em style="left:${((k + 1) / INTEREST_MAX) * 100}%"></em>`).join('');
   return `<div class="gold"><b class="num">${p.gold}</b><span>gold</span></div>
     <div class="eco" data-tip="${esc(tip)}" tabindex="0">
       <div class="eco-line">Next round <b class="num">+${inc + bonus}</b></div>
       <div class="eco-sub num">${inc} income + ${bonus} interest</div>
-      <div class="eco-bar" aria-hidden="true"><i style="width:${Math.min(1, p.gold / cap) * 100}%"></i><em style="left:50%"></em></div>
-      <div class="eco-hint ${p.gold >= cap ? 'max' : ''}">${hint}</div>
+      <div class="eco-bar" aria-hidden="true"><i style="width:${Math.min(1, p.gold / cap) * 100}%"></i>${marks}</div>
+      <div class="eco-hint ${next ? '' : 'max'}">${hint}</div>
     </div>`;
 }
 
@@ -800,9 +816,16 @@ function renderPreview() {
 function renderSpeed() {
   const el = root.querySelector('#speed');
   el.innerHTML = [1, 2, 4].map((s) => `<button class="btn ${ui.speed === s ? 'on' : ''}" data-speed="${s}">${s}x</button>`).join('') +
-    (ui.fighting ? `<button class="btn" id="skip">Skip</button>` : '');
+    (ui.fighting || ui.watching ? `<button class="btn" id="skip">${ui.watching ? 'Stop watching' : 'Skip'}</button>` : '');
   el.querySelectorAll('[data-speed]').forEach((b) => b.onclick = () => { ui.speed = Number(b.dataset.speed); arena.setSpeed(ui.speed); renderSpeed(); });
   el.querySelector('#skip')?.addEventListener('click', () => arena.skip());
+}
+
+const fighterName = (p, ghost = false) => (ghost ? `Ghost of ${p.name}` : p.id === ME() ? (S.mode === 'solo' ? 'You' : `${p.name} (you)`) : p.name);
+function showPreview() {
+  const f = foe();
+  const other = f ? f.p : M().players.find((p) => p.id !== ME());
+  arena.setPreview(myLoadout(), foeLoadout(), [fighterName(M().players[ME()]), fighterName(other, f?.ghost)]);
 }
 
 // Your fight replays locally from the shared seed; the host has already
@@ -821,9 +844,33 @@ function startFightAnimation() {
     ui.fighting = false;
     ui.fightStats = { live: false, round, stats: JSON.parse(JSON.stringify(result.stats)) };
     if (M()?.phase === 'fight' && M().fightRound === round) ui.banner = resultsBanner(result);
-    if (screenFor() === 'game' && arena) { arena.setPreview(myLoadout(), foeLoadout()); updateGame(); }
-  });
+    if (screenFor() === 'game' && arena) { showPreview(); updateGame(); }
+  }, [fighterName(m.players[ME()]), fighterName(m.players[opp.id], opp.ghost)]);
   updateGame();
+}
+
+// Spectating: replay any other fight of this round from the shared seed.
+function watchFight(i) {
+  const m = M();
+  const r = m.lastResults[i];
+  if (!r || !arena || ui.fighting || m.phase !== 'fight') return;
+  const round = m.fightRound;
+  ui.watching = { a: r.a, b: r.b, ghost: r.ghost, round };
+  const f = makeFight(m, r.a, r.b);
+  ui.savedStats = ui.fightStats;
+  ui.fightStats = { live: true, round, watched: true, stats: [f.units[0].stats, f.units[1].stats] };
+  const statsTimer = setInterval(refreshStats, 250);
+  arena.play(f, () => {
+    clearInterval(statsTimer);
+    stopWatching();
+  }, [fighterName(m.players[r.a]), fighterName(m.players[r.b], r.ghost)]);
+  updateGame();
+}
+function stopWatching() {
+  if (!ui.watching) return;
+  ui.watching = null;
+  ui.fightStats = ui.savedStats;
+  if (screenFor() === 'game' && arena) { showPreview(); updateGame(); }
 }
 
 function resultsBanner(result) {
@@ -832,9 +879,10 @@ function resultsBanner(result) {
   const mineIdx = m.lastResults.findIndex((r) => r.a === me || (!r.ghost && r.b === me));
   const mine = m.lastResults[mineIdx];
   const name = (id) => (id === me ? 'You' : m.players[id].name);
-  const others = m.lastResults.filter((_, i) => i !== mineIdx).map((r) => (r.winner === null
+  const others = m.lastResults.map((r, i) => ({ i, text: r.winner === null
     ? `${name(r.a)} and ${name(r.b)}${r.ghost ? ' (ghost)' : ''} drew`
-    : `${name(r.winner)}${r.ghost && r.winner === r.b ? ' (ghost)' : ''} beat ${name(r.loser)}${r.ghost && r.loser === r.b ? ' (ghost)' : ''}${r.ghost && r.loser === r.b ? '' : `, -${r.damage} HP`}`));
+    : `${name(r.winner)}${r.ghost && r.winner === r.b ? ' (ghost)' : ''} beat ${name(r.loser)}${r.ghost && r.loser === r.b ? ' (ghost)' : ''}${r.ghost && r.loser === r.b ? '' : `, -${r.damage} HP`}` }))
+    .filter((o) => o.i !== mineIdx);
   if (!mine || !result) return { spectator: true, others };
   const s = result.stats[0], o = result.stats[1];
   return {
@@ -853,11 +901,12 @@ function renderBanner() {
   const el = root.querySelector('#banner');
   const b = ui.banner;
   const m = M();
-  if (!b) { el.innerHTML = ''; return; }
-  const list = b.others?.length ? `<ul class="others">${b.others.map((o) => `<li>${esc(o)}</li>`).join('')}</ul>` : '';
+  if (!b || ui.watching) { el.innerHTML = ''; return; }
+  const list = b.others?.length ? `<ul class="others">${b.others.map((o) => `<li><span>${esc(o.text)}</span><button class="btn watch" data-watch="${o.i}">Watch</button></li>`).join('')}</ul>` : '';
   if (b.spectator) {
     el.innerHTML = `<div class="banner" role="status"><span class="eyebrow">Round ${m.fightRound} results</span>${list}
       <p class="slot-note waiting">Waiting for the players still in the match...</p></div>`;
+    wireWatch(el);
     return;
   }
   const me = m.players[ME()];
@@ -878,6 +927,10 @@ function renderBanner() {
   </div>`;
   const cont = el.querySelector('#cont');
   if (cont) { cont.onclick = () => S.act('watched'); cont.focus({ preventScroll: true }); }
+  wireWatch(el);
+}
+function wireWatch(el) {
+  el.querySelectorAll('[data-watch]').forEach((b) => b.onclick = () => watchFight(Number(b.dataset.watch)));
 }
 
 function renderModal() {
