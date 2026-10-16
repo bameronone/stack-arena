@@ -25,6 +25,7 @@ function loadLevel() {
 function newMatch() {
   try { localStorage.setItem('stack-arena-level', ui.level); } catch { /* storage unavailable */ }
   M = createMatch({ seed: Math.floor(Math.random() * 1e9), players: [{ name: 'You' }, { name: 'Rival', isBot: true, level: ui.level }] });
+  ui.fightStats = null;
   ui.screen = 'ban';
   render();
 }
@@ -35,10 +36,72 @@ let toastTimer = 0;
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
+function tagTip(tag) {
+  const t = TAGS[tag];
+  return `<b style="color:${t.color}">${t.name}</b> <span class="tip-kind">${t.kind}</span><br>${esc(t.kind === 'trigger' ? t.passive : t.stack)}`;
+}
+
 function chip(tag, withName = false) {
   const t = TAGS[tag];
-  const tip = t.kind === 'trigger' ? `${t.name} (trigger): ${t.passive}` : `${t.name}: ${t.stack}`;
-  return `<span class="chip ${t.kind}" style="--c:${t.color}" title="${esc(tip)}">${withName ? t.name : t.glyph}</span>`;
+  return `<span class="chip ${t.kind}" style="--c:${t.color}" data-tip="${esc(tagTip(tag))}">${withName ? t.name : t.glyph}</span>`;
+}
+
+// Keywords in card text get their tag's color and a hover explanation.
+const KEYWORDS = /\b(On attack|On crit|On dodge|On cast|Wounded|Fire|Frost|Poison|Bleed|Shield|Regen|Mana stacks?|Armor|Focus)\b/g;
+const KEYWORD_TAG = { 'On attack': 'strike', 'On crit': 'precision', 'On dodge': 'evasion', 'On cast': 'spell', Wounded: 'pain', Focus: 'evasion' };
+function richText(text) {
+  return esc(text).replace(KEYWORDS, (w) => {
+    const tag = KEYWORD_TAG[w] || (w.startsWith('Mana') ? 'arcane' : w.toLowerCase());
+    return `<span class="kw" style="--c:${TAGS[tag].color}" data-tip="${esc(tagTip(tag))}">${w}</span>`;
+  });
+}
+
+// Card text with every number that changes with copies underlined. Hovering
+// one shows its value at each copy count.
+function richDesc(card, n) {
+  const split = (s) => s.split(/(\d+(?:\.\d+)?)/);
+  const cur = split(card.desc(n));
+  const variants = card.max > 1 ? Array.from({ length: card.max }, (_, k) => split(card.desc(k + 1)).filter((_, i) => i % 2)) : [];
+  const aligned = variants.length && variants.every((v) => v.length === (cur.length - 1) / 2);
+  return cur.map((part, i) => {
+    if (i % 2 === 0) return richText(part);
+    const vals = aligned ? variants.map((v) => v[(i - 1) / 2]) : [];
+    if (new Set(vals).size < 2) return esc(part);
+    const tip = `<b>Scales with copies</b><div class="tip-rows">${vals.map((v, k) =>
+      `<span class="${k + 1 === n ? 'cur' : ''}">${k + 1} ${k ? 'copies' : 'copy'}<b class="num">${v}</b></span>`).join('')}</div>`;
+    return `<span class="scale" data-tip="${esc(tip)}">${part}</span>`;
+  }).join('');
+}
+
+// Fight stats: damage dealt, healing, and damage prevented, by source.
+const SOURCE_COLOR = {
+  Attacks: '#c9b79c', Poison: TAGS.poison.color, Bleed: TAGS.bleed.color, Thorns: TAGS.armor.color, 'Molten Armor': TAGS.fire.color,
+  Shatter: TAGS.frost.color, Pandemic: TAGS.poison.color, 'Reflective Plating': TAGS.shield.color, 'Undying Spite': TAGS.pain.color,
+  Regen: TAGS.regen.color, 'Bleed lifesteal': TAGS.bleed.color, 'Plague Lord': TAGS.poison.color, 'Phoenix Core': TAGS.fire.color,
+  Armor: TAGS.armor.color, Shield: TAGS.shield.color, Dodge: TAGS.evasion.color, Resistances: '#b9b2a6', Immunity: '#e9dcc0',
+  'Living Mountain': TAGS.armor.color, 'Mana Shield': TAGS.arcane.color,
+};
+function statGroup(title, table) {
+  const rows = Object.entries(table || {}).filter(([, v]) => v >= 1).sort((a, b) => b[1] - a[1]);
+  const total = rows.reduce((s, [, v]) => s + v, 0);
+  const max = rows.length ? rows[0][1] : 1;
+  return `<div class="sg">
+    <div class="sg-h"><span>${title}</span><span class="num">${Math.round(total)}</span></div>
+    ${rows.length ? rows.map(([k, v]) => `<div class="sr"><span class="sn">${esc(k)}</span><span class="sb"><i style="width:${(v / max) * 100}%;background:${SOURCE_COLOR[k] || TAGS.spell.color}"></i></span><span class="sv num">${Math.round(v)}</span></div>`).join('') : '<div class="sr none">None</div>'}
+  </div>`;
+}
+function statsPanel(side) {
+  const fs = ui.fightStats;
+  if (!fs) return `<div class="eyebrow">Fight stats</div><p class="empty">Damage, healing and damage prevented, by source, show here once a fight starts.</p>`;
+  const s = fs.stats[side];
+  return `<div class="eyebrow">${fs.live ? 'This fight' : `Last fight · round ${fs.round}`}</div>
+    ${statGroup('Damage dealt', s.dmg)}${statGroup('Healing', s.heal)}${statGroup('Damage prevented', s.mit)}`;
+}
+function refreshStats() {
+  for (const [id, side] of [['stats-mine', ME], ['stats-foe', FOE]]) {
+    const el = root.querySelector('#' + id);
+    if (el) el.innerHTML = statsPanel(side);
+  }
 }
 
 function cardTags(card) {
@@ -105,7 +168,7 @@ function renderTitle() {
       <button class="btn primary" id="start" style="font-family:var(--display);font-size:26px;font-weight:400;padding:6px 28px">Enter the arena</button>
     </div>
     <div class="rules">
-      <div class="rule"><h3>Triggers and resources</h3><p>Triggers decide <i>when</i> you gain stacks (Strike, Crit, Dodge, Pain, Spell). Resources decide <i>what</i> stacks do. A card like ${chip('precision', true)} <span class="arrow">&#9656;</span> ${chip('poison', true)} always fires. Cards with only a resource fire 30% of the time.</p></div>
+      <div class="rule"><h3>Triggers and resources</h3><p>Triggers decide <i>when</i> you gain stacks (Strike, Crit, Dodge, Wounded, Spell). Resources decide <i>what</i> stacks do. A card like ${chip('precision', true)} <span class="arrow">&#9656;</span> ${chip('poison', true)} always fires. Cards with only a resource fire 30% of the time.</p></div>
       <div class="rule"><h3>Build up, unlock more</h3><p>Own ${TIER_UNLOCK[2]}, ${TIER_UNLOCK[3]} and ${TIER_UNLOCK[4]} cards of a tag to unlock its Uncommon, Rare and Mythic cards. Own ${HYBRID_REQ} of two resources to unlock their Hybrid card.</p></div>
       <div class="rule"><h3>Bans</h3><p>You and your rival each secretly ban one resource. Banned cards never appear, and gladiators who only use banned resources sit the match out.</p></div>
       <div class="rule"><h3>Focus, not luck</h3><p>Dodging builds Focus. Every hit you take adds to your dodge chance, and a dodge resets it, so you can never dodge twice in a row. Poison, Bleed and abilities can't be dodged.</p></div>
@@ -269,7 +332,6 @@ function renderSide(id, p, mine) {
   const el = root.querySelector('#' + id);
   const c = CHAR_BY_ID[p.charId];
   const counts = tagCounts(p.cards);
-  const owned = Object.entries(p.cards).sort((a, b) => CARD_BY_ID[a[0]].name.localeCompare(CARD_BY_ID[b[0]].name));
   const sig = p.sig && c.signatures.find((s) => s.id === p.sig);
   const hybrids = mine ? CARDS.filter((h) => h.tier === 'hybrid' && !h.tags.some((t) => M.bans.includes(t)) && h.tags.every((t) => (counts[t] || 0) >= 2) && !h.tags.every((t) => (counts[t] || 0) >= HYBRID_REQ)) : [];
   el.innerHTML = `
@@ -281,12 +343,7 @@ function renderSide(id, p, mine) {
     <div class="sub"><b style="color:var(--bronze)">${esc(c.ability.name)}</b>: ${esc(c.ability.desc())}${sig ? `<br><b style="color:var(--bronze)">${esc(sig.name)}</b>: ${esc(sig.desc)}` : ''}</div>
     <div><div class="eyebrow" style="margin-bottom:6px">Tag progress</div><div class="progress">${tierProgress(counts)}</div></div>
     ${hybrids.length ? `<div class="sub">Close to a Hybrid: ${hybrids.map((h) => `${esc(h.name)} (${h.tags.map((t) => `${TAGS[t].name} ${counts[t] || 0}/${HYBRID_REQ}`).join(', ')})`).join('; ')}</div>` : ''}
-    <div><div class="eyebrow" style="margin-bottom:6px">Cards (${owned.reduce((s, [, n]) => s + n, 0)})</div>
-      <div class="owned">${owned.length ? owned.map(([cid, n]) => {
-        const card = CARD_BY_ID[cid];
-        return `<div class="own" title="${esc(card.desc(n))}"><span>${esc(card.name)}</span><span class="n num">x${n}</span></div>`;
-      }).join('') : '<p class="empty">Nothing yet.</p>'}</div>
-    </div>`;
+    <div class="stats-panel" id="stats-${id}">${statsPanel(mine ? ME : FOE)}</div>`;
 }
 
 function renderTray() {
@@ -312,7 +369,7 @@ function renderTray() {
           <span class="cost num">${cost}</span>
           <div class="top">${cardTags(card)}</div>
           <div class="nm">${esc(card.name)}</div>
-          <div class="ds">${esc(card.desc(have + 1))}</div>
+          <div class="ds">${richDesc(card, Math.min(card.max, have + 1))}</div>
           <div class="ft"><span>${TIER_NAMES[card.tier]}</span><span class="num">${have ? `Owned ${have}/${card.max}` : `Max ${card.max}`}</span></div>
         </button>`;
       }).join('')}
@@ -357,8 +414,12 @@ function startFight() {
   if (fighting || M.phase !== 'shop' || ui.banner) return;
   fighting = true;
   const f = makeFight(M, ME, FOE);
+  ui.fightStats = { live: true, round: M.round, stats: [f.units[0].stats, f.units[1].stats] };
+  const statsTimer = setInterval(refreshStats, 250);
   arena.play(f, (result) => {
     fighting = false;
+    clearInterval(statsTimer);
+    ui.fightStats = { live: false, round: M.round, stats: JSON.parse(JSON.stringify(result.stats)) };
     const summary = resolveFight(M, ME, FOE, result);
     const s = result.stats[ME], o = result.stats[FOE];
     ui.banner = {
@@ -465,6 +526,35 @@ function renderOver() {
   root.querySelector('#home').onclick = () => { ui.screen = 'title'; render(); };
 }
 
+// One floating tooltip for every [data-tip] element (fixed, so scrolling
+// containers like the shop tray can't clip it).
+const tipEl = document.createElement('div');
+tipEl.className = 'tip';
+tipEl.setAttribute('role', 'tooltip');
+tipEl.hidden = true;
+document.body.appendChild(tipEl);
+let tipFor = null;
+function showTip(target) {
+  if (tipFor === target) return;
+  tipFor = target;
+  tipEl.innerHTML = target.dataset.tip;
+  tipEl.hidden = false;
+  const r = target.getBoundingClientRect();
+  const t = tipEl.getBoundingClientRect();
+  const x = Math.max(8, Math.min(window.innerWidth - t.width - 8, r.left + r.width / 2 - t.width / 2));
+  const y = r.top - t.height - 8 >= 8 ? r.top - t.height - 8 : r.bottom + 8;
+  tipEl.style.left = `${x}px`;
+  tipEl.style.top = `${y}px`;
+}
+function hideTip() { tipFor = null; tipEl.hidden = true; }
+document.addEventListener('mouseover', (e) => {
+  const t = e.target.closest?.('[data-tip]');
+  if (t) showTip(t); else if (tipFor) hideTip();
+});
+document.addEventListener('focusin', (e) => { const t = e.target.closest?.('[data-tip]'); if (t) showTip(t); else hideTip(); });
+document.addEventListener('scroll', hideTip, true);
+document.addEventListener('click', hideTip);
+
 document.addEventListener('keydown', (e) => {
   if (ui.screen !== 'game' || e.target.closest?.('input,textarea') || e.metaKey || e.ctrlKey || e.altKey) return;
   if (e.key === 'Escape' && ui.modal) { ui.modal = null; renderModal(); return; }
@@ -485,6 +575,6 @@ function start(data) {
   }
   render();
 }
-window.claude?.hot?.snapshot?.(() => ({ M, ui: { screen: ui.screen, speed: ui.speed, banner: ui.banner, level: ui.level } }));
+window.claude?.hot?.snapshot?.(() => ({ M, ui: { screen: ui.screen, speed: ui.speed, banner: ui.banner, level: ui.level, fightStats: ui.fightStats && !ui.fightStats.live ? ui.fightStats : null } }));
 if (window.claude?.hot?.ready) window.claude.hot.ready(start);
 else start(window.claude?.hot?.data ?? {});

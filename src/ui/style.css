@@ -147,12 +147,30 @@ h1, h2, h3 { font-family: var(--display); font-weight: 400; margin: 0; text-wrap
 .pips i.f { background: var(--c); }
 .pips i.mark { margin-right: 4px; }
 .prog .next { color: var(--dust); white-space: nowrap; }
-.owned { display: flex; flex-direction: column; gap: 4px; }
-.own {
-  display: grid; grid-template-columns: 1fr auto; gap: 6px; align-items: center; font-size: 13px;
-  padding: 4px 6px; border-radius: 4px; background: var(--pit);
+.stats-panel { display: flex; flex-direction: column; gap: 10px; }
+.sg { display: flex; flex-direction: column; gap: 3px; }
+.sg-h { display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; color: var(--sand); border-bottom: 1px solid var(--line); padding-bottom: 2px; }
+.sr { display: grid; grid-template-columns: 96px 1fr 40px; gap: 6px; align-items: center; font-size: 12px; color: var(--dust); }
+.sr.none { display: block; font-style: italic; }
+.sn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sb { height: 6px; background: var(--night); border-radius: 3px; overflow: hidden; }
+.sb i { display: block; height: 100%; border-radius: 3px; }
+.sv { text-align: right; color: var(--sand); }
+
+/* Card text: keywords and scaling numbers */
+.kw { color: var(--c); font-weight: 600; }
+.scale { text-decoration: underline; text-decoration-color: var(--bronze); text-decoration-thickness: 2px; text-underline-offset: 3px; font-weight: 700; color: var(--sand); }
+.tip {
+  position: fixed; z-index: 50; max-width: 260px; pointer-events: none;
+  background: #0e0c11; color: var(--sand); border: 1px solid var(--line); border-radius: 6px;
+  padding: 8px 10px; font-size: 12px; line-height: 1.4; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
 }
-.own .n { color: var(--dust); }
+.tip-kind { color: var(--dust); text-transform: uppercase; letter-spacing: 0.08em; font-size: 10px; }
+.tip-rows { display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 2px 10px; margin-top: 4px; }
+.tip-rows span { display: flex; justify-content: space-between; gap: 6px; color: var(--dust); }
+.tip-rows span.cur { color: var(--bronze); }
+.tip-rows b { color: var(--sand); }
+.tip-rows .cur b { color: var(--bronze); }
 .empty { color: var(--dust); font-size: 13px; font-style: italic; }
 
 .arena-wrap { position: relative; min-height: 0; min-width: 0; }

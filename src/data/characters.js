@@ -61,7 +61,7 @@ export const CHARACTERS = [
   {
     id: 'martyr', name: 'Iron Martyr', epithet: 'Who Bleeds for Steel', trigger: 'pain', resources: ['armor', 'shield'],
     stats: { hp: 505, ad: 27, as: 0.85 },
-    innate: { desc: 'Pain: gain 1 Armor.', onPain: (f, u) => f.gain(u, 'armor', 1) },
+    innate: { desc: 'Wounded: gain 1 Armor.', onPain: (f, u) => f.gain(u, 'armor', 1) },
     ability: { name: 'Martyrdom', desc: (u) => `Gain 50 Shield + 10 per Armor (${Math.round(50 + 10 * (u?.armor ?? 0))}).`,
       cast: (f, u, p) => { const s = (50 + 10 * u.armor) * p; f.gain(u, 'shield', s); if (u.sig === 'martyr_penance') hit(f, u, s * 0.4); } },
     signatures: [
@@ -87,7 +87,7 @@ export const CHARACTERS = [
     ability: { name: 'Overgrowth', desc: () => 'Heal 3% of max HP plus 0.5% per Regen.',
       cast: (f, u, p) => {
         const h = u.maxHp * (0.03 + 0.005 * u.regen) * Math.min(p, 1.5);
-        const healed = f.heal(u, h);
+        const healed = f.heal(u, h, 'Overgrowth');
         if (u.sig === 'grove_thorn') hit(f, u, healed * 0.6);
       } },
     signatures: [
@@ -113,7 +113,7 @@ export const CHARACTERS = [
     ability: { name: 'Rupture', desc: (u) => `Deal 20 + 4 per Bleed on the enemy (${Math.round(20 + 4 * (u?.enemy?.bleed ?? 0))}) and heal half of it.`,
       cast: (f, u, p) => {
         const d = hit(f, u, ((u.sig === 'reaver_butcher' ? 6 : 4) * u.enemy.bleed + 20) * p);
-        f.heal(u, d * 0.5);
+        f.heal(u, d * 0.5, 'Rupture');
       } },
     signatures: [
       { id: 'reaver_hemo', name: 'Hemophage', desc: 'Heal for another 25% of your Bleed damage.', setup: (u) => { u.m.bleedLeech += 0.25; } },

@@ -153,12 +153,30 @@ h1, h2, h3 { font-family: var(--display); font-weight: 400; margin: 0; text-wrap
 .pips i.f { background: var(--c); }
 .pips i.mark { margin-right: 4px; }
 .prog .next { color: var(--dust); white-space: nowrap; }
-.owned { display: flex; flex-direction: column; gap: 4px; }
-.own {
-  display: grid; grid-template-columns: 1fr auto; gap: 6px; align-items: center; font-size: 13px;
-  padding: 4px 6px; border-radius: 4px; background: var(--pit);
+.stats-panel { display: flex; flex-direction: column; gap: 10px; }
+.sg { display: flex; flex-direction: column; gap: 3px; }
+.sg-h { display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; color: var(--sand); border-bottom: 1px solid var(--line); padding-bottom: 2px; }
+.sr { display: grid; grid-template-columns: 96px 1fr 40px; gap: 6px; align-items: center; font-size: 12px; color: var(--dust); }
+.sr.none { display: block; font-style: italic; }
+.sn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sb { height: 6px; background: var(--night); border-radius: 3px; overflow: hidden; }
+.sb i { display: block; height: 100%; border-radius: 3px; }
+.sv { text-align: right; color: var(--sand); }
+
+/* Card text: keywords and scaling numbers */
+.kw { color: var(--c); font-weight: 600; }
+.scale { text-decoration: underline; text-decoration-color: var(--bronze); text-decoration-thickness: 2px; text-underline-offset: 3px; font-weight: 700; color: var(--sand); }
+.tip {
+  position: fixed; z-index: 50; max-width: 260px; pointer-events: none;
+  background: #0e0c11; color: var(--sand); border: 1px solid var(--line); border-radius: 6px;
+  padding: 8px 10px; font-size: 12px; line-height: 1.4; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
 }
-.own .n { color: var(--dust); }
+.tip-kind { color: var(--dust); text-transform: uppercase; letter-spacing: 0.08em; font-size: 10px; }
+.tip-rows { display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 2px 10px; margin-top: 4px; }
+.tip-rows span { display: flex; justify-content: space-between; gap: 6px; color: var(--dust); }
+.tip-rows span.cur { color: var(--bronze); }
+.tip-rows b { color: var(--sand); }
+.tip-rows .cur b { color: var(--bronze); }
 .empty { color: var(--dust); font-size: 13px; font-style: italic; }
 
 .arena-wrap { position: relative; min-height: 0; min-width: 0; }
@@ -298,7 +316,7 @@ const TAGS = {
   strike:    { name: 'Strike',    kind: 'trigger',  color: '#c9b79c', glyph: 'St', passive: '+1% attack speed per Strike card' },
   precision: { name: 'Precision', kind: 'trigger',  color: '#f2d16b', glyph: 'Pr', passive: '+1% crit chance per Precision card' },
   evasion:   { name: 'Evasion',   kind: 'trigger',  color: '#9fd8cb', glyph: 'Ev', passive: '+3% Focus per hit taken per Evasion card' },
-  pain:      { name: 'Pain',      kind: 'trigger',  color: '#d9707a', glyph: 'Pa', passive: 'Pain triggers each time you lose 12% of max HP, 0.5% sooner per Pain card (min 4%)' },
+  pain:      { name: 'Wounded',   kind: 'trigger',  color: '#d9707a', glyph: 'Wd', passive: 'You become Wounded each time you lose 12% of your max HP. Each Wounded card makes it happen 0.5% sooner (min every 4%)' },
   spell:     { name: 'Spell',     kind: 'trigger',  color: '#b59cf0', glyph: 'Sp', passive: '+0.5 mana per attack per Spell card' },
 
   fire:   { name: 'Fire',   kind: 'resource', color: '#f07a3a', glyph: 'Fi', stack: '+2.5% attack speed per stack (cap 25). Fades after 3s without gaining any.' },
@@ -467,41 +485,41 @@ const CARDS = [
 
   // ------------------------------------------------------------------ Pain
   { id: 'pain_steel', name: 'Pain Into Steel', tags: ['pain', 'armor'], tier: 1, max: 5,
-    desc: (n) => `Pain: gain ${n * 0.5} Armor.`,
+    desc: (n) => `Wounded: gain ${n * 0.5} Armor.`,
     onPain: (f, u, n) => f.gain(u, 'armor', n * 0.5) },
   { id: 'scar_tissue', name: 'Scar Tissue', tags: ['pain', 'regen'], tier: 1, max: 5,
-    desc: (n) => `Pain: gain ${n * 0.5} Regen.`,
+    desc: (n) => `Wounded: gain ${n * 0.5} Regen.`,
     onPain: (f, u, n) => f.gain(u, 'regen', n * 0.5) },
   { id: 'martyr_ward', name: "Martyr's Ward", tags: ['pain', 'shield'], tier: 1, max: 5,
-    desc: (n) => `Pain: gain ${5 * n} Shield.`,
+    desc: (n) => `Wounded: gain ${5 * n} Shield.`,
     onPain: (f, u, n) => f.gain(u, 'shield', 5 * n) },
   { id: 'spiteful_blood', name: 'Spiteful Blood', tags: ['pain', 'bleed'], tier: 1, max: 5,
-    desc: (n) => `Pain: apply ${n} Bleed.`,
+    desc: (n) => `Wounded: apply ${n} Bleed.`,
     onPain: (f, u, n) => f.apply(u, 'bleed', n) },
   { id: 'rage', name: 'Rage', tags: ['pain', 'fire'], tier: 1, max: 5,
-    desc: (n) => `Pain: gain ${2 * n} Fire.`,
+    desc: (n) => `Wounded: gain ${2 * n} Fire.`,
     onPain: (f, u, n) => f.gain(u, 'fire', 2 * n) },
   { id: 'bitter_frost', name: 'Bitter Frost', tags: ['pain', 'frost'], tier: 1, max: 5,
-    desc: (n) => `Pain: apply ${n} Frost.`,
+    desc: (n) => `Wounded: apply ${n} Frost.`,
     onPain: (f, u, n) => f.apply(u, 'frost', n) },
   { id: 'venom_blood', name: 'Venom Blood', tags: ['pain', 'poison'], tier: 1, max: 5,
-    desc: (n) => `Pain: apply ${2 * n} Poison.`,
+    desc: (n) => `Wounded: apply ${2 * n} Poison.`,
     onPain: (f, u, n) => f.apply(u, 'poison', 2 * n) },
   { id: 'pained_insight', name: 'Pained Insight', tags: ['pain', 'arcane'], tier: 1, max: 5,
-    desc: (n) => `Pain: gain ${n} Mana stack${n > 1 ? 's' : ''} and ${5 * n} mana.`,
+    desc: (n) => `Wounded: gain ${n} Mana stack${n > 1 ? 's' : ''} and ${5 * n} mana.`,
     onPain: (f, u, n) => { f.gain(u, 'arcane', n); u.mana += 5 * n; } },
   { id: 'thin_skin', name: 'Thin Skin', tags: ['pain'], tier: 1, max: 4,
-    desc: (n) => `Pain triggers ${n}% of max HP sooner.`,
+    desc: (n) => `You become Wounded ${n}% of max HP sooner.`,
     setup: (u, n) => { u.painStep -= 0.01 * n; } },
   { id: 'berserker', name: 'Berserker', tags: ['pain'], tier: 2, max: 3,
     desc: (n) => `+${(0.5 * n).toFixed(1)}% attack speed per 1% HP you're missing.`,
     setup: (u, n) => { u.m.berserk = 0.5 * n; } },
   { id: 'last_stand', name: 'Last Stand', tags: ['pain'], tier: 3, max: 1,
-    desc: () => 'The first time you drop below 30% HP, trigger Pain 5 times and take no damage for 1s.',
+    desc: () => 'The first time you drop below 30% HP, become Wounded 5 times at once and take no damage for 1s.',
     setup: (u) => { u.flags.lastStand = true; } },
   { id: 'undying_spite', name: 'Undying Spite', tags: ['pain'], tier: 4, max: 1,
-    desc: () => 'Each Pain trigger deals 2% of your max HP to the enemy.',
-    onPain: (f, u) => f.damage(u, u.enemy, u.maxHp * 0.02, 'true') },
+    desc: () => 'Each time you are Wounded, deal 2% of your max HP to the enemy.',
+    onPain: (f, u) => f.damage(u, u.enemy, u.maxHp * 0.02, 'true', { source: 'Undying Spite' }) },
 
   // ----------------------------------------------------------------- Spell
   { id: 'arcane_echoes', name: 'Arcane Echoes', tags: ['spell', 'arcane'], tier: 1, max: 5,
@@ -573,7 +591,7 @@ const CARDS = [
     setup: (u, n) => { u.freezeDur += 0.4 * n; u.m.frostDecay *= Math.pow(0.6, n); } },
   { id: 'shatter', name: 'Shatter', tags: ['frost'], tier: 2, max: 3,
     desc: (n) => `When you freeze the enemy, deal ${4 * n}% of their max HP.`,
-    onFreeze: (f, u, n) => f.damage(u, u.enemy, u.enemy.maxHp * 0.04 * n * (u.flags.bigFreeze ? 2 : 1), 'ability') },
+    onFreeze: (f, u, n) => f.damage(u, u.enemy, u.enemy.maxHp * 0.04 * n * (u.flags.bigFreeze ? 2 : 1), 'ability', { source: 'Shatter' }) },
   { id: 'deep_winter', name: 'Deep Winter', tags: ['frost'], tier: 3, max: 2,
     desc: (n) => `The enemy freezes at ${16 - 3 * n} Frost instead of 16.`,
     setup: (u, n) => { u.freezeAt = 16 - 3 * n; } },
@@ -728,7 +746,7 @@ const CARDS = [
     setup: (u) => { u.flags.toxicFrost = true; } },
   { id: 'molten_armor', name: 'Molten Armor', tags: ['fire', 'armor'], tier: 'hybrid', max: 1,
     desc: () => 'Attackers take damage equal to your Fire. Each 5 Fire gives 1 Armor.',
-    onHitTaken: (f, u, n, src) => f.damage(u, src, u.fire, 'thorns'),
+    onHitTaken: (f, u, n, src) => f.damage(u, src, u.fire, 'thorns', { source: 'Molten Armor' }),
     setup: (u) => { u.flags.moltenArmor = true; } },
   { id: 'septic', name: 'Septic Wounds', tags: ['poison', 'bleed'], tier: 'hybrid', max: 1,
     desc: () => 'Whenever you apply Bleed, also apply half as much Poison. Bleed deals +25% damage.',
@@ -843,7 +861,7 @@ const CHARACTERS = [
   {
     id: 'martyr', name: 'Iron Martyr', epithet: 'Who Bleeds for Steel', trigger: 'pain', resources: ['armor', 'shield'],
     stats: { hp: 505, ad: 27, as: 0.85 },
-    innate: { desc: 'Pain: gain 1 Armor.', onPain: (f, u) => f.gain(u, 'armor', 1) },
+    innate: { desc: 'Wounded: gain 1 Armor.', onPain: (f, u) => f.gain(u, 'armor', 1) },
     ability: { name: 'Martyrdom', desc: (u) => `Gain 50 Shield + 10 per Armor (${Math.round(50 + 10 * (u?.armor ?? 0))}).`,
       cast: (f, u, p) => { const s = (50 + 10 * u.armor) * p; f.gain(u, 'shield', s); if (u.sig === 'martyr_penance') hit(f, u, s * 0.4); } },
     signatures: [
@@ -869,7 +887,7 @@ const CHARACTERS = [
     ability: { name: 'Overgrowth', desc: () => 'Heal 3% of max HP plus 0.5% per Regen.',
       cast: (f, u, p) => {
         const h = u.maxHp * (0.03 + 0.005 * u.regen) * Math.min(p, 1.5);
-        const healed = f.heal(u, h);
+        const healed = f.heal(u, h, 'Overgrowth');
         if (u.sig === 'grove_thorn') hit(f, u, healed * 0.6);
       } },
     signatures: [
@@ -895,7 +913,7 @@ const CHARACTERS = [
     ability: { name: 'Rupture', desc: (u) => `Deal 20 + 4 per Bleed on the enemy (${Math.round(20 + 4 * (u?.enemy?.bleed ?? 0))}) and heal half of it.`,
       cast: (f, u, p) => {
         const d = hit(f, u, ((u.sig === 'reaver_butcher' ? 6 : 4) * u.enemy.bleed + 20) * p);
-        f.heal(u, d * 0.5);
+        f.heal(u, d * 0.5, 'Rupture');
       } },
     signatures: [
       { id: 'reaver_hemo', name: 'Hemophage', desc: 'Heal for another 25% of your Bleed damage.', setup: (u) => { u.m.bleedLeech += 0.25; } },
@@ -952,6 +970,7 @@ function characterStatus(char, bans) {
 const DT = 0.05;
 const SUDDEN_DEATH_AT = 30; // seconds; damage ramps after this
 const TIME_LIMIT = 90;
+const DEFAULT_SOURCE = { attack: 'Attacks', poison: 'Poison', bleed: 'Bleed', thorns: 'Thorns', true: 'Other' };
 
 const HOOKS = ['onStart', 'onAttack', 'onHit', 'onCrit', 'onEvade', 'onPain', 'onCast', 'onFreeze', 'onHitTaken', 'onShieldBreak', 'bonusDamage'];
 const BASE = { hp: 600, ad: 30, as: 1.0, crit: 0.05, critMult: 1.75, manaMax: 100, manaPerAttack: 10, focusGain: 0 };
@@ -989,7 +1008,7 @@ function buildUnit(loadout, side) {
     used: {},
     hooks: Object.fromEntries(HOOKS.map((h) => [h, []])),
     timers: [],
-    stats: { dealt: 0, taken: 0, healed: 0, dodges: 0, crits: 0, casts: 0, freezes: 0, byKind: {} },
+    stats: { dealt: 0, taken: 0, healed: 0, dodges: 0, crits: 0, casts: 0, freezes: 0, byKind: {}, dmg: {}, heal: {}, mit: {} },
     tagCounts: {},
   };
 
@@ -1081,7 +1100,7 @@ class Fight {
     } else if (res === 'poison') {
       tgt.poison += k;
       if (src.m.pandemic && tgt.poison >= 40) {
-        this.damage(src, tgt, tgt.poison * src.m.pandemic, 'poison');
+        this.damage(src, tgt, tgt.poison * src.m.pandemic, 'poison', { source: 'Pandemic' });
         tgt.poison = Math.floor(tgt.poison / 2);
         this.emit('burst', tgt);
       }
@@ -1111,7 +1130,12 @@ class Fight {
     return Math.min(0.5, u.poison * 0.01) + u.enemy.m.enemyHealCut;
   }
 
-  heal(u, amt) {
+  // Per-source tallies for the stats panel. `mit` is damage prevented.
+  tally(u, table, source, amt) {
+    if (amt > 0) u.stats[table][source] = (u.stats[table][source] || 0) + amt;
+  }
+
+  heal(u, amt, source = 'Other') {
     if (u.dead || amt <= 0) return 0;
     amt *= Math.max(0, 1 - this.antiheal(u));
     const room = u.maxHp - u.hp;
@@ -1119,30 +1143,42 @@ class Fight {
     u.hp += healed;
     if (u.flags.overhealShield && amt > healed) this.gain(u, 'shield', amt - healed);
     u.stats.healed += healed;
+    this.tally(u, 'heal', source, healed);
     return healed;
   }
 
   // kind: attack | ability | poison | bleed | thorns | true
+  // info.source names the damage in the stats panel (defaults by kind).
   damage(src, tgt, amt, kind, info = {}) {
     if (tgt.dead || !(amt > 0)) return 0;
-    if (tgt.immune > 0) return 0;
+    const source = info.source || DEFAULT_SOURCE[kind] || src.char.ability.name;
     if (this.t > SUDDEN_DEATH_AT) amt *= 1 + (this.t - SUDDEN_DEATH_AT) * 0.08;
+    if (tgt.immune > 0) { this.tally(tgt, 'mit', 'Immunity', amt); return 0; }
     if (tgt.frozen > 0 && src.m.frozenBonus && (kind === 'attack' || kind === 'ability')) amt *= 1 + src.m.frozenBonus;
+    let before = amt;
     if (kind === 'attack' || kind === 'thorns') {
       const armor = 1.25 * Math.max(0, tgt.armor + (tgt.flags.moltenArmor ? Math.floor(tgt.fire / 5) : 0) - src.m.armorPierce);
       amt = Math.max(amt * 0.25, amt - armor);
+      this.tally(tgt, 'mit', 'Armor', before - amt);
     }
+    before = amt;
     if (kind === 'ability') amt *= Math.max(0, tgt.m.abilityTaken);
     if (kind === 'poison') amt *= Math.max(0, tgt.m.poisonTaken);
     if (kind === 'bleed') amt *= Math.max(0, tgt.m.bleedTaken);
-    if (tgt.flags.livingMountain && (kind === 'attack' || kind === 'ability')) amt = Math.min(amt, tgt.maxHp * 0.06);
+    this.tally(tgt, 'mit', 'Resistances', before - amt);
+    if (tgt.flags.livingMountain && (kind === 'attack' || kind === 'ability')) {
+      before = amt;
+      amt = Math.min(amt, tgt.maxHp * 0.06);
+      this.tally(tgt, 'mit', 'Living Mountain', before - amt);
+    }
 
     if (kind !== 'poison' && kind !== 'true' && tgt.shield > 0) {
       const eff = amt * src.m.vsShield;
       const absorbed = Math.min(tgt.shield, eff);
       tgt.shield -= absorbed;
       amt = (eff - absorbed) / src.m.vsShield;
-      if (tgt.m.reflect && kind === 'attack') this.damage(tgt, src, absorbed * tgt.m.reflect, 'true');
+      this.tally(tgt, 'mit', 'Shield', absorbed / src.m.vsShield);
+      if (tgt.m.reflect && kind === 'attack') this.damage(tgt, src, absorbed * tgt.m.reflect, 'true', { source: 'Reflective Plating' });
       if (tgt.shield <= 0.01) {
         tgt.shield = 0;
         this.run(tgt, 'onShieldBreak');
@@ -1152,11 +1188,15 @@ class Fight {
         }
       }
     }
-    if (tgt.m.manaWard && kind === 'attack' && tgt.arcane >= 5) amt *= 1 - tgt.m.manaWard;
+    if (tgt.m.manaWard && kind === 'attack' && tgt.arcane >= 5) {
+      this.tally(tgt, 'mit', 'Mana Shield', amt * tgt.m.manaWard);
+      amt *= 1 - tgt.m.manaWard;
+    }
     if (amt <= 0) return 0;
 
     tgt.hp -= amt;
     src.stats.dealt += amt;
+    this.tally(src, 'dmg', source, amt);
     src.stats.byKind[kind] = (src.stats.byKind[kind] || 0) + amt;
     tgt.stats.taken += amt;
     if (kind === 'attack' || kind === 'ability' || kind === 'thorns') this.emit('dmg', tgt, { amt, kind, crit: !!info.crit });
@@ -1183,6 +1223,7 @@ class Fight {
       if (tgt.flags.phoenix && !tgt.used.phoenix) {
         tgt.used.phoenix = true;
         tgt.hp = tgt.maxHp * Math.max(0.1, Math.min(1, tgt.fire * 0.02));
+        this.tally(tgt, 'heal', 'Phoenix Core', tgt.hp);
         tgt.fire = 0;
         tgt.poison = Math.floor(tgt.poison / 2);
         tgt.bleed = 0;
@@ -1222,6 +1263,7 @@ class Fight {
     if (canDodge && this.rng() < d.focus) {
       d.focus = d.focusReset;
       d.stats.dodges++;
+      this.tally(d, 'mit', 'Dodge', a.ad);
       this.emit('dodge', d);
       this.run(d, 'onEvade');
       a.mana += a.manaPerAttack * 0.5 * this.slow(a);
@@ -1274,17 +1316,17 @@ class Fight {
         let mult = e.m.poisonDmg * (e.flags.plague ? 2 : 1);
         if (e.flags.toxicFrost && (u.frost >= 5 || u.frozen > 0)) mult *= 1.6;
         const d = this.damage(e, u, u.poison * mult * dt, 'poison');
-        if (e.flags.plague) this.heal(e, d * 0.25);
+        if (e.flags.plague) this.heal(e, d * 0.25, 'Plague Lord');
       }
       if (u.bleed > 0.05 && !u.dead) {
         const d = this.damage(e, u, u.bleed * 0.0025 * u.maxHp * e.m.bleedDmg * dt, 'bleed');
-        if (e.m.bleedLeech) this.heal(e, d * e.m.bleedLeech);
+        if (e.m.bleedLeech) this.heal(e, d * e.m.bleedLeech, 'Bleed lifesteal');
         u.bleed = Math.max(0, u.bleed - u.bleed * 0.08 * e.m.bleedDecay * dt);
       }
       if (u.dead) continue;
       u.frost = Math.max(0, u.frost - 0.6 * e.m.frostDecay * dt);
 
-      if (u.regen > 0) this.heal(u, u.regen * 0.002 * u.maxHp * dt);
+      if (u.regen > 0) this.heal(u, u.regen * 0.002 * u.maxHp * dt, 'Regen');
       u.fireIdle += dt;
       if (u.fireIdle > u.fireLinger) u.fire = Math.max(0, u.fire - 2.5 * dt);
 
@@ -2253,6 +2295,7 @@ function loadLevel() {
 function newMatch() {
   try { localStorage.setItem('stack-arena-level', ui.level); } catch { /* storage unavailable */ }
   M = createMatch({ seed: Math.floor(Math.random() * 1e9), players: [{ name: 'You' }, { name: 'Rival', isBot: true, level: ui.level }] });
+  ui.fightStats = null;
   ui.screen = 'ban';
   render();
 }
@@ -2263,10 +2306,72 @@ let toastTimer = 0;
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
+function tagTip(tag) {
+  const t = TAGS[tag];
+  return `<b style="color:${t.color}">${t.name}</b> <span class="tip-kind">${t.kind}</span><br>${esc(t.kind === 'trigger' ? t.passive : t.stack)}`;
+}
+
 function chip(tag, withName = false) {
   const t = TAGS[tag];
-  const tip = t.kind === 'trigger' ? `${t.name} (trigger): ${t.passive}` : `${t.name}: ${t.stack}`;
-  return `<span class="chip ${t.kind}" style="--c:${t.color}" title="${esc(tip)}">${withName ? t.name : t.glyph}</span>`;
+  return `<span class="chip ${t.kind}" style="--c:${t.color}" data-tip="${esc(tagTip(tag))}">${withName ? t.name : t.glyph}</span>`;
+}
+
+// Keywords in card text get their tag's color and a hover explanation.
+const KEYWORDS = /\b(On attack|On crit|On dodge|On cast|Wounded|Fire|Frost|Poison|Bleed|Shield|Regen|Mana stacks?|Armor|Focus)\b/g;
+const KEYWORD_TAG = { 'On attack': 'strike', 'On crit': 'precision', 'On dodge': 'evasion', 'On cast': 'spell', Wounded: 'pain', Focus: 'evasion' };
+function richText(text) {
+  return esc(text).replace(KEYWORDS, (w) => {
+    const tag = KEYWORD_TAG[w] || (w.startsWith('Mana') ? 'arcane' : w.toLowerCase());
+    return `<span class="kw" style="--c:${TAGS[tag].color}" data-tip="${esc(tagTip(tag))}">${w}</span>`;
+  });
+}
+
+// Card text with every number that changes with copies underlined. Hovering
+// one shows its value at each copy count.
+function richDesc(card, n) {
+  const split = (s) => s.split(/(\d+(?:\.\d+)?)/);
+  const cur = split(card.desc(n));
+  const variants = card.max > 1 ? Array.from({ length: card.max }, (_, k) => split(card.desc(k + 1)).filter((_, i) => i % 2)) : [];
+  const aligned = variants.length && variants.every((v) => v.length === (cur.length - 1) / 2);
+  return cur.map((part, i) => {
+    if (i % 2 === 0) return richText(part);
+    const vals = aligned ? variants.map((v) => v[(i - 1) / 2]) : [];
+    if (new Set(vals).size < 2) return esc(part);
+    const tip = `<b>Scales with copies</b><div class="tip-rows">${vals.map((v, k) =>
+      `<span class="${k + 1 === n ? 'cur' : ''}">${k + 1} ${k ? 'copies' : 'copy'}<b class="num">${v}</b></span>`).join('')}</div>`;
+    return `<span class="scale" data-tip="${esc(tip)}">${part}</span>`;
+  }).join('');
+}
+
+// Fight stats: damage dealt, healing, and damage prevented, by source.
+const SOURCE_COLOR = {
+  Attacks: '#c9b79c', Poison: TAGS.poison.color, Bleed: TAGS.bleed.color, Thorns: TAGS.armor.color, 'Molten Armor': TAGS.fire.color,
+  Shatter: TAGS.frost.color, Pandemic: TAGS.poison.color, 'Reflective Plating': TAGS.shield.color, 'Undying Spite': TAGS.pain.color,
+  Regen: TAGS.regen.color, 'Bleed lifesteal': TAGS.bleed.color, 'Plague Lord': TAGS.poison.color, 'Phoenix Core': TAGS.fire.color,
+  Armor: TAGS.armor.color, Shield: TAGS.shield.color, Dodge: TAGS.evasion.color, Resistances: '#b9b2a6', Immunity: '#e9dcc0',
+  'Living Mountain': TAGS.armor.color, 'Mana Shield': TAGS.arcane.color,
+};
+function statGroup(title, table) {
+  const rows = Object.entries(table || {}).filter(([, v]) => v >= 1).sort((a, b) => b[1] - a[1]);
+  const total = rows.reduce((s, [, v]) => s + v, 0);
+  const max = rows.length ? rows[0][1] : 1;
+  return `<div class="sg">
+    <div class="sg-h"><span>${title}</span><span class="num">${Math.round(total)}</span></div>
+    ${rows.length ? rows.map(([k, v]) => `<div class="sr"><span class="sn">${esc(k)}</span><span class="sb"><i style="width:${(v / max) * 100}%;background:${SOURCE_COLOR[k] || TAGS.spell.color}"></i></span><span class="sv num">${Math.round(v)}</span></div>`).join('') : '<div class="sr none">None</div>'}
+  </div>`;
+}
+function statsPanel(side) {
+  const fs = ui.fightStats;
+  if (!fs) return `<div class="eyebrow">Fight stats</div><p class="empty">Damage, healing and damage prevented, by source, show here once a fight starts.</p>`;
+  const s = fs.stats[side];
+  return `<div class="eyebrow">${fs.live ? 'This fight' : `Last fight · round ${fs.round}`}</div>
+    ${statGroup('Damage dealt', s.dmg)}${statGroup('Healing', s.heal)}${statGroup('Damage prevented', s.mit)}`;
+}
+function refreshStats() {
+  for (const [id, side] of [['stats-mine', ME], ['stats-foe', FOE]]) {
+    const el = root.querySelector('#' + id);
+    if (el) el.innerHTML = statsPanel(side);
+  }
 }
 
 function cardTags(card) {
@@ -2333,7 +2438,7 @@ function renderTitle() {
       <button class="btn primary" id="start" style="font-family:var(--display);font-size:26px;font-weight:400;padding:6px 28px">Enter the arena</button>
     </div>
     <div class="rules">
-      <div class="rule"><h3>Triggers and resources</h3><p>Triggers decide <i>when</i> you gain stacks (Strike, Crit, Dodge, Pain, Spell). Resources decide <i>what</i> stacks do. A card like ${chip('precision', true)} <span class="arrow">&#9656;</span> ${chip('poison', true)} always fires. Cards with only a resource fire 30% of the time.</p></div>
+      <div class="rule"><h3>Triggers and resources</h3><p>Triggers decide <i>when</i> you gain stacks (Strike, Crit, Dodge, Wounded, Spell). Resources decide <i>what</i> stacks do. A card like ${chip('precision', true)} <span class="arrow">&#9656;</span> ${chip('poison', true)} always fires. Cards with only a resource fire 30% of the time.</p></div>
       <div class="rule"><h3>Build up, unlock more</h3><p>Own ${TIER_UNLOCK[2]}, ${TIER_UNLOCK[3]} and ${TIER_UNLOCK[4]} cards of a tag to unlock its Uncommon, Rare and Mythic cards. Own ${HYBRID_REQ} of two resources to unlock their Hybrid card.</p></div>
       <div class="rule"><h3>Bans</h3><p>You and your rival each secretly ban one resource. Banned cards never appear, and gladiators who only use banned resources sit the match out.</p></div>
       <div class="rule"><h3>Focus, not luck</h3><p>Dodging builds Focus. Every hit you take adds to your dodge chance, and a dodge resets it, so you can never dodge twice in a row. Poison, Bleed and abilities can't be dodged.</p></div>
@@ -2497,7 +2602,6 @@ function renderSide(id, p, mine) {
   const el = root.querySelector('#' + id);
   const c = CHAR_BY_ID[p.charId];
   const counts = tagCounts(p.cards);
-  const owned = Object.entries(p.cards).sort((a, b) => CARD_BY_ID[a[0]].name.localeCompare(CARD_BY_ID[b[0]].name));
   const sig = p.sig && c.signatures.find((s) => s.id === p.sig);
   const hybrids = mine ? CARDS.filter((h) => h.tier === 'hybrid' && !h.tags.some((t) => M.bans.includes(t)) && h.tags.every((t) => (counts[t] || 0) >= 2) && !h.tags.every((t) => (counts[t] || 0) >= HYBRID_REQ)) : [];
   el.innerHTML = `
@@ -2509,12 +2613,7 @@ function renderSide(id, p, mine) {
     <div class="sub"><b style="color:var(--bronze)">${esc(c.ability.name)}</b>: ${esc(c.ability.desc())}${sig ? `<br><b style="color:var(--bronze)">${esc(sig.name)}</b>: ${esc(sig.desc)}` : ''}</div>
     <div><div class="eyebrow" style="margin-bottom:6px">Tag progress</div><div class="progress">${tierProgress(counts)}</div></div>
     ${hybrids.length ? `<div class="sub">Close to a Hybrid: ${hybrids.map((h) => `${esc(h.name)} (${h.tags.map((t) => `${TAGS[t].name} ${counts[t] || 0}/${HYBRID_REQ}`).join(', ')})`).join('; ')}</div>` : ''}
-    <div><div class="eyebrow" style="margin-bottom:6px">Cards (${owned.reduce((s, [, n]) => s + n, 0)})</div>
-      <div class="owned">${owned.length ? owned.map(([cid, n]) => {
-        const card = CARD_BY_ID[cid];
-        return `<div class="own" title="${esc(card.desc(n))}"><span>${esc(card.name)}</span><span class="n num">x${n}</span></div>`;
-      }).join('') : '<p class="empty">Nothing yet.</p>'}</div>
-    </div>`;
+    <div class="stats-panel" id="stats-${id}">${statsPanel(mine ? ME : FOE)}</div>`;
 }
 
 function renderTray() {
@@ -2540,7 +2639,7 @@ function renderTray() {
           <span class="cost num">${cost}</span>
           <div class="top">${cardTags(card)}</div>
           <div class="nm">${esc(card.name)}</div>
-          <div class="ds">${esc(card.desc(have + 1))}</div>
+          <div class="ds">${richDesc(card, Math.min(card.max, have + 1))}</div>
           <div class="ft"><span>${TIER_NAMES[card.tier]}</span><span class="num">${have ? `Owned ${have}/${card.max}` : `Max ${card.max}`}</span></div>
         </button>`;
       }).join('')}
@@ -2585,8 +2684,12 @@ function startFight() {
   if (fighting || M.phase !== 'shop' || ui.banner) return;
   fighting = true;
   const f = makeFight(M, ME, FOE);
+  ui.fightStats = { live: true, round: M.round, stats: [f.units[0].stats, f.units[1].stats] };
+  const statsTimer = setInterval(refreshStats, 250);
   arena.play(f, (result) => {
     fighting = false;
+    clearInterval(statsTimer);
+    ui.fightStats = { live: false, round: M.round, stats: JSON.parse(JSON.stringify(result.stats)) };
     const summary = resolveFight(M, ME, FOE, result);
     const s = result.stats[ME], o = result.stats[FOE];
     ui.banner = {
@@ -2693,6 +2796,35 @@ function renderOver() {
   root.querySelector('#home').onclick = () => { ui.screen = 'title'; render(); };
 }
 
+// One floating tooltip for every [data-tip] element (fixed, so scrolling
+// containers like the shop tray can't clip it).
+const tipEl = document.createElement('div');
+tipEl.className = 'tip';
+tipEl.setAttribute('role', 'tooltip');
+tipEl.hidden = true;
+document.body.appendChild(tipEl);
+let tipFor = null;
+function showTip(target) {
+  if (tipFor === target) return;
+  tipFor = target;
+  tipEl.innerHTML = target.dataset.tip;
+  tipEl.hidden = false;
+  const r = target.getBoundingClientRect();
+  const t = tipEl.getBoundingClientRect();
+  const x = Math.max(8, Math.min(window.innerWidth - t.width - 8, r.left + r.width / 2 - t.width / 2));
+  const y = r.top - t.height - 8 >= 8 ? r.top - t.height - 8 : r.bottom + 8;
+  tipEl.style.left = `${x}px`;
+  tipEl.style.top = `${y}px`;
+}
+function hideTip() { tipFor = null; tipEl.hidden = true; }
+document.addEventListener('mouseover', (e) => {
+  const t = e.target.closest?.('[data-tip]');
+  if (t) showTip(t); else if (tipFor) hideTip();
+});
+document.addEventListener('focusin', (e) => { const t = e.target.closest?.('[data-tip]'); if (t) showTip(t); else hideTip(); });
+document.addEventListener('scroll', hideTip, true);
+document.addEventListener('click', hideTip);
+
 document.addEventListener('keydown', (e) => {
   if (ui.screen !== 'game' || e.target.closest?.('input,textarea') || e.metaKey || e.ctrlKey || e.altKey) return;
   if (e.key === 'Escape' && ui.modal) { ui.modal = null; renderModal(); return; }
@@ -2713,7 +2845,7 @@ function start(data) {
   }
   render();
 }
-window.claude?.hot?.snapshot?.(() => ({ M, ui: { screen: ui.screen, speed: ui.speed, banner: ui.banner, level: ui.level } }));
+window.claude?.hot?.snapshot?.(() => ({ M, ui: { screen: ui.screen, speed: ui.speed, banner: ui.banner, level: ui.level, fightStats: ui.fightStats && !ui.fightStats.live ? ui.fightStats : null } }));
 if (window.claude?.hot?.ready) window.claude.hot.ready(start);
 else start(window.claude?.hot?.data ?? {});
 

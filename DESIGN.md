@@ -13,11 +13,11 @@
 
 ## Triggers and resources
 
-- **Triggers** (Strike, Precision, Evasion, Pain, Spell) decide when stacks are gained. Owning cards with a trigger tag makes that trigger happen more often:
+- **Triggers** (Strike, Precision, Evasion, Wounded, Spell) decide when stacks are gained. Owning cards with a trigger tag makes that trigger happen more often:
   - Strike: +1% attack speed per card
   - Precision: +1% crit per card
   - Evasion: +3% Focus per hit taken per card
-  - Pain: triggers every 12% of max HP lost, 0.5% sooner per card (min 4%). Pain used to be a flat 5-6% for everyone, which made Pain cards good in every build.
+  - Wounded (internally `pain`): you become Wounded every 12% of max HP lost, 0.5% sooner per card (min 4%). It used to be a flat 5-6% for everyone, which made these cards good in every build.
   - Spell: +0.5 mana per attack per card
 - **Resources** (Fire, Frost, Poison, Bleed, Shield, Regen, Mana, Armor) decide what stacks do.
 - **Generator cards** pair a trigger with a resource and always fire. There's one for every one of the 40 trigger-resource pairs. Cards with only a resource tag that make stacks fire 30% of the time, or run on a slow timer.

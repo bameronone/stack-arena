@@ -4,7 +4,7 @@ export const TAGS = {
   strike:    { name: 'Strike',    kind: 'trigger',  color: '#c9b79c', glyph: 'St', passive: '+1% attack speed per Strike card' },
   precision: { name: 'Precision', kind: 'trigger',  color: '#f2d16b', glyph: 'Pr', passive: '+1% crit chance per Precision card' },
   evasion:   { name: 'Evasion',   kind: 'trigger',  color: '#9fd8cb', glyph: 'Ev', passive: '+3% Focus per hit taken per Evasion card' },
-  pain:      { name: 'Pain',      kind: 'trigger',  color: '#d9707a', glyph: 'Pa', passive: 'Pain triggers each time you lose 12% of max HP, 0.5% sooner per Pain card (min 4%)' },
+  pain:      { name: 'Wounded',   kind: 'trigger',  color: '#d9707a', glyph: 'Wd', passive: 'You become Wounded each time you lose 12% of your max HP. Each Wounded card makes it happen 0.5% sooner (min every 4%)' },
   spell:     { name: 'Spell',     kind: 'trigger',  color: '#b59cf0', glyph: 'Sp', passive: '+0.5 mana per attack per Spell card' },
 
   fire:   { name: 'Fire',   kind: 'resource', color: '#f07a3a', glyph: 'Fi', stack: '+2.5% attack speed per stack (cap 25). Fades after 3s without gaining any.' },

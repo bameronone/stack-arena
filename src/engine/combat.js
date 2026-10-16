@@ -5,6 +5,7 @@ import { CHAR_BY_ID } from '../data/characters.js';
 export const DT = 0.05;
 export const SUDDEN_DEATH_AT = 30; // seconds; damage ramps after this
 export const TIME_LIMIT = 90;
+const DEFAULT_SOURCE = { attack: 'Attacks', poison: 'Poison', bleed: 'Bleed', thorns: 'Thorns', true: 'Other' };
 
 const HOOKS = ['onStart', 'onAttack', 'onHit', 'onCrit', 'onEvade', 'onPain', 'onCast', 'onFreeze', 'onHitTaken', 'onShieldBreak', 'bonusDamage'];
 const BASE = { hp: 600, ad: 30, as: 1.0, crit: 0.05, critMult: 1.75, manaMax: 100, manaPerAttack: 10, focusGain: 0 };
@@ -42,7 +43,7 @@ export function buildUnit(loadout, side) {
     used: {},
     hooks: Object.fromEntries(HOOKS.map((h) => [h, []])),
     timers: [],
-    stats: { dealt: 0, taken: 0, healed: 0, dodges: 0, crits: 0, casts: 0, freezes: 0, byKind: {} },
+    stats: { dealt: 0, taken: 0, healed: 0, dodges: 0, crits: 0, casts: 0, freezes: 0, byKind: {}, dmg: {}, heal: {}, mit: {} },
     tagCounts: {},
   };
 
@@ -134,7 +135,7 @@ export class Fight {
     } else if (res === 'poison') {
       tgt.poison += k;
       if (src.m.pandemic && tgt.poison >= 40) {
-        this.damage(src, tgt, tgt.poison * src.m.pandemic, 'poison');
+        this.damage(src, tgt, tgt.poison * src.m.pandemic, 'poison', { source: 'Pandemic' });
         tgt.poison = Math.floor(tgt.poison / 2);
         this.emit('burst', tgt);
       }
@@ -164,7 +165,12 @@ export class Fight {
     return Math.min(0.5, u.poison * 0.01) + u.enemy.m.enemyHealCut;
   }
 
-  heal(u, amt) {
+  // Per-source tallies for the stats panel. `mit` is damage prevented.
+  tally(u, table, source, amt) {
+    if (amt > 0) u.stats[table][source] = (u.stats[table][source] || 0) + amt;
+  }
+
+  heal(u, amt, source = 'Other') {
     if (u.dead || amt <= 0) return 0;
     amt *= Math.max(0, 1 - this.antiheal(u));
     const room = u.maxHp - u.hp;
@@ -172,30 +178,42 @@ export class Fight {
     u.hp += healed;
     if (u.flags.overhealShield && amt > healed) this.gain(u, 'shield', amt - healed);
     u.stats.healed += healed;
+    this.tally(u, 'heal', source, healed);
     return healed;
   }
 
   // kind: attack | ability | poison | bleed | thorns | true
+  // info.source names the damage in the stats panel (defaults by kind).
   damage(src, tgt, amt, kind, info = {}) {
     if (tgt.dead || !(amt > 0)) return 0;
-    if (tgt.immune > 0) return 0;
+    const source = info.source || DEFAULT_SOURCE[kind] || src.char.ability.name;
     if (this.t > SUDDEN_DEATH_AT) amt *= 1 + (this.t - SUDDEN_DEATH_AT) * 0.08;
+    if (tgt.immune > 0) { this.tally(tgt, 'mit', 'Immunity', amt); return 0; }
     if (tgt.frozen > 0 && src.m.frozenBonus && (kind === 'attack' || kind === 'ability')) amt *= 1 + src.m.frozenBonus;
+    let before = amt;
     if (kind === 'attack' || kind === 'thorns') {
       const armor = 1.25 * Math.max(0, tgt.armor + (tgt.flags.moltenArmor ? Math.floor(tgt.fire / 5) : 0) - src.m.armorPierce);
       amt = Math.max(amt * 0.25, amt - armor);
+      this.tally(tgt, 'mit', 'Armor', before - amt);
     }
+    before = amt;
     if (kind === 'ability') amt *= Math.max(0, tgt.m.abilityTaken);
     if (kind === 'poison') amt *= Math.max(0, tgt.m.poisonTaken);
     if (kind === 'bleed') amt *= Math.max(0, tgt.m.bleedTaken);
-    if (tgt.flags.livingMountain && (kind === 'attack' || kind === 'ability')) amt = Math.min(amt, tgt.maxHp * 0.06);
+    this.tally(tgt, 'mit', 'Resistances', before - amt);
+    if (tgt.flags.livingMountain && (kind === 'attack' || kind === 'ability')) {
+      before = amt;
+      amt = Math.min(amt, tgt.maxHp * 0.06);
+      this.tally(tgt, 'mit', 'Living Mountain', before - amt);
+    }
 
     if (kind !== 'poison' && kind !== 'true' && tgt.shield > 0) {
       const eff = amt * src.m.vsShield;
       const absorbed = Math.min(tgt.shield, eff);
       tgt.shield -= absorbed;
       amt = (eff - absorbed) / src.m.vsShield;
-      if (tgt.m.reflect && kind === 'attack') this.damage(tgt, src, absorbed * tgt.m.reflect, 'true');
+      this.tally(tgt, 'mit', 'Shield', absorbed / src.m.vsShield);
+      if (tgt.m.reflect && kind === 'attack') this.damage(tgt, src, absorbed * tgt.m.reflect, 'true', { source: 'Reflective Plating' });
       if (tgt.shield <= 0.01) {
         tgt.shield = 0;
         this.run(tgt, 'onShieldBreak');
@@ -205,11 +223,15 @@ export class Fight {
         }
       }
     }
-    if (tgt.m.manaWard && kind === 'attack' && tgt.arcane >= 5) amt *= 1 - tgt.m.manaWard;
+    if (tgt.m.manaWard && kind === 'attack' && tgt.arcane >= 5) {
+      this.tally(tgt, 'mit', 'Mana Shield', amt * tgt.m.manaWard);
+      amt *= 1 - tgt.m.manaWard;
+    }
     if (amt <= 0) return 0;
 
     tgt.hp -= amt;
     src.stats.dealt += amt;
+    this.tally(src, 'dmg', source, amt);
     src.stats.byKind[kind] = (src.stats.byKind[kind] || 0) + amt;
     tgt.stats.taken += amt;
     if (kind === 'attack' || kind === 'ability' || kind === 'thorns') this.emit('dmg', tgt, { amt, kind, crit: !!info.crit });
@@ -236,6 +258,7 @@ export class Fight {
       if (tgt.flags.phoenix && !tgt.used.phoenix) {
         tgt.used.phoenix = true;
         tgt.hp = tgt.maxHp * Math.max(0.1, Math.min(1, tgt.fire * 0.02));
+        this.tally(tgt, 'heal', 'Phoenix Core', tgt.hp);
         tgt.fire = 0;
         tgt.poison = Math.floor(tgt.poison / 2);
         tgt.bleed = 0;
@@ -275,6 +298,7 @@ export class Fight {
     if (canDodge && this.rng() < d.focus) {
       d.focus = d.focusReset;
       d.stats.dodges++;
+      this.tally(d, 'mit', 'Dodge', a.ad);
       this.emit('dodge', d);
       this.run(d, 'onEvade');
       a.mana += a.manaPerAttack * 0.5 * this.slow(a);
@@ -327,17 +351,17 @@ export class Fight {
         let mult = e.m.poisonDmg * (e.flags.plague ? 2 : 1);
         if (e.flags.toxicFrost && (u.frost >= 5 || u.frozen > 0)) mult *= 1.6;
         const d = this.damage(e, u, u.poison * mult * dt, 'poison');
-        if (e.flags.plague) this.heal(e, d * 0.25);
+        if (e.flags.plague) this.heal(e, d * 0.25, 'Plague Lord');
       }
       if (u.bleed > 0.05 && !u.dead) {
         const d = this.damage(e, u, u.bleed * 0.0025 * u.maxHp * e.m.bleedDmg * dt, 'bleed');
-        if (e.m.bleedLeech) this.heal(e, d * e.m.bleedLeech);
+        if (e.m.bleedLeech) this.heal(e, d * e.m.bleedLeech, 'Bleed lifesteal');
         u.bleed = Math.max(0, u.bleed - u.bleed * 0.08 * e.m.bleedDecay * dt);
       }
       if (u.dead) continue;
       u.frost = Math.max(0, u.frost - 0.6 * e.m.frostDecay * dt);
 
-      if (u.regen > 0) this.heal(u, u.regen * 0.002 * u.maxHp * dt);
+      if (u.regen > 0) this.heal(u, u.regen * 0.002 * u.maxHp * dt, 'Regen');
       u.fireIdle += dt;
       if (u.fireIdle > u.fireLinger) u.fire = Math.max(0, u.fire - 2.5 * dt);
 
