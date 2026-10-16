@@ -2,6 +2,7 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <style>body{margin:0}[hidden]{display:none!important}</style>
 <title>Stack Arena</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%0A%20%20%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2214%22%20fill%3D%22%2315131a%22%2F%3E%0A%20%20%3Cpath%20d%3D%22M32%206%2054%2014v18c0%2013-9%2022-22%2027C19%2054%2010%2045%2010%2032V14z%22%20fill%3D%22%232a2530%22%20stroke%3D%22%23d6a24e%22%20stroke-width%3D%223.5%22%20stroke-linejoin%3D%22round%22%2F%3E%0A%20%20%3Cg%20fill%3D%22%23d6a24e%22%3E%0A%20%20%20%20%3Cpath%20d%3D%22M18%2038h28l-3%206H21z%22%20opacity%3D%22.55%22%2F%3E%0A%20%20%20%20%3Cpath%20d%3D%22M18%2029h28l-3%206H21z%22%20opacity%3D%22.8%22%2F%3E%0A%20%20%20%20%3Cpath%20d%3D%22M18%2020h28l-3%206H21z%22%2F%3E%0A%20%20%3C%2Fg%3E%0A%3C%2Fsvg%3E">
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -108,7 +109,7 @@ h1, h2, h3 { font-family: var(--display); font-weight: 400; margin: 0; text-wrap
 .st-n { color: var(--dust); }
 .st-name { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
 .st-name small { color: var(--dust); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.st-bar { height: 5px; background: var(--night); border-radius: 3px; overflow: hidden; }
+.st-bar { height: 6px; background: var(--night); border-radius: 3px; overflow: hidden; }
 .st-bar i { display: block; height: 100%; background: var(--life); }
 .st-hp { text-align: right; }
 .st.me { background: color-mix(in srgb, var(--bronze) 14%, transparent); }
@@ -203,13 +204,42 @@ input:focus-visible { outline: 2px solid var(--bronze); outline-offset: 1px; }
 }
 .hud .logo { font-family: var(--display); font-size: 26px; line-height: 1; }
 .hud .logo span { color: var(--bronze); }
-.hud .round { display: flex; flex-direction: column; }
-.hud .round b { font-family: var(--display); font-size: 22px; font-weight: 400; line-height: 1; }
-.hud .vs { flex: 1; display: flex; gap: 14px; justify-content: flex-end; min-width: 260px; flex-wrap: wrap; }
+.hud .vs { display: flex; gap: 14px; justify-content: flex-end; min-width: 260px; flex: 0 1 480px; }
+/* Rounds strip: the match's road, centred in the HUD */
+.rounds { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; }
+.rounds .eyebrow b { color: var(--sand); font-size: 13px; }
+.strip { list-style: none; margin: 0; padding: 0; display: flex; gap: 4px; align-items: center; }
+.node {
+  width: 34px; height: 34px; border-radius: 6px; border: 1px solid var(--line); background: var(--night);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; flex: none;
+}
+.node small { font-size: 9px; color: var(--dust); }
+.node b { font-size: 13px; font-weight: 700; }
+.node.win { border-color: var(--life); background: color-mix(in srgb, var(--life) 18%, var(--night)); }
+.node.loss { border-color: var(--blood); background: color-mix(in srgb, var(--blood) 18%, var(--night)); }
+.node.draw { border-color: var(--dust); }
+.node.bye b { color: var(--dust); }
+.node.now { border: 2px solid var(--bronze); width: 40px; height: 40px; }
+.node.now b { color: var(--bronze); font-size: 16px; }
+.node.now.live { animation: live 1s ease-in-out infinite alternate; }
+@keyframes live { to { box-shadow: 0 0 0 3px color-mix(in srgb, var(--bronze) 35%, transparent); } }
+.node.later { opacity: 0.45; border-style: dashed; }
+.node.milestone { border-radius: 50%; width: 28px; height: 28px; }
+.node.milestone b { color: var(--bronze); font-size: 12px; }
+.node.milestone small { font-size: 8px; }
+.node.milestone.done { border-color: var(--bronze); }
+.node.milestone.now { width: 32px; height: 32px; }
 .life { display: flex; flex-direction: column; gap: 3px; min-width: 130px; flex: 1; max-width: 230px; }
 .life .top { display: flex; justify-content: space-between; font-size: 13px; gap: 8px; }
 .life .bar { height: 7px; background: var(--night); border-radius: 4px; overflow: hidden; }
+.life .bar { height: 9px; position: relative; }
 .life .bar i { display: block; height: 100%; background: var(--life); border-radius: 4px; transition: width 0.4s; }
+/* One dash per 10 of the 60 HP */
+.hp-dashes { position: relative; }
+.hp-dashes::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(to right, transparent 0 calc(100% / 6 - 1px), rgba(14, 12, 17, 0.9) calc(100% / 6 - 1px) calc(100% / 6));
+}
 .life.foe .bar i { background: var(--blood); }
 .hud .tools { display: flex; gap: 6px; }
 
@@ -255,6 +285,16 @@ input:focus-visible { outline: 2px solid var(--bronze); outline-offset: 1px; }
 #arena { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .speed { position: absolute; top: 10px; right: 10px; display: flex; gap: 4px; }
 .speed .btn { padding: 4px 9px; font-size: 13px; }
+.preview {
+  position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); text-align: center; pointer-events: none;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  background: color-mix(in srgb, var(--night) 80%, transparent); border: 1px solid var(--line); border-radius: 10px; padding: 8px 20px 10px;
+  max-width: calc(100% - 140px);
+}
+.countdown { display: flex; align-items: baseline; gap: 10px; font-family: var(--display); font-size: 26px; color: var(--sand); }
+.countdown .timer { font-size: 58px; color: var(--bronze); }
+.countdown .timer.urgent { color: var(--blood); animation: live 0.5s ease-in-out infinite alternate; }
+.hp-note { font-size: 12px; color: var(--dust); }
 .banner {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-align: center;
   background: color-mix(in srgb, var(--night) 88%, transparent); border: 1px solid var(--line);
@@ -273,15 +313,23 @@ input:focus-visible { outline: 2px solid var(--bronze); outline-offset: 1px; }
   padding-right: max(16px, env(safe-area-inset-right, 0px));
   display: flex; gap: 12px; align-items: stretch;
 }
-.purse { display: flex; flex-direction: column; gap: 6px; justify-content: center; min-width: 108px; }
+.purse { display: flex; flex-direction: column; gap: 5px; justify-content: center; width: 176px; flex: none; }
+.eco { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--dust); }
+.eco-line b { color: var(--bronze); font-size: 15px; }
+.eco-bar { position: relative; height: 6px; background: var(--night); border-radius: 3px; }
+.eco-bar i { display: block; height: 100%; background: var(--bronze); border-radius: 3px; }
+.eco-bar em { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--sand); opacity: 0.7; }
+.eco-sub { font-size: 11px; color: var(--sand); }
+.eco-hint { font-size: 11px; }
+.eco-hint.max { color: var(--bronze); }
 .gold { display: flex; align-items: baseline; gap: 6px; }
 .gold b { font-family: var(--display); font-size: 34px; font-weight: 400; color: var(--bronze); line-height: 1; }
 .gold span { color: var(--dust); font-size: 12px; }
 .purse .row { gap: 6px; }
 .purse .btn { padding: 5px 9px; font-size: 13px; }
-.cards { flex: 1; display: flex; gap: 10px; overflow-x: auto; min-width: 0; padding-bottom: 2px; }
+.cards { flex: 1; display: grid; grid-template-columns: repeat(var(--n, 5), minmax(0, 1fr)); gap: 10px; min-width: 0; padding-bottom: 2px; }
 .card {
-  flex: 1 0 158px; max-width: 220px; text-align: left; background: var(--pit-2);
+  min-width: 0; text-align: left; background: var(--pit-2);
   border: 1px solid var(--line); border-top: 3px solid var(--tier); border-radius: 8px;
   padding: 8px 10px; display: flex; flex-direction: column; gap: 5px; position: relative;
 }
@@ -293,12 +341,14 @@ input:focus-visible { outline: 2px solid var(--bronze); outline-offset: 1px; }
 .card { min-height: 142px; box-sizing: border-box; }
 .card .top { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; padding-right: 26px; }
 .card .cost {
-  position: absolute; top: 6px; right: 8px; font-family: var(--display); font-size: 22px; line-height: 1; color: var(--bronze);
+  position: absolute; top: 6px; right: 8px; font-family: var(--display); font-size: 22px; line-height: 1; color: var(--tier);
 }
-.card .nm { font-weight: 700; font-size: 15px; }
+/* Name, cost and tier label take the card's rarity color */
+.card .nm { font-weight: 700; font-size: 15px; color: var(--tier); }
+.card .ft .tier { color: var(--tier); font-weight: 700; }
 .card .ds { font-size: 13px; color: var(--sand); opacity: 0.86; flex: 1; }
 .card .ft { display: flex; justify-content: space-between; font-size: 11px; color: var(--dust); text-transform: uppercase; letter-spacing: 0.08em; }
-.t-1 { --tier: #8a8174; } .t-2 { --tier: #5fb3a1; } .t-3 { --tier: #7d8cf0; } .t-4 { --tier: #e0a43c; }
+.t-1 { --tier: #c4bbad; } .t-2 { --tier: #5fb3a1; } .t-3 { --tier: #7d8cf0; } .t-4 { --tier: #e0a43c; }
 .t-hybrid { --tier: #d06bd0; } .t-counter { --tier: #b9b2a6; }
 .go { display: flex; flex-direction: column; gap: 6px; justify-content: center; }
 .go .btn.primary { font-family: var(--display); font-size: 24px; padding: 6px 22px; font-weight: 400; }
@@ -337,8 +387,16 @@ input:focus-visible { outline: 2px solid var(--bronze); outline-offset: 1px; }
   .hud .tools { margin-left: auto; }
   .tray { flex-wrap: wrap; }
   .purse { flex-direction: row; align-items: center; min-width: 0; flex: 1; gap: 12px; }
-  .cards { order: 3; flex-basis: 100%; }
+  .cards { order: 3; flex-basis: 100%; display: flex; overflow-x: auto; }
   .card { flex: 0 0 150px; }
+  .purse { width: auto; }
+  .eco { min-width: 130px; flex: 1; }
+  .rounds { order: 9; flex-basis: 100%; overflow-x: auto; align-items: flex-start; }
+  .preview { left: 8px; top: 8px; bottom: auto; transform: none; max-width: calc(100% - 150px); padding: 4px 10px 6px; align-items: flex-start; text-align: left; }
+  .preview .eyebrow { font-size: 9px; }
+  .countdown { font-size: 18px; gap: 6px; white-space: nowrap; }
+  .countdown .timer { font-size: 34px; }
+  .hp-note { font-size: 11px; }
   .go { flex-direction: row; align-items: center; }
   .hint { display: none; }
   .slot { grid-template-columns: 22px minmax(0, 1fr) auto; }
@@ -597,7 +655,7 @@ const CARDS = [
     setup: (u) => { u.flags.lastStand = true; } },
   { id: 'undying_spite', name: 'Undying Spite', tags: ['pain'], tier: 4, max: 1,
     desc: () => 'Each time you are Wounded, deal 2% of your max HP to the enemy.',
-    onPain: (f, u) => f.damage(u, u.enemy, u.maxHp * 0.02, 'true', { source: 'Undying Spite' }) },
+    onPain: (f, u) => f.damage(u, u.enemy, u.baseHp * 0.02, 'true', { source: 'Undying Spite' }) },
 
   // ----------------------------------------------------------------- Spell
   { id: 'arcane_echoes', name: 'Arcane Echoes', tags: ['spell', 'arcane'], tier: 1, max: 5,
@@ -669,7 +727,7 @@ const CARDS = [
     setup: (u, n) => { u.freezeDur += 0.4 * n; u.m.frostDecay *= Math.pow(0.6, n); } },
   { id: 'shatter', name: 'Shatter', tags: ['frost'], tier: 2, max: 3,
     desc: (n) => `When you freeze the enemy, deal ${4 * n}% of their max HP.`,
-    onFreeze: (f, u, n) => f.damage(u, u.enemy, u.enemy.maxHp * 0.04 * n * (u.flags.bigFreeze ? 2 : 1), 'ability', { source: 'Shatter' }) },
+    onFreeze: (f, u, n) => f.damage(u, u.enemy, u.enemy.baseHp * 0.04 * n * (u.flags.bigFreeze ? 2 : 1), 'ability', { source: 'Shatter' }) },
   { id: 'deep_winter', name: 'Deep Winter', tags: ['frost'], tier: 3, max: 2,
     desc: (n) => `The enemy freezes at ${16 - 3 * n} Frost instead of 16.`,
     setup: (u, n) => { u.freezeAt = 16 - 3 * n; } },
@@ -758,7 +816,7 @@ const CARDS = [
     every: [4, (f, u, n) => f.gain(u, 'regen', n)] },
   { id: 'juggernaut', name: 'Juggernaut', tags: ['regen'], tier: 3, max: 2,
     desc: (n) => `Attacks deal bonus damage equal to ${1.5 * n}% of your max HP.`,
-    bonusDamage: (f, u, n) => u.maxHp * 0.015 * n },
+    bonusDamage: (f, u, n) => u.baseHp * 0.015 * n },
   { id: 'titan', name: 'Titan', tags: ['regen'], tier: 4, max: 1,
     desc: () => 'Max HP x1.6. Attacks deal +3% of your max HP. Attack speed -20%.',
     setup: (u) => { u.flags.titan = true; } },
@@ -818,7 +876,7 @@ const CARDS = [
   { id: 'blood_ward', name: 'Blood Ward', tags: ['regen', 'shield'], tier: 'hybrid', max: 1,
     desc: () => 'Healing beyond max HP becomes Shield. Every 4s, gain Shield equal to 3% max HP.',
     setup: (u) => { u.flags.overhealShield = true; },
-    every: [4, (f, u) => f.gain(u, 'shield', u.maxHp * 0.03)] },
+    every: [4, (f, u) => f.gain(u, 'shield', u.baseHp * 0.03)] },
   { id: 'toxic_frost', name: 'Toxic Frost', tags: ['poison', 'frost'], tier: 'hybrid', max: 1,
     desc: () => 'Your Poison deals +60% damage to enemies with 5+ Frost or frozen.',
     setup: (u) => { u.flags.toxicFrost = true; } },
@@ -831,7 +889,7 @@ const CARDS = [
     setup: (u) => { u.flags.septic = true; u.m.bleedDmg += 0.25; } },
   { id: 'glacial_bulwark', name: 'Glacial Bulwark', tags: ['frost', 'shield'], tier: 'hybrid', max: 1,
     desc: () => 'When you freeze the enemy, gain Shield equal to 8% of your max HP.',
-    onFreeze: (f, u) => f.gain(u, 'shield', u.maxHp * 0.08) },
+    onFreeze: (f, u) => f.gain(u, 'shield', u.baseHp * 0.08) },
   { id: 'blood_rite', name: 'Blood Rite', tags: ['bleed', 'regen'], tier: 'hybrid', max: 1,
     desc: () => 'Gain 1 Regen for every 8 Bleed you apply.',
     setup: (u) => { u.flags.bloodRite = true; } },
@@ -964,7 +1022,7 @@ const CHARACTERS = [
     innate: { desc: 'Start each fight with 1 Regen.', onStart: (f, u) => f.gain(u, 'regen', 1) },
     ability: { name: 'Overgrowth', desc: () => 'Heal 3% of max HP plus 0.5% per Regen.',
       cast: (f, u, p) => {
-        const h = u.maxHp * (0.03 + 0.005 * u.regen) * Math.min(p, 1.5);
+        const h = u.baseHp * (0.03 + 0.005 * u.regen) * Math.min(p, 1.5);
         const healed = f.heal(u, h, 'Overgrowth');
         if (u.sig === 'grove_thorn') hit(f, u, healed * 0.6);
       } },
@@ -1058,12 +1116,17 @@ function overtime(t) {
   const over = Math.max(0, t - SUDDEN_DEATH_AT);
   return { damage: 1 + over * 0.08, healing: Math.max(0, 1 - over * 0.03), burn: Math.max(0, t - BURN_AT) * 0.005 };
 }
+// Fighters get tougher every round so late-game damage doesn't end fights in
+// a hit or two. Fitted so fights last about as long in round 14 as in round 1.
+function hpScale(round = 1) {
+  return 1 + 0.015 * (Math.max(1, round) - 1) ** 2;
+}
 const DEFAULT_SOURCE = { attack: 'Attacks', poison: 'Poison', bleed: 'Bleed', thorns: 'Thorns', true: 'Other' };
 
 const HOOKS = ['onStart', 'onAttack', 'onHit', 'onCrit', 'onEvade', 'onPain', 'onCast', 'onFreeze', 'onHitTaken', 'onShieldBreak', 'bonusDamage'];
 const BASE = { hp: 600, ad: 30, as: 1.0, crit: 0.05, critMult: 1.75, manaMax: 100, manaPerAttack: 10, focusGain: 0 };
 
-// Build a combat unit from a loadout: { charId, cards: {id: copies}, sig }.
+// Build a combat unit from a loadout: { charId, cards: {id: copies}, sig, round }.
 function buildUnit(loadout, side) {
   const ch = CHAR_BY_ID[loadout.charId];
   const s = { ...BASE, ...ch.stats };
@@ -1128,10 +1191,13 @@ function buildUnit(loadout, side) {
     if (src.every) u.timers.push({ interval: src.every[0], fn: src.every[1], n, acc: 0 });
   }
 
-  if (u.flags.titan) { u.maxHp *= 1.6; u.asBase *= 0.8; u.hooks.bonusDamage.push({ fn: (f, x) => x.maxHp * 0.03, n: 1 }); }
+  if (u.flags.titan) { u.maxHp *= 1.6; u.asBase *= 0.8; u.hooks.bonusDamage.push({ fn: (f, x) => x.baseHp * 0.03, n: 1 }); }
   if (u.flags.bullseye) u.crit *= 2;
   u.crit = Math.min(u.crit, 0.95);
-  u.maxHp = Math.round(u.maxHp);
+  // Effects worth "x% of max HP" (bleed, regen, shields...) use baseHp, the
+  // HP before round scaling, so they don't grow faster than everything else.
+  u.baseHp = u.maxHp;
+  u.maxHp = Math.round(u.maxHp * hpScale(loadout.round));
   u.hp = u.maxHp;
   return u;
 }
@@ -1409,14 +1475,14 @@ class Fight {
         u.poison = Math.max(0, u.poison - u.poison * 0.02 * dt);
       }
       if (u.bleed > 0.05 && !u.dead) {
-        const d = this.damage(e, u, u.bleed * 0.0025 * u.maxHp * e.m.bleedDmg * dt, 'bleed');
+        const d = this.damage(e, u, u.bleed * 0.0025 * u.baseHp * e.m.bleedDmg * dt, 'bleed');
         if (e.m.bleedLeech) this.heal(e, d * e.m.bleedLeech, 'Bleed lifesteal');
         u.bleed = Math.max(0, u.bleed - u.bleed * 0.08 * e.m.bleedDecay * dt);
       }
       if (u.dead) continue;
       u.frost = Math.max(0, u.frost - 0.6 * e.m.frostDecay * dt);
 
-      if (u.regen > 0) this.heal(u, u.regen * 0.002 * u.maxHp * dt, 'Regen');
+      if (u.regen > 0) this.heal(u, u.regen * 0.002 * u.baseHp * dt, 'Regen');
       const burn = overtime(this.t).burn;
       if (burn > 0) this.damage(e, u, u.maxHp * burn * dt, 'true', { source: 'Arena burn' });
       if (u.dead) continue;
@@ -1662,8 +1728,9 @@ function toggleLock(m, playerId) {
   m.players[playerId].locked = !m.players[playerId].locked;
 }
 
-function loadout(p) {
-  return { charId: p.charId, cards: { ...p.cards }, sig: p.sig };
+// round sets the fighters' HP scaling (see hpScale in combat.js).
+function loadout(p, round = 1) {
+  return { charId: p.charId, cards: { ...p.cards }, sig: p.sig, round };
 }
 
 // Random pairings each round, avoiding last round's opponent where possible.
@@ -1692,7 +1759,7 @@ function pairings(m) {
 }
 
 function makeFight(m, a, b) {
-  return new Fight(loadout(m.players[a]), loadout(m.players[b]), (m.seed + m.round * 31337 + a * 101 + b * 7) >>> 0);
+  return new Fight(loadout(m.players[a], m.round), loadout(m.players[b], m.round), (m.seed + m.round * 31337 + a * 101 + b * 7) >>> 0);
 }
 
 function damageFor(round, survivorHpPct) {
@@ -1761,135 +1828,135 @@ function standings(m) {
 // Generated by tools/cardvalue.mjs. Average change in fight score (-2..+2)
 // from one extra copy: across all builds, and for gladiators that share a tag.
 const CARD_VALUES = {
-  kindling: {"all":0.1345,"fit":0.1288,"perGold":0.0673},
-  rime_edge: {"all":0.2233,"fit":0.2407,"perGold":0.1117},
-  serrated: {"all":0.204,"fit":0.2025,"perGold":0.102},
-  venom_coat: {"all":0.1824,"fit":0.1495,"perGold":0.0912},
-  guarded_swing: {"all":0.1133,"fit":0.086,"perGold":0.0567},
-  iron_rhythm: {"all":0.0382,"fit":0.035,"perGold":0.0191},
-  battle_trance: {"all":0.0806,"fit":0.0327,"perGold":0.0403},
-  pulse: {"all":0.1213,"fit":0.1231,"perGold":0.0607},
-  quick_hands: {"all":0.0183,"fit":0.0437,"perGold":0.0091},
-  momentum: {"all":0.0967,"fit":0.2001,"perGold":0.0322},
-  flurry: {"all":0.1636,"fit":0.0497,"perGold":0.0409},
-  whirlwind: {"all":0.4801,"fit":0.6274,"perGold":0.08},
-  venom_crit: {"all":0.0546,"fit":0.0669,"perGold":0.0273},
-  flash_freeze: {"all":0.0937,"fit":0.0946,"perGold":0.0468},
-  hemorrhage: {"all":0.0796,"fit":0.1499,"perGold":0.0398},
-  sparkfire: {"all":0.0209,"fit":0.0139,"perGold":0.0104},
-  lucky_guard: {"all":0.0294,"fit":-0.0064,"perGold":0.0147},
-  riposte_plate: {"all":0.0216,"fit":0.0551,"perGold":0.0108},
-  lifebloom: {"all":0.0804,"fit":0.1458,"perGold":0.0402},
-  insight: {"all":0.0834,"fit":0.1265,"perGold":0.0417},
-  keen_edge: {"all":0.0825,"fit":0.114,"perGold":0.0412},
-  deadly_aim: {"all":0.0421,"fit":0.1259,"perGold":0.014},
-  executioner: {"all":0.0248,"fit":-0.0166,"perGold":0.0062},
-  bullseye: {"all":0.094,"fit":0.3167,"perGold":0.0157},
-  shadow_step: {"all":0.135,"fit":0.1061,"perGold":0.0675},
-  chill_mirage: {"all":0.1961,"fit":0.1838,"perGold":0.098},
-  riposte_venom: {"all":0.1591,"fit":0.1351,"perGold":0.0795},
-  wind_ward: {"all":0.1293,"fit":0.0982,"perGold":0.0646},
-  counter_cut: {"all":0.2253,"fit":0.2585,"perGold":0.1126},
-  sidestep_guard: {"all":0.1118,"fit":0.0986,"perGold":0.0559},
-  second_breath: {"all":0.1653,"fit":0.1485,"perGold":0.0826},
-  mind_over_blade: {"all":0.3027,"fit":0.3198,"perGold":0.1514},
-  light_feet: {"all":0.1378,"fit":0.1273,"perGold":0.0689},
-  second_nature: {"all":0.1558,"fit":-0.051,"perGold":0.0519},
-  afterimage: {"all":0.2433,"fit":0.3436,"perGold":0.0608},
-  phantom: {"all":0.2353,"fit":0.1122,"perGold":0.0392},
-  pain_steel: {"all":0.1306,"fit":0.1448,"perGold":0.0653},
-  scar_tissue: {"all":0.1527,"fit":0.2565,"perGold":0.0763},
-  martyr_ward: {"all":0.1715,"fit":0.1783,"perGold":0.0858},
-  spiteful_blood: {"all":0.1933,"fit":0.3548,"perGold":0.0967},
-  rage: {"all":0.1797,"fit":0.1649,"perGold":0.0898},
-  bitter_frost: {"all":0.1746,"fit":0.1156,"perGold":0.0873},
-  venom_blood: {"all":0.2414,"fit":0.2501,"perGold":0.1207},
-  pained_insight: {"all":0.297,"fit":0.373,"perGold":0.1485},
-  thin_skin: {"all":0.1288,"fit":0.1707,"perGold":0.0644},
-  berserker: {"all":0.3081,"fit":0.1106,"perGold":0.1027},
-  last_stand: {"all":0.3596,"fit":0.3282,"perGold":0.0899},
-  undying_spite: {"all":0.2923,"fit":0.2876,"perGold":0.0487},
-  arcane_echoes: {"all":0.1113,"fit":0.177,"perGold":0.0557},
-  frost_nova: {"all":0.1149,"fit":0.1122,"perGold":0.0574},
-  spellshield: {"all":0.112,"fit":0.1375,"perGold":0.056},
-  toxic_bolt: {"all":0.2055,"fit":0.1933,"perGold":0.1028},
-  mend: {"all":0.1663,"fit":0.1998,"perGold":0.0831},
-  combustion: {"all":0.0682,"fit":0.0981,"perGold":0.0341},
-  runic_plate: {"all":0.0669,"fit":0.0843,"perGold":0.0334},
-  hemomancy: {"all":0.1271,"fit":0.1569,"perGold":0.0636},
-  focused_mind: {"all":0.1595,"fit":0.2649,"perGold":0.0797},
-  quick_study: {"all":0.1031,"fit":0.0577,"perGold":0.0344},
-  spell_echo: {"all":0.0456,"fit":0.0745,"perGold":0.0114},
-  overcast: {"all":0.4494,"fit":0.6935,"perGold":0.0749},
-  ember_heart: {"all":0.0523,"fit":0.0419,"perGold":0.0262},
-  smolder: {"all":0.0516,"fit":0.0462,"perGold":0.0258},
-  stoke: {"all":0.054,"fit":0.1288,"perGold":0.018},
-  flare: {"all":0.0416,"fit":0.0579,"perGold":0.0139},
-  wildfire: {"all":0.0655,"fit":0.0429,"perGold":0.0164},
-  phoenix: {"all":0.7942,"fit":0.8333,"perGold":0.1324},
-  cold_snap: {"all":0.0865,"fit":0.0495,"perGold":0.0432},
-  frostbite: {"all":0.0095,"fit":-0.013,"perGold":0.0048},
-  permafrost: {"all":0.1277,"fit":0.1417,"perGold":0.0426},
-  shatter: {"all":0.0892,"fit":0.1483,"perGold":0.0297},
-  deep_winter: {"all":0.0769,"fit":0.1138,"perGold":0.0192},
-  ice_armor: {"all":0.029,"fit":0.0521,"perGold":0.0073},
-  absolute_zero: {"all":0.088,"fit":0.2162,"perGold":0.0147},
-  toxic_blade: {"all":0.1099,"fit":0.0875,"perGold":0.0549},
-  miasma: {"all":0.1459,"fit":0.0797,"perGold":0.0729},
-  virulence: {"all":0.055,"fit":0.0798,"perGold":0.0183},
-  lingering: {"all":0.1684,"fit":0.1874,"perGold":0.0561},
-  pandemic: {"all":0.0878,"fit":0.2079,"perGold":0.0219},
-  plague_lord: {"all":0.4063,"fit":0.6095,"perGold":0.0677},
-  rend: {"all":0.147,"fit":0.1744,"perGold":0.0735},
-  open_wounds: {"all":0.0224,"fit":-0.0336,"perGold":0.0112},
-  deep_cuts: {"all":0.0454,"fit":0.0029,"perGold":0.0151},
-  bloodletting: {"all":0.0648,"fit":0.1133,"perGold":0.0216},
-  exsanguinate: {"all":0.0541,"fit":0.0039,"perGold":0.0135},
-  arterial: {"all":0.1376,"fit":0.2651,"perGold":0.0229},
-  barrier: {"all":0.0057,"fit":-0.0624,"perGold":0.0029},
-  reinforce: {"all":0.0861,"fit":0.1705,"perGold":0.0431},
-  bash: {"all":0.012,"fit":0.0209,"perGold":0.004},
-  overcharge: {"all":0.084,"fit":0.1905,"perGold":0.028},
-  bastion: {"all":0.2025,"fit":0.2804,"perGold":0.0506},
-  reflect: {"all":0.0134,"fit":0.0423,"perGold":0.0034},
-  aegis: {"all":0.2164,"fit":0.4189,"perGold":0.0361},
-  hearty: {"all":0.1104,"fit":0.1824,"perGold":0.0552},
-  vitality: {"all":0.0734,"fit":0.0442,"perGold":0.0367},
-  second_wind: {"all":0.0913,"fit":0.098,"perGold":0.0304},
-  giants_blood: {"all":0.0798,"fit":0.0169,"perGold":0.0266},
-  juggernaut: {"all":0.1284,"fit":0.0885,"perGold":0.0321},
-  titan: {"all":0.4582,"fit":0.6106,"perGold":0.0764},
-  attunement: {"all":0.042,"fit":0.0389,"perGold":0.021},
-  mana_font: {"all":0.1317,"fit":0.1199,"perGold":0.0658},
-  spellweave: {"all":0.0324,"fit":0.0641,"perGold":0.0162},
-  mana_shield: {"all":0.0104,"fit":0.0061,"perGold":0.0035},
-  arcane_power: {"all":0.0469,"fit":0.1103,"perGold":0.0117},
-  archmage: {"all":0.4094,"fit":0.7319,"perGold":0.0682},
-  plating: {"all":0.0654,"fit":0.0436,"perGold":0.0327},
-  brace: {"all":0.0884,"fit":0.0505,"perGold":0.0442},
-  thorns: {"all":0.0635,"fit":0.1116,"perGold":0.0212},
-  stalwart: {"all":0.1348,"fit":0.2954,"perGold":0.0449},
-  fortress: {"all":0.1021,"fit":0.2041,"perGold":0.0255},
-  living_mountain: {"all":0.7037,"fit":0.7476,"perGold":0.1173},
-  thermal_shock: {"all":0.0944,"fit":0.1204,"perGold":0.0236},
-  spellfire: {"all":0.1367,"fit":0.1795,"perGold":0.0342},
-  iron_will: {"all":0.0379,"fit":0.0617,"perGold":0.0095},
-  blood_ward: {"all":0.0679,"fit":0.0647,"perGold":0.017},
-  toxic_frost: {"all":0.1544,"fit":0.1701,"perGold":0.0386},
-  molten_armor: {"all":0.2976,"fit":0.3461,"perGold":0.0744},
-  septic: {"all":0.2176,"fit":0.2032,"perGold":0.0544},
-  glacial_bulwark: {"all":0.0909,"fit":0.1362,"perGold":0.0227},
-  blood_rite: {"all":0.096,"fit":0.0964,"perGold":0.024},
-  antivenom: {"all":0.0953,"fit":null,"perGold":0.0476},
-  thaw: {"all":0.17,"fit":null,"perGold":0.085},
-  clotting: {"all":0.1024,"fit":null,"perGold":0.0512},
-  true_sight: {"all":0.1378,"fit":null,"perGold":0.0689},
-  unsettling: {"all":0.0472,"fit":null,"perGold":0.0236},
-  shieldbreaker: {"all":0.0427,"fit":null,"perGold":0.0213},
-  cauterize: {"all":0.0534,"fit":null,"perGold":0.0267},
-  sunder: {"all":0.0425,"fit":null,"perGold":0.0213},
-  nullstone: {"all":0.1303,"fit":null,"perGold":0.0652},
-  cooling_draught: {"all":0.034,"fit":null,"perGold":0.017},
+  kindling: {"all":0.2128,"fit":0.1024,"perGold":0.1064},
+  rime_edge: {"all":0.2644,"fit":0.2779,"perGold":0.1322},
+  serrated: {"all":0.2166,"fit":0.3266,"perGold":0.1083},
+  venom_coat: {"all":0.1892,"fit":0.1938,"perGold":0.0946},
+  guarded_swing: {"all":0.1259,"fit":0.1385,"perGold":0.063},
+  iron_rhythm: {"all":0.1096,"fit":0.1005,"perGold":0.0548},
+  battle_trance: {"all":0.0564,"fit":0.0846,"perGold":0.0282},
+  pulse: {"all":0.0674,"fit":0.0839,"perGold":0.0337},
+  quick_hands: {"all":0.1357,"fit":0.1938,"perGold":0.0679},
+  momentum: {"all":0.0963,"fit":0.0563,"perGold":0.0321},
+  flurry: {"all":0.1143,"fit":0.0267,"perGold":0.0286},
+  whirlwind: {"all":0.426,"fit":0.697,"perGold":0.071},
+  venom_crit: {"all":0.0878,"fit":0.0765,"perGold":0.0439},
+  flash_freeze: {"all":0.0783,"fit":0.0971,"perGold":0.0392},
+  hemorrhage: {"all":0.0974,"fit":0.139,"perGold":0.0487},
+  sparkfire: {"all":0.0381,"fit":0.022,"perGold":0.0191},
+  lucky_guard: {"all":0.0221,"fit":0.0203,"perGold":0.0111},
+  riposte_plate: {"all":0.014,"fit":0.0264,"perGold":0.007},
+  lifebloom: {"all":0.087,"fit":0.0621,"perGold":0.0435},
+  insight: {"all":0.1762,"fit":0.218,"perGold":0.0881},
+  keen_edge: {"all":0.0837,"fit":0.1101,"perGold":0.0418},
+  deadly_aim: {"all":0.0306,"fit":-0.0127,"perGold":0.0102},
+  executioner: {"all":0.0468,"fit":0.1113,"perGold":0.0117},
+  bullseye: {"all":0.124,"fit":0.3025,"perGold":0.0207},
+  shadow_step: {"all":0.1263,"fit":0.0799,"perGold":0.0632},
+  chill_mirage: {"all":0.2195,"fit":0.3463,"perGold":0.1098},
+  riposte_venom: {"all":0.1626,"fit":0.1812,"perGold":0.0813},
+  wind_ward: {"all":0.1599,"fit":0.1182,"perGold":0.0799},
+  counter_cut: {"all":0.1605,"fit":0.148,"perGold":0.0803},
+  sidestep_guard: {"all":0.1281,"fit":0.1695,"perGold":0.0641},
+  second_breath: {"all":0.2587,"fit":0.2543,"perGold":0.1294},
+  mind_over_blade: {"all":0.2701,"fit":0.2816,"perGold":0.1351},
+  light_feet: {"all":0.1856,"fit":null,"perGold":0.0928},
+  second_nature: {"all":0.1254,"fit":0.1456,"perGold":0.0418},
+  afterimage: {"all":0.2966,"fit":0.0969,"perGold":0.0742},
+  phantom: {"all":0.3254,"fit":0.1865,"perGold":0.0542},
+  pain_steel: {"all":0.1243,"fit":0.1885,"perGold":0.0621},
+  scar_tissue: {"all":0.0784,"fit":0.1239,"perGold":0.0392},
+  martyr_ward: {"all":0.1274,"fit":0.1033,"perGold":0.0637},
+  spiteful_blood: {"all":0.1583,"fit":0.2467,"perGold":0.0791},
+  rage: {"all":0.1366,"fit":0.0928,"perGold":0.0683},
+  bitter_frost: {"all":0.1781,"fit":0.1497,"perGold":0.089},
+  venom_blood: {"all":0.2162,"fit":0.217,"perGold":0.1081},
+  pained_insight: {"all":0.3396,"fit":0.3133,"perGold":0.1698},
+  thin_skin: {"all":0.1047,"fit":0.1825,"perGold":0.0524},
+  berserker: {"all":0.2838,"fit":0.1558,"perGold":0.0946},
+  last_stand: {"all":0.3207,"fit":0.4261,"perGold":0.0802},
+  undying_spite: {"all":0.2063,"fit":0.2212,"perGold":0.0344},
+  arcane_echoes: {"all":0.0978,"fit":0.1684,"perGold":0.0489},
+  frost_nova: {"all":0.0948,"fit":0.051,"perGold":0.0474},
+  spellshield: {"all":0.1467,"fit":0.1917,"perGold":0.0733},
+  toxic_bolt: {"all":0.225,"fit":0.2688,"perGold":0.1125},
+  mend: {"all":0.1873,"fit":0.2266,"perGold":0.0936},
+  combustion: {"all":0.0885,"fit":0.0778,"perGold":0.0443},
+  runic_plate: {"all":0.091,"fit":0.1378,"perGold":0.0455},
+  hemomancy: {"all":0.1982,"fit":0.2419,"perGold":0.0991},
+  focused_mind: {"all":0.0778,"fit":0.2258,"perGold":0.0389},
+  quick_study: {"all":0.1523,"fit":0.1811,"perGold":0.0508},
+  spell_echo: {"all":0.1591,"fit":0.2601,"perGold":0.0398},
+  overcast: {"all":0.4673,"fit":0.5875,"perGold":0.0779},
+  ember_heart: {"all":0.0482,"fit":0.1408,"perGold":0.0241},
+  smolder: {"all":0.0855,"fit":0.0863,"perGold":0.0427},
+  stoke: {"all":0.04,"fit":0.0457,"perGold":0.0133},
+  flare: {"all":0.1106,"fit":0.1887,"perGold":0.0369},
+  wildfire: {"all":0.0423,"fit":-0.0052,"perGold":0.0106},
+  phoenix: {"all":0.7575,"fit":0.9756,"perGold":0.1262},
+  cold_snap: {"all":0.1625,"fit":0.2751,"perGold":0.0812},
+  frostbite: {"all":0.0328,"fit":0.0187,"perGold":0.0164},
+  permafrost: {"all":0.0907,"fit":0.1757,"perGold":0.0302},
+  shatter: {"all":0.0947,"fit":0.1625,"perGold":0.0316},
+  deep_winter: {"all":0.0284,"fit":0.0264,"perGold":0.0071},
+  ice_armor: {"all":0.0415,"fit":0.07,"perGold":0.0104},
+  absolute_zero: {"all":0.1076,"fit":0.1733,"perGold":0.0179},
+  toxic_blade: {"all":0.1697,"fit":0.2048,"perGold":0.0848},
+  miasma: {"all":0.0586,"fit":0.067,"perGold":0.0293},
+  virulence: {"all":0.1029,"fit":0.0738,"perGold":0.0343},
+  lingering: {"all":0.1278,"fit":0.1222,"perGold":0.0426},
+  pandemic: {"all":0.0259,"fit":0.0352,"perGold":0.0065},
+  plague_lord: {"all":0.3488,"fit":0.6271,"perGold":0.0581},
+  rend: {"all":0.2134,"fit":0.1878,"perGold":0.1067},
+  open_wounds: {"all":0.0547,"fit":0.0726,"perGold":0.0273},
+  deep_cuts: {"all":0.053,"fit":0.0746,"perGold":0.0177},
+  bloodletting: {"all":0.0565,"fit":0.0171,"perGold":0.0188},
+  exsanguinate: {"all":0.1036,"fit":0.1468,"perGold":0.0259},
+  arterial: {"all":0.186,"fit":0.2896,"perGold":0.031},
+  barrier: {"all":0.0542,"fit":0.0311,"perGold":0.0271},
+  reinforce: {"all":0.0251,"fit":0.0296,"perGold":0.0126},
+  bash: {"all":0.0113,"fit":-0.0089,"perGold":0.0038},
+  overcharge: {"all":0.021,"fit":0.0684,"perGold":0.007},
+  bastion: {"all":0.2184,"fit":0.251,"perGold":0.0546},
+  reflect: {"all":0.0048,"fit":0.0242,"perGold":0.0012},
+  aegis: {"all":0.2577,"fit":0.5852,"perGold":0.0429},
+  hearty: {"all":0.0974,"fit":0.0077,"perGold":0.0487},
+  vitality: {"all":0.0852,"fit":0.0756,"perGold":0.0426},
+  second_wind: {"all":0.1263,"fit":0.1414,"perGold":0.0421},
+  giants_blood: {"all":0.0815,"fit":0.0489,"perGold":0.0272},
+  juggernaut: {"all":0.1069,"fit":0.0434,"perGold":0.0267},
+  titan: {"all":0.4064,"fit":0.3552,"perGold":0.0677},
+  attunement: {"all":0.0372,"fit":0.0181,"perGold":0.0186},
+  mana_font: {"all":0.2024,"fit":0.3092,"perGold":0.1012},
+  spellweave: {"all":0.0878,"fit":0.0733,"perGold":0.0439},
+  mana_shield: {"all":0.0099,"fit":-0.017,"perGold":0.0033},
+  arcane_power: {"all":0.1141,"fit":0.2872,"perGold":0.0285},
+  archmage: {"all":0.6117,"fit":1.0091,"perGold":0.102},
+  plating: {"all":0.0722,"fit":0.07,"perGold":0.0361},
+  brace: {"all":-0.0006,"fit":-0.0047,"perGold":-0.0003},
+  thorns: {"all":0.1135,"fit":0.1528,"perGold":0.0378},
+  stalwart: {"all":0.1062,"fit":0.0776,"perGold":0.0354},
+  fortress: {"all":0.078,"fit":0.1267,"perGold":0.0195},
+  living_mountain: {"all":0.6427,"fit":0.8952,"perGold":0.1071},
+  thermal_shock: {"all":0.193,"fit":0.2434,"perGold":0.0482},
+  spellfire: {"all":0.147,"fit":0.143,"perGold":0.0368},
+  iron_will: {"all":0.1472,"fit":0.2268,"perGold":0.0368},
+  blood_ward: {"all":0.0484,"fit":-0.0049,"perGold":0.0121},
+  toxic_frost: {"all":0.1717,"fit":0.2041,"perGold":0.0429},
+  molten_armor: {"all":0.1701,"fit":0.2238,"perGold":0.0425},
+  septic: {"all":0.2499,"fit":0.3554,"perGold":0.0625},
+  glacial_bulwark: {"all":0.0855,"fit":0.1248,"perGold":0.0214},
+  blood_rite: {"all":0.0805,"fit":0.0777,"perGold":0.0201},
+  antivenom: {"all":0.1185,"fit":null,"perGold":0.0593},
+  thaw: {"all":0.0633,"fit":null,"perGold":0.0317},
+  clotting: {"all":0.1192,"fit":null,"perGold":0.0596},
+  true_sight: {"all":0.1177,"fit":null,"perGold":0.0589},
+  unsettling: {"all":0.0673,"fit":null,"perGold":0.0336},
+  shieldbreaker: {"all":0.0529,"fit":null,"perGold":0.0265},
+  cauterize: {"all":0.025,"fit":null,"perGold":0.0125},
+  sunder: {"all":0.0207,"fit":null,"perGold":0.0104},
+  nullstone: {"all":0.0925,"fit":null,"perGold":0.0463},
+  cooling_draught: {"all":0.0628,"fit":null,"perGold":0.0314},
 };
 
 // ---- src/ai/bot.js
@@ -1938,7 +2005,7 @@ function botSignature(m, id) {
     const enemy = rivalOf(m, id);
     let best = sigs[0], bestScore = -Infinity;
     for (const s of sigs) {
-      const score = evaluate({ ...loadout(p), sig: s.id }, loadout(enemy), m, 6);
+      const score = evaluate({ ...loadout(p, m.round), sig: s.id }, loadout(enemy, m.round), m, 6);
       if (score > bestScore) { bestScore = score; best = s; }
     }
     return chooseSignature(m, id, best.id);
@@ -2041,9 +2108,9 @@ function botShop(m, id) {
   const enemy = rivalOf(m, id);
   const pl = plan(m, p);
   const rng = rngFor(m);
-  const enemyLo = loadout(enemy);
+  const enemyLo = loadout(enemy, m.round);
   const simulate = lv.sims > 0 && Object.keys(enemy.cards).length > 0;
-  let base = simulate ? evaluate(loadout(p), enemyLo, m, lv.sims) : 0;
+  let base = simulate ? evaluate(loadout(p, m.round), enemyLo, m, lv.sims) : 0;
   let rerolls = 0;
 
   for (let guard = 0; guard < 40; guard++) {
@@ -2062,7 +2129,7 @@ function botShop(m, id) {
       for (const o of options.slice(0, lv.simTop)) {
         if (o.s < 1) continue;
         const cards = { ...p.cards, [o.card.id]: (p.cards[o.card.id] || 0) + 1 };
-        o.gain = evaluate({ ...loadout(p), cards }, enemyLo, m, lv.sims) - base;
+        o.gain = evaluate({ ...loadout(p, m.round), cards }, enemyLo, m, lv.sims) - base;
         o.s += o.gain * lv.simWeight;
       }
       options.sort((a, b) => b.s - a.s);
@@ -2637,6 +2704,9 @@ async function clientSession({ code, name, kind = 'peer' }) {
 
 // Canvas renderer for the pit. It either shows a static preview of both
 // gladiators or plays a Fight forward in real time at the chosen speed.
+// The pit is drawn as a tilted board seen from behind your gladiator, like an
+// auto-battler camera: you stand near the front left, your opponent at the
+// back right.
 
 const SELF_STACKS = ['fire', 'shield', 'regen', 'arcane', 'armor'];
 
@@ -2685,7 +2755,8 @@ function createArena(canvas) {
   let last = 0;
   let raf = 0;
   let floaters = [];
-  const anim = [0, 1].map(() => ({ lunge: 0, flash: 0, cast: 0, clip: 'idle', clipT: 0 }));
+  let fx = [];
+  const anim = [0, 1].map(() => ({ lunge: 0, flash: 0, cast: 0, dodge: 0, dodgeDir: 1, clip: 'idle', clipT: 0, spawn: {} }));
   let clock = 0;
   const startClip = (a, clip) => { if (a.clip !== 'death') { a.clip = clip; a.clipT = 0; } };
   let dotSeen = [{ poison: 0, bleed: 0 }, { poison: 0, bleed: 0 }];
@@ -2702,16 +2773,40 @@ function createArena(canvas) {
   ro?.observe(canvas);
   resize();
 
-  function pos(side) {
-    return { x: w * (side === 0 ? 0.28 : 0.72), y: h * 0.5 };
+  // The board: bx runs -1 (left edge) to 1 (right edge), bz runs 0 (far edge)
+  // to 1 (near edge). Rows bunch up toward the back and the board narrows, so
+  // it reads as a plane tilted away from the camera.
+  function project(bx, bz) {
+    // Narrow screens drop the board lower, leaving room for the clock and buttons.
+    const top = w < 640 ? 0.46 : 0.2;
+    const k = 0.62 + 0.38 * bz;
+    const y = h * (top + (1 - top) * bz * (0.55 + 0.45 * bz));
+    return { x: w / 2 + bx * w * 0.5 * k, y, k };
   }
-  function radius() {
-    return Math.max(26, Math.min(w * 0.09, h * 0.16, 62));
+  const SPOT = [{ bx: -0.36, bz: 0.62 }, { bx: 0.36, bz: 0.3 }];
+  function pos(side) {
+    // Narrow screens spread the fighters wider so their bars don't touch.
+    const spread = w < 640 ? 1.45 : 1;
+    const p = project(SPOT[side].bx * spread, SPOT[side].bz);
+    return { x: p.x, y: p.y - baseRadius() * p.k * 1.05, k: p.k };
+  }
+  function baseRadius() {
+    return Math.max(26, Math.min(w * 0.09, h * 0.15, 62));
+  }
+  function radius(side) {
+    return baseRadius() * pos(side).k;
+  }
+  // Unit vector from a fighter toward the other one, for lunges.
+  function toward(side) {
+    const a = pos(side), b = pos(1 - side);
+    const d = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+    return { x: (b.x - a.x) / d, y: (b.y - a.y) / d };
   }
 
   function float(side, text, color, size = 16, dy = 0) {
     const p = pos(side);
-    floaters.push({ x: p.x + (Math.random() - 0.5) * radius(), y: p.y - radius() * 0.6 + dy, text, color, size, life: 1.1 });
+    const r = radius(side);
+    floaters.push({ x: p.x + (Math.random() - 0.5) * r, y: p.y - r * 0.6 + dy, text, color, size, life: 1.1 });
     if (floaters.length > 60) floaters.shift();
   }
 
@@ -2724,8 +2819,8 @@ function createArena(canvas) {
         if (anim[ev.side].clip === 'idle') startClip(anim[ev.side], 'hurt');
         float(ev.side, Math.round(ev.amt) + (ev.crit ? '!' : ''), ev.crit ? '#f2d16b' : ev.kind === 'ability' ? '#b59cf0' : ev.kind === 'thorns' ? '#a8a39a' : '#e9dcc0', ev.crit ? 22 : ev.kind === 'ability' ? 19 : 15);
         break;
-      case 'dodge': float(ev.side, 'DODGE', TAGS.evasion.color, 15, -10); break;
-      case 'freeze': float(ev.side, 'FROZEN', TAGS.frost.color, 18, -18); break;
+      case 'dodge': a.dodge = 1; a.dodgeDir = -a.dodgeDir; float(ev.side, 'DODGE', TAGS.evasion.color, 15, -10); break;
+      case 'freeze': float(ev.side, 'FROZEN', TAGS.frost.color, 18, -18); shards(ev.side); break;
       case 'cast': a.cast = 1; startClip(a, 'cast'); float(ev.side, ev.name, TAGS.spell.color, 16, -32); break;
       case 'revive': a.clip = 'idle'; float(ev.side, 'REVIVED', TAGS.fire.color, 20, -24); break;
       case 'resist': float(ev.side, 'RESISTED', '#a8a39a', 14, -18); break;
@@ -2738,6 +2833,7 @@ function createArena(canvas) {
     fight = null;
     onDone = null;
     floaters = [];
+    fx = [];
     try {
       const a = buildUnit(loadA, 0), b = buildUnit(loadB, 1);
       a.enemy = b; b.enemy = a;
@@ -2753,6 +2849,7 @@ function createArena(canvas) {
     onDone = done;
     acc = 0;
     floaters = [];
+    fx = [];
     dotSeen = [{ poison: 0, bleed: 0 }, { poison: 0, bleed: 0 }];
     start();
   }
@@ -2789,18 +2886,28 @@ function createArena(canvas) {
       if (fight.over) setTimeout(finish, 650);
     }
     clock += dt;
+    const pace = fight ? Math.max(1, speed / 2) : 1;
     for (const [side, a] of anim.entries()) {
       const u = units?.[side];
       if (u?.dead && a.clip !== 'death') { a.clip = 'death'; a.clipT = 0; }
       if (u && !u.dead && a.clip === 'death') a.clip = 'idle';
-      a.clipT += dt * (fight ? Math.max(1, speed / 2) : 1);
+      a.clipT += dt * pace;
       if (CLIP[a.clip] && a.clip !== 'death' && a.clipT >= CLIP[a.clip]) { a.clip = 'idle'; a.clipT = 0; }
-      a.lunge = Math.max(0, a.lunge - dt * 6 * Math.max(1, speed / 2));
+      a.lunge = Math.max(0, a.lunge - dt * 6 * pace);
       a.flash = Math.max(0, a.flash - dt * 5);
       a.cast = Math.max(0, a.cast - dt * 2);
+      a.dodge = Math.max(0, a.dodge - dt * 2.2 * pace);
+      if (u && !u.dead) spawnStatus(u, a, dt);
     }
     for (const f of floaters) { f.life -= dt * 0.9; f.y -= dt * 38; }
     floaters = floaters.filter((f) => f.life > 0);
+    for (const p of fx) {
+      p.life -= dt / p.ttl;
+      p.vy += (p.g || 0) * dt;
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      if (p.floor != null && p.y >= p.floor) { p.y = p.floor; p.vx = 0; p.vy = 0; p.g = 0; p.kind === 'drop' && (p.kind = 'splat'); }
+    }
+    fx = fx.filter((p) => p.life > 0);
     draw(dt);
     raf = requestAnimationFrame(frame);
   }
@@ -2817,6 +2924,85 @@ function createArena(canvas) {
     }
   }
 
+  // ------------------------------------------------------------ status effects
+  // Each status gets its own particles: poison bubbles up, bleed drips onto
+  // the floor, fire licks at the feet, regen floats up as crosses. Frost and
+  // dodges are drawn on the figure itself (see drawUnit).
+  const STATUS_FX = {
+    poison: { per: (u) => Math.min(14, 3 + u.poison / 4) },
+    bleed: { per: (u) => Math.min(16, 3 + u.bleed / 2) },
+    fire: { per: (u) => Math.min(14, u.fire * 0.7) },
+    regen: { per: (u) => Math.min(3, 0.6 + u.regen / 12) },
+    frost: { per: (u) => (u.frozen > 0 ? 6 : Math.min(4, u.frost / 4)) },
+  };
+  function spawnStatus(u, a, dt) {
+    if (fx.length > 260) return;
+    const p = pos(u.side), r = radius(u.side);
+    const feet = p.y + r * 1.05;
+    for (const [k, def] of Object.entries(STATUS_FX)) {
+      const on = k === 'frost' ? u.frost >= 1 || u.frozen > 0 : u[k] >= 1;
+      if (!on) { a.spawn[k] = 0; continue; }
+      a.spawn[k] = (a.spawn[k] || 0) + dt * def.per(u) * (reduceMotion ? 0.3 : 1);
+      while (a.spawn[k] >= 1) {
+        a.spawn[k] -= 1;
+        const rx = (Math.random() - 0.5) * r * 1.1;
+        if (k === 'poison') fx.push({ kind: 'bubble', x: p.x + rx, y: p.y + Math.random() * r * 0.6, vx: (Math.random() - 0.5) * 8, vy: -18 - Math.random() * 16, size: 3 + Math.random() * 4 * p.k, ttl: 1.3, life: 1, color: TAGS.poison.color });
+        else if (k === 'bleed') fx.push({ kind: 'drop', x: p.x + rx * 0.8, y: p.y - r * 0.2 + Math.random() * r * 0.6, vx: (Math.random() - 0.5) * 10, vy: 10, g: 260, floor: feet - Math.random() * r * 0.15, size: 2.2 + Math.random() * 2.4 * p.k, ttl: 1.8, life: 1, color: TAGS.bleed.color });
+        else if (k === 'fire') fx.push({ kind: 'flame', x: p.x + rx, y: feet - Math.random() * r * 0.3, vx: (Math.random() - 0.5) * 6, vy: -30 - Math.random() * 25, size: 3 + Math.random() * 3 * p.k, ttl: 0.7, life: 1, color: TAGS.fire.color });
+        else if (k === 'regen') fx.push({ kind: 'cross', x: p.x + rx, y: p.y + r * 0.2, vx: 0, vy: -22, size: 3 + p.k * 2, ttl: 1.2, life: 1, color: TAGS.regen.color });
+        else if (k === 'frost') fx.push({ kind: 'flake', x: p.x + rx * 1.2, y: p.y - r * (0.9 + Math.random() * 0.4), vx: (Math.random() - 0.5) * 6, vy: 14 + Math.random() * 10, size: 1.4 + Math.random() * 1.6, ttl: 1.6, life: 1, color: '#d8f1ff' });
+      }
+    }
+  }
+  function shards(side) {
+    const p = pos(side), r = radius(side);
+    for (let i = 0; i < 14; i++) {
+      const ang = Math.random() * Math.PI * 2, v = 60 + Math.random() * 90;
+      fx.push({ kind: 'shard', x: p.x, y: p.y, vx: Math.cos(ang) * v, vy: Math.sin(ang) * v - 40, g: 220, floor: p.y + r * 1.05, size: 2 + Math.random() * 3, ttl: 0.9, life: 1, color: '#bfe7ff', rot: ang });
+    }
+  }
+  function drawFx(front) {
+    for (const p of fx) {
+      if ((p.kind === 'splat') === front) continue;
+      const alpha = Math.max(0, Math.min(1, p.life * 1.4));
+      ctx.globalAlpha = p.kind === 'splat' ? alpha * 0.7 : alpha;
+      ctx.fillStyle = p.color;
+      ctx.strokeStyle = p.color;
+      switch (p.kind) {
+        case 'bubble':
+          ctx.lineWidth = 1.2;
+          ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.stroke();
+          ctx.globalAlpha *= 0.35; ctx.fill();
+          break;
+        case 'drop':
+          ctx.beginPath(); ctx.ellipse(p.x, p.y, p.size * 0.7, p.size * 1.3, 0, 0, Math.PI * 2); ctx.fill();
+          break;
+        case 'splat':
+          ctx.beginPath(); ctx.ellipse(p.x, p.y, p.size * 1.8, p.size * 0.6, 0, 0, Math.PI * 2); ctx.fill();
+          break;
+        case 'flame': {
+          const s = p.size * (0.4 + p.life * 0.6);
+          ctx.fillStyle = p.life > 0.55 ? '#ffd27a' : p.color;
+          ctx.beginPath(); ctx.moveTo(p.x, p.y - s * 1.8); ctx.quadraticCurveTo(p.x + s, p.y, p.x, p.y + s * 0.6); ctx.quadraticCurveTo(p.x - s, p.y, p.x, p.y - s * 1.8); ctx.fill();
+          break;
+        }
+        case 'cross':
+          ctx.fillRect(p.x - p.size, p.y - p.size * 0.3, p.size * 2, p.size * 0.6);
+          ctx.fillRect(p.x - p.size * 0.3, p.y - p.size, p.size * 0.6, p.size * 2);
+          break;
+        case 'flake':
+          ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+          break;
+        case 'shard':
+          ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot + p.life * 4);
+          ctx.beginPath(); ctx.moveTo(0, -p.size * 1.6); ctx.lineTo(p.size * 0.6, 0); ctx.lineTo(0, p.size * 1.6); ctx.lineTo(-p.size * 0.6, 0); ctx.closePath(); ctx.fill();
+          ctx.restore();
+          break;
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
   function roundRect(x, y, ww, hh, r) {
     ctx.beginPath();
     ctx.moveTo(x + r, y);
@@ -2827,24 +3013,74 @@ function createArena(canvas) {
     ctx.closePath();
   }
 
+  // ------------------------------------------------------------ the board
+  const COLS = 8, ROWS = 6;
+  function quad(bx0, bz0, bx1, bz1) {
+    const a = project(bx0, bz0), b = project(bx1, bz0), c = project(bx1, bz1), d = project(bx0, bz1);
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(c.x, c.y); ctx.lineTo(d.x, d.y); ctx.closePath();
+  }
   function drawFloor(dt) {
+    // Back wall and the stands above the far edge.
+    const top = project(0, 0).y;
+    const sky = ctx.createLinearGradient(0, 0, 0, top);
+    sky.addColorStop(0, '#0f0d12');
+    sky.addColorStop(1, '#221c22');
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, w, top);
     ctx.fillStyle = '#15131a';
-    ctx.fillRect(0, 0, w, h);
-    const g = ctx.createRadialGradient(w / 2, h * 0.55, 10, w / 2, h * 0.55, Math.max(w, h) * 0.6);
-    g.addColorStop(0, '#3a2f26');
-    g.addColorStop(0.55, '#231d22');
-    g.addColorStop(1, '#15131a');
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.ellipse(w / 2, h * 0.55, w * 0.47, h * 0.42, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(214,162,78,0.18)';
-    ctx.lineWidth = 1;
-    for (const s of [1, 0.72]) {
-      ctx.beginPath();
-      ctx.ellipse(w / 2, h * 0.55, w * 0.47 * s, h * 0.42 * s, 0, 0, Math.PI * 2);
-      ctx.stroke();
+    ctx.fillRect(0, top, w, h - top);
+    // Crowd silhouettes along the wall.
+    ctx.fillStyle = '#1a161c';
+    for (let i = 0; i < 46; i++) {
+      const x = (i / 45) * w, hh = top * (0.18 + ((i * 37) % 11) / 60);
+      ctx.beginPath(); ctx.arc(x, top - hh, Math.max(5, w / 90), 0, Math.PI * 2); ctx.fill();
+      ctx.fillRect(x - w / 110, top - hh, w / 55, hh);
     }
+    ctx.fillStyle = '#2b2328';
+    ctx.fillRect(0, top - 6, w, 6);
+    ctx.fillStyle = 'rgba(214,162,78,0.35)';
+    ctx.fillRect(0, top - 6, w, 1);
+
+    // Board slab edge, then the tiles.
+    const near = project(-1, 1), nearR = project(1, 1);
+    ctx.fillStyle = '#100e13';
+    ctx.beginPath(); ctx.moveTo(near.x, near.y); ctx.lineTo(nearR.x, nearR.y); ctx.lineTo(nearR.x, nearR.y + 14); ctx.lineTo(near.x, near.y + 14); ctx.closePath(); ctx.fill();
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const bx0 = -1 + (2 * c) / COLS, bx1 = -1 + (2 * (c + 1)) / COLS;
+        const bz0 = r / ROWS, bz1 = (r + 1) / ROWS;
+        const mine = r >= ROWS / 2;
+        const light = (r + c) % 2 === 0;
+        ctx.fillStyle = mine ? (light ? '#3a3029' : '#30282a') : (light ? '#352b2e' : '#2b2429');
+        quad(bx0, bz0, bx1, bz1); ctx.fill();
+      }
+    }
+    // Light pooling in the middle of the board.
+    const mid = project(0, 0.5);
+    const g = ctx.createRadialGradient(mid.x, mid.y, 10, mid.x, mid.y, w * 0.55);
+    g.addColorStop(0, 'rgba(255,190,120,0.14)');
+    g.addColorStop(1, 'rgba(0,0,0,0.32)');
+    ctx.fillStyle = g;
+    quad(-1, 0, 1, 1); ctx.fill();
+    // Grid lines and the line between the halves.
+    ctx.strokeStyle = 'rgba(14,12,17,0.55)';
+    ctx.lineWidth = 1;
+    for (let c = 0; c <= COLS; c++) {
+      const a = project(-1 + (2 * c) / COLS, 0), b = project(-1 + (2 * c) / COLS, 1);
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    }
+    for (let r = 0; r <= ROWS; r++) {
+      const a = project(-1, r / ROWS), b = project(1, r / ROWS);
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    }
+    const ma = project(-1, 0.5), mb = project(1, 0.5);
+    ctx.strokeStyle = 'rgba(214,162,78,0.35)';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(ma.x, ma.y); ctx.lineTo(mb.x, mb.y); ctx.stroke();
+    ctx.strokeStyle = 'rgba(214,162,78,0.5)';
+    ctx.lineWidth = 1.5;
+    quad(-1, 0, 1, 1); ctx.stroke();
+
     if (!reduceMotion) {
       ctx.fillStyle = 'rgba(240,122,58,0.35)';
       for (const e of embers) {
@@ -2865,21 +3101,36 @@ function createArena(canvas) {
       roundRect(x, y, Math.max(hh, ww * Math.min(1, frac)), hh, hh / 2); ctx.fill();
     }
   }
+  // Dashes across an HP bar, one per `step` HP, with a heavier one every 1000,
+  // so you can read how big a health pool is at a glance.
+  function hpTicks(x, y, ww, hh, maxHp) {
+    const step = [100, 200, 250, 500, 1000].find((s) => maxHp / s <= 24) || 2000;
+    ctx.fillStyle = 'rgba(14,12,17,0.85)';
+    for (let v = step; v < maxHp; v += step) {
+      const tx = Math.round(x + (ww * v) / maxHp);
+      const big = v % 1000 === 0;
+      ctx.fillRect(tx - (big ? 1 : 0.5), y, big ? 2 : 1, big ? hh : hh * 0.6);
+    }
+  }
 
   // PixelLab characters stand on a canvas ~40% larger than the figure.
   function spriteBox(y, r) {
     return { size: r * 3.4, feet: y + r * 1.05 };
   }
 
-  function drawSprite(u, set, a, x, y, r) {
+  function spriteFrame(set, a) {
     const frames = set[a.clip] || set.idle || set.base;
     const n = frames.length;
     const i = a.clip === 'idle' ? Math.floor(clock * 8) % n
       : Math.min(n - 1, Math.floor((a.clipT / (CLIP[a.clip] || 0.4)) * n));
-    const img = frames[i]?.complete && frames[i].naturalWidth ? frames[i] : set.base[0];
+    return frames[i]?.complete && frames[i].naturalWidth ? frames[i] : set.base[0];
+  }
+
+  // tint: [color, alpha] laid over the figure; alpha: overall opacity.
+  function drawSprite(u, set, a, x, y, r, { tint = null, alpha = 1 } = {}) {
+    const img = spriteFrame(set, a);
     let src = img;
-    if (u.frozen > 0) src = tinted(img, '#6cc4f0', 0.45);
-    else if (a.flash > 0) src = tinted(img, '#ff4a5a', a.flash * 0.55);
+    if (tint) src = tinted(img, tint[0], tint[1]);
     // Clips can come on larger canvases than the base image (a wide swing
     // needs room), with the figure centred at the same pixel scale. So every
     // frame is drawn at the base image's scale around the same centre point.
@@ -2890,25 +3141,87 @@ function createArena(canvas) {
     const dw = img.naturalWidth * scale, dh = img.naturalHeight * scale;
     ctx.save();
     ctx.imageSmoothingEnabled = false;
-    if (u.dead && a.clip === 'death' && a.clipT > CLIP.death) ctx.globalAlpha = 0.55;
+    ctx.globalAlpha = alpha * (u.dead && a.clip === 'death' && a.clipT > CLIP.death ? 0.55 : 1);
     ctx.translate(x, 0);
     if (u.side === 1) ctx.scale(-1, 1);
     ctx.drawImage(src, -dw / 2, cy - dh / 2, dw, dh);
     ctx.restore();
   }
 
+  function drawMedallion(u, a, x, y, r, { tint = null, alpha = 1 } = {}) {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    const mg = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, 2, x, y, r);
+    mg.addColorStop(0, '#3b3442');
+    mg.addColorStop(1, '#1b1820');
+    ctx.fillStyle = mg;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = TAGS[u.char.resources[0]].color;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    if (u.char.resources[1]) {
+      ctx.strokeStyle = TAGS[u.char.resources[1]].color;
+      ctx.beginPath(); ctx.arc(x, y, r - 5, 0, Math.PI * 2); ctx.lineWidth = 1.5; ctx.stroke();
+    }
+    if (tint) {
+      ctx.globalAlpha = alpha * tint[1] * 0.8;
+      ctx.fillStyle = tint[0];
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = alpha;
+    }
+    if (u.dead) {
+      ctx.fillStyle = 'rgba(10,8,12,0.6)';
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.fillStyle = '#e9dcc0';
+    ctx.font = `${Math.round(r * 0.95)}px "Grenze Gotisch", Georgia, serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(u.char.name.split(' ').map((s) => s[0]).join(''), x, y + 2);
+    ctx.restore();
+  }
+
+  // A block of ice around a frozen fighter.
+  function drawIce(x, y, r, t) {
+    const top = y - r * 1.75, bottom = y + r * 1.1, half = r * 0.95;
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, t * 3);
+    ctx.fillStyle = 'rgba(150,215,250,0.28)';
+    ctx.strokeStyle = 'rgba(220,245,255,0.85)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x - half, bottom); ctx.lineTo(x - half * 1.08, y - r * 0.4); ctx.lineTo(x - half * 0.7, top + r * 0.2);
+    ctx.lineTo(x - half * 0.1, top); ctx.lineTo(x + half * 0.75, top + r * 0.15); ctx.lineTo(x + half * 1.05, y - r * 0.5);
+    ctx.lineTo(x + half, bottom); ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(x - half * 0.55, top + r * 0.45); ctx.lineTo(x - half * 0.75, y);
+    ctx.moveTo(x - half * 0.1, top + r * 0.1); ctx.lineTo(x + half * 0.2, y - r * 0.6);
+    ctx.moveTo(x + half * 0.6, top + r * 0.5); ctx.lineTo(x + half * 0.7, y + r * 0.4);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   function drawUnit(u) {
-    const r = radius();
     const p = pos(u.side);
+    const r = radius(u.side);
     const a = anim[u.side];
-    const dir = u.side === 0 ? 1 : -1;
-    const x = p.x + dir * a.lunge * r * 0.5;
-    const y = p.y;
-    const ringColor = TAGS[u.char.resources[0]].color;
+    const dir = toward(u.side);
+    // Dodging steps aside (perpendicular to the line between the fighters).
+    const side = a.dodge > 0 ? Math.sin(Math.min(1, a.dodge) * Math.PI) * r * 0.55 * a.dodgeDir : 0;
+    const x = p.x + dir.x * a.lunge * r * 0.5 - dir.y * side;
+    const y = p.y + dir.y * a.lunge * r * 0.5 + dir.x * side * 0.4;
 
     // shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.35)';
-    ctx.beginPath(); ctx.ellipse(x, y + r * 1.05, r * 0.9, r * 0.22, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.beginPath(); ctx.ellipse(x, p.y + r * 1.05, r * 0.9, r * 0.24, 0, 0, Math.PI * 2); ctx.fill();
+    // frost creeping over the floor under a chilled fighter
+    if (u.frost >= 1 || u.frozen > 0) {
+      ctx.fillStyle = `rgba(160,220,250,${u.frozen > 0 ? 0.35 : Math.min(0.25, u.frost / 60)})`;
+      ctx.beginPath(); ctx.ellipse(p.x, p.y + r * 1.05, r * 1.2, r * 0.32, 0, 0, Math.PI * 2); ctx.fill();
+    }
 
     // cast glow
     if (a.cast > 0) {
@@ -2928,61 +3241,52 @@ function createArena(canvas) {
       ctx.lineWidth = 3;
       ctx.beginPath(); ctx.arc(x, y, r + 14, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (u.focus / 1)); ctx.stroke();
     }
+
     const sprites = spriteSet(u.char.id);
-    if (sprites) {
-      drawSprite(u, sprites, a, x, y, r);
-    } else {
-    // medallion
-    const mg = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, 2, x, y, r);
-    mg.addColorStop(0, '#3b3442');
-    mg.addColorStop(1, '#1b1820');
-    ctx.fillStyle = mg;
-    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = ringColor;
-    ctx.lineWidth = 3;
-    ctx.stroke();
-    if (u.char.resources[1]) {
-      ctx.strokeStyle = TAGS[u.char.resources[1]].color;
-      ctx.beginPath(); ctx.arc(x, y, r - 5, 0, Math.PI * 2); ctx.lineWidth = 1.5; ctx.stroke();
+    const figure = (fx0, fy0, opts) => (sprites ? drawSprite(u, sprites, a, fx0, fy0, r, opts) : drawMedallion(u, a, fx0, fy0, r, opts));
+    // Evasion: afterimages left where the fighter was standing.
+    if (a.dodge > 0 && !u.dead) {
+      for (const k of [1, -1]) {
+        figure(p.x - dir.y * side * 0.5 * k, p.y, { tint: [TAGS.evasion.color, 0.75], alpha: a.dodge * 0.45 });
+      }
     }
-    if (a.flash > 0) {
-      ctx.fillStyle = `rgba(217,80,94,${a.flash * 0.35})`;
-      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
-    }
-    if (u.frozen > 0) {
-      ctx.fillStyle = 'rgba(108,196,240,0.38)';
-      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
-    }
-    if (u.dead) {
-      ctx.fillStyle = 'rgba(10,8,12,0.6)';
-      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
-    }
-    ctx.fillStyle = '#e9dcc0';
-    ctx.font = `${Math.round(r * 0.95)}px "Grenze Gotisch", Georgia, serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(u.char.name.split(' ').map((s) => s[0]).join(''), x, y + 2);
-    }
+    let tint = null;
+    if (u.frozen > 0) tint = ['#6cc4f0', 0.5];
+    else if (a.flash > 0) tint = ['#ff4a5a', a.flash * 0.55];
+    else if (u.poison >= 1) tint = [TAGS.poison.color, Math.min(0.35, 0.1 + u.poison / 120) * (0.75 + 0.25 * Math.sin(clock * 4))];
+    else if (u.frost >= 1) tint = ['#9fdcff', Math.min(0.3, u.frost / 50)];
+    figure(x, y, { tint });
+    if (u.frozen > 0 && !u.dead) drawIce(x, y, r, u.frozen);
 
     // bars
     // With a sprite, the bars sit above the figure's head instead of the medallion.
-    const box = spriteBox(y, r);
-    const bw = Math.max(110, r * 2.6), bx = p.x - bw / 2, by = sprites ? box.feet - box.size * 0.86 - 18 : y - r - 34;
-    bar(bx, by, bw, 9, u.hp / u.maxHp, u.side === 0 ? '#7fca6e' : '#d9505e');
+    const box = spriteBox(p.y, r);
+    const bw = Math.max(110, baseRadius() * 2.6) * Math.max(0.85, p.k), bx = p.x - bw / 2, by = sprites ? box.feet - box.size * 0.86 - 18 : p.y - r - 34;
+    const bh = 10;
+    bar(bx, by, bw, bh, u.hp / u.maxHp, u.side === 0 ? '#7fca6e' : '#d9505e');
     if (u.shield > 0) {
       ctx.fillStyle = 'rgba(233,238,245,0.9)';
       const sx = bx + bw * Math.min(1, u.hp / u.maxHp);
-      roundRect(Math.min(sx, bx + bw - 3), by, Math.max(3, Math.min(bw * (u.shield / u.maxHp), bx + bw - sx)), 9, 3);
+      roundRect(Math.min(sx, bx + bw - 3), by, Math.max(3, Math.min(bw * (u.shield / u.maxHp), bx + bw - sx)), bh, 3);
       ctx.fill();
     }
-    bar(bx, by + 12, bw, 4, u.mana / (u.manaMax * u.m.castCost), '#5b8cff');
+    hpTicks(bx, by, bw, bh, u.maxHp);
+    if (u.poison >= 1 || u.bleed >= 1) {
+      // A thin line under the HP bar in the color of the damage over time.
+      ctx.fillStyle = u.bleed > u.poison ? TAGS.bleed.color : TAGS.poison.color;
+      ctx.globalAlpha = 0.6 + 0.4 * Math.sin(clock * 6);
+      ctx.fillRect(bx + 2, by + bh, bw - 4, 1.5);
+      ctx.globalAlpha = 1;
+    }
+    bar(bx, by + bh + 3, bw, 4, u.mana / (u.manaMax * u.m.castCost), '#5b8cff');
     ctx.font = '600 12px "Barlow Semi Condensed", system-ui, sans-serif';
     ctx.fillStyle = '#e9dcc0';
     ctx.textAlign = 'left';
-    ctx.fillText(`${Math.ceil(u.hp)}`, bx, by - 8);
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(`${Math.ceil(u.hp)}`, bx, by - 5);
     ctx.textAlign = 'right';
     ctx.fillStyle = '#a99c87';
-    ctx.fillText(u.char.name, bx + bw, by - 8);
+    ctx.fillText(u.char.name, bx + bw, by - 5);
 
     // stacks
     const chips = [];
@@ -2990,15 +3294,18 @@ function createArena(canvas) {
     if (u.focusGain > 0 || u.focus > 0) chips.push({ k: 'evasion', v: Math.round(u.focus * 100) + '%', mine: true });
     for (const k of ON_ME) if (u[k] >= 1) chips.push({ k, v: u[k], mine: false });
     const cw = 46, ch = 20, gap = 4;
-    const perRow = Math.max(2, Math.floor((w * 0.42) / (cw + gap)));
+    const perRow = Math.max(2, Math.floor((w * 0.4) / (cw + gap)));
+    ctx.textBaseline = 'middle';
     chips.forEach((c, i) => {
       const row = Math.floor(i / perRow), col = i % perRow;
       const n = Math.min(perRow, chips.length - row * perRow);
       const cx = p.x - (n * (cw + gap) - gap) / 2 + col * (cw + gap);
-      const cy = y + r + 24 + row * (ch + gap);
+      const cy = p.y + r * 1.05 + 14 + row * (ch + gap);
       const color = TAGS[c.k].color;
-      ctx.fillStyle = color + '22';
+      ctx.fillStyle = '#15131acc';
       roundRect(cx, cy, cw, ch, 4); ctx.fill();
+      ctx.fillStyle = color + '22';
+      ctx.fill();
       ctx.strokeStyle = color;
       ctx.lineWidth = 1;
       ctx.setLineDash(c.mine ? [] : [3, 2]);
@@ -3014,32 +3321,69 @@ function createArena(canvas) {
     });
   }
 
+  // The fight clock: elapsed time, with a bar that fills toward overtime
+  // (30s) and then the arena burn (60s).
+  function drawClock(t) {
+    const o = overtime(t);
+    const top = w < 640 ? 36 : 0; // below the speed buttons on narrow screens
+    const bw = Math.min(360, w * 0.5), bx = w / 2 - bw / 2, by = top + 32, bh = 6;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = '600 14px "Barlow Semi Condensed", system-ui, sans-serif';
+    ctx.fillStyle = t > SUDDEN_DEATH_AT ? '#d9505e' : '#e9dcc0';
+    const label = t > BURN_AT
+      ? `${t.toFixed(1)}s · ARENA BURN ${(o.burn * 100).toFixed(1)}% max HP/s · +${Math.round((o.damage - 1) * 100)}% damage`
+      : t > SUDDEN_DEATH_AT
+        ? `${t.toFixed(1)}s · OVERTIME +${Math.round((o.damage - 1) * 100)}% damage · ${Math.round(o.healing * 100)}% healing and shields`
+        : `${t.toFixed(1)}s`;
+    ctx.fillText(label, w / 2, top + 18);
+    // Track: the overtime stretch is tinted so you can see it coming.
+    const ot = bx + bw * (SUDDEN_DEATH_AT / BURN_AT);
+    ctx.fillStyle = '#0e0c11';
+    roundRect(bx, by, bw, bh, 3); ctx.fill();
+    ctx.fillStyle = 'rgba(217,80,94,0.22)';
+    ctx.fillRect(ot, by, bx + bw - ot, bh);
+    const frac = Math.min(1, t / BURN_AT);
+    const fillW = bw * frac;
+    if (fillW > 0) {
+      ctx.fillStyle = '#a99c87';
+      ctx.fillRect(bx, by, Math.min(fillW, ot - bx), bh);
+      if (fillW > ot - bx) { ctx.fillStyle = '#d9505e'; ctx.fillRect(ot, by, fillW - (ot - bx), bh); }
+    }
+    if (t > BURN_AT) {
+      ctx.globalAlpha = 0.5 + 0.5 * Math.sin(clock * 8);
+      ctx.fillStyle = '#f0a43a';
+      roundRect(bx, by, bw, bh, 3); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    ctx.fillStyle = '#e9dcc0';
+    ctx.fillRect(ot - 1, by - 3, 2, bh + 6);
+    ctx.font = '700 10px "Barlow Semi Condensed", system-ui, sans-serif';
+    ctx.fillStyle = t > SUDDEN_DEATH_AT ? '#d9505e' : '#a99c87';
+    ctx.fillText(`OVERTIME ${SUDDEN_DEATH_AT}s`, ot, by + bh + 10);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = t > BURN_AT ? '#f0a43a' : '#a99c87';
+    ctx.fillText(`BURN ${BURN_AT}s`, bx + bw, by + bh + 10);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#a99c87';
+    ctx.fillText('0s', bx, by + bh + 10);
+  }
+
   function draw(dt) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     drawFloor(dt);
     if (!units) return;
-    for (const u of units) drawUnit(u);
+    drawFx(true);
+    // Back to front: the far fighter first.
+    for (const u of units.slice().sort((a, b) => SPOT[a.side].bz - SPOT[b.side].bz)) drawUnit(u);
+    drawFx(false);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    if (fight) {
-      const t = fight.t;
-      ctx.font = '600 14px "Barlow Semi Condensed", system-ui, sans-serif';
-      ctx.fillStyle = t > SUDDEN_DEATH_AT ? '#d9505e' : '#a99c87';
-      const o = overtime(t);
-      const label = t > BURN_AT
-        ? `ARENA BURN  ${(o.burn * 100).toFixed(1)}% max HP/s · +${Math.round((o.damage - 1) * 100)}% damage · no healing or shields`
-        : t > SUDDEN_DEATH_AT
-          ? `OVERTIME  +${Math.round((o.damage - 1) * 100)}% damage · ${Math.round(o.healing * 100)}% healing and shields`
-          : `${t.toFixed(1)}s`;
-      ctx.fillText(label, w / 2, 22);
-    } else {
-      ctx.font = '600 13px "Barlow Semi Condensed", system-ui, sans-serif';
-      ctx.fillStyle = '#a99c87';
-      ctx.fillText('Fight preview: starting stats', w / 2, 22);
-    }
-    ctx.font = `${Math.round(radius() * 0.6)}px "Grenze Gotisch", Georgia, serif`;
+    if (fight) drawClock(fight.t);
+    const mid = project(0, 0.46);
+    ctx.font = `${Math.round(baseRadius() * 0.6)}px "Grenze Gotisch", Georgia, serif`;
     ctx.fillStyle = 'rgba(214,162,78,0.55)';
-    ctx.fillText('vs', w / 2, h * 0.5);
+    ctx.fillText('vs', mid.x, mid.y);
     for (const f of floaters) {
       ctx.globalAlpha = Math.max(0, Math.min(1, f.life));
       ctx.font = `700 ${f.size}px "Barlow Semi Condensed", system-ui, sans-serif`;
@@ -3122,8 +3466,9 @@ function foe() {
 }
 function foeLoadout() {
   const f = foe();
-  return f ? loadout(f.p) : loadout(M().players.find((p) => p.id !== ME()));
+  return loadout(f ? f.p : M().players.find((p) => p.id !== ME()), M().round);
 }
+const myLoadout = () => loadout(M().players[ME()], M().round);
 
 // ---------------------------------------------------------------- card text
 
@@ -3600,6 +3945,7 @@ function renderGame() {
         <section class="arena-wrap" aria-label="Arena">
           <canvas id="arena" aria-label="Fight view"></canvas>
           <div class="speed" id="speed"></div>
+          <div id="preview"></div>
           <div id="banner"></div>
         </section>
         <aside class="side foe" id="foe" aria-label="Opponent"></aside>
@@ -3610,7 +3956,7 @@ function renderGame() {
     arena = createArena(root.querySelector('#arena'));
     arena.setSpeed(ui.speed);
   }
-  if (!ui.fighting) arena.setPreview(loadout(M().players[ME()]), foeLoadout());
+  if (!ui.fighting) arena.setPreview(myLoadout(), foeLoadout());
   updateGame();
 }
 
@@ -3622,6 +3968,7 @@ function updateGame() {
   renderSide('foe', (foe() || { p: m.players.find((p) => p.id !== ME()) }).p, false);
   renderTray();
   renderSpeed();
+  renderPreview();
   renderBanner();
   renderModal();
   renderTabs();
@@ -3633,17 +3980,63 @@ function renderHud() {
   const life = (p, cls, ghost) => `
     <div class="life ${cls}">
       <div class="top"><span>${ghost ? 'Ghost of ' : ''}${esc(nameOf(p))} · ${esc(CHAR_BY_ID[p.charId].name)}</span><span class="num">${hpOf(p)} / ${START_HP}</span></div>
-      <div class="bar"><i style="width:${(hpOf(p) / START_HP) * 100}%"></i></div>
+      <div class="bar hp-dashes"><i style="width:${(hpOf(p) / START_HP) * 100}%"></i></div>
     </div>`;
   root.querySelector('#hud').innerHTML = `
     <div class="logo">Stack <span>Arena</span></div>
-    <div class="round"><span class="eyebrow">Round</span><b class="num">${m.round}</b></div>
-    <div class="clock">${m.phase === 'shop' || m.phase === 'signature' ? timerHtml() : ''}</div>
     <div class="eyebrow">Bans: ${m.bans.map((b) => chip(b, true)).join(' ')}</div>
+    ${roundsStrip()}
     <div class="vs">${life(me, 'me')}${f ? life(f.p, 'foe', f.ghost) : ''}</div>
     <div class="tools"><button class="btn" id="codex">Tags</button><button class="btn" id="quit">${S.mode === 'solo' ? 'Quit' : 'Leave'}</button></div>`;
   root.querySelector('#codex').onclick = () => { ui.modal = 'codex'; renderModal(); };
   root.querySelector('#quit').onclick = () => { ui.modal = 'quit'; renderModal(); };
+}
+
+// The road through the match, TFT style: one node per fight (won, lost, or
+// still to come) plus milestone nodes such as the signature pick. Item
+// choices can be added later as another milestone kind in stages().
+function stages(upTo) {
+  const out = [];
+  for (let r = 1; r <= upTo; r++) {
+    if (r === SIGNATURE_ROUND) out.push({ kind: 'signature', round: r });
+    out.push({ kind: 'fight', round: r });
+  }
+  return out;
+}
+const glyphOf = (charId) => CHAR_BY_ID[charId].name.replace(/^The /, '').slice(0, 2);
+
+function roundsStrip() {
+  const m = M(), me = ME(), p = m.players[me];
+  const mine = {};
+  for (const r of m.history) if (r.a === me || (!r.ghost && r.b === me)) mine[r.round] = r;
+  const now = m.round;
+  // Your fight this round is a mystery in a free-for-all until it starts.
+  const reveal = isDuel() || m.phase === 'fight';
+  const nodes = stages(now + 3).filter((s) => s.round >= now - 6).map((s) => {
+    if (s.kind === 'signature') {
+      const sig = p.sig && CHAR_BY_ID[p.charId].signatures.find((x) => x.id === p.sig);
+      const state = sig ? 'done' : s.round === now ? 'now' : 'later';
+      return `<li class="node milestone ${state}" data-tip="${esc(`<b>Round ${s.round} milestone</b><br>${sig ? `Signature: ${esc(sig.name)}` : 'Choose a signature upgrade'}`)}"><small>Sig</small><b>&#9733;</b></li>`;
+    }
+    const res = mine[s.round];
+    const finished = s.round < now || (s.round === now && m.phase === 'fight' && !ui.fighting);
+    if (finished && res) {
+      const oppId = res.a === me ? res.b : res.a;
+      const opp = m.players[oppId];
+      const out = res.winner === null ? 'draw' : res.winner === me ? 'win' : 'loss';
+      const word = { win: 'Won', loss: 'Lost', draw: 'Drew' }[out];
+      const dmg = out === 'win' ? (res.ghost ? 'ghosts lose no HP' : `they lost ${res.damage} HP`) : out === 'loss' ? `you lost ${res.damage} HP` : `-${res.damage} HP`;
+      return `<li class="node ${out}" data-tip="${esc(`<b>Round ${s.round}: ${word}</b><br>vs ${res.ghost ? 'a ghost of ' : ''}${esc(nameOf(opp))} (${esc(CHAR_BY_ID[opp.charId].name)}), ${dmg}`)}"><small>${s.round}</small><b>${esc(glyphOf(opp.charId))}</b></li>`;
+    }
+    if (s.round < now || (finished && !res)) return `<li class="node bye" data-tip="${esc(`<b>Round ${s.round}</b><br>No fight`)}"><small>${s.round}</small><b>&ndash;</b></li>`;
+    if (s.round === now) {
+      const f = foe();
+      const known = f && reveal;
+      return `<li class="node now ${m.phase === 'fight' ? 'live' : ''}" data-tip="${esc(`<b>Round ${s.round}: next fight</b><br>${known ? `vs ${f.ghost ? 'a ghost of ' : ''}${esc(nameOf(f.p))} (${esc(CHAR_BY_ID[f.p.charId].name)})` : 'Your opponent is revealed when the fight starts'}`)}"><small>${s.round}</small><b>${known ? esc(glyphOf(f.p.charId)) : '?'}</b></li>`;
+    }
+    return `<li class="node later"><small>${s.round}</small><b></b></li>`;
+  });
+  return `<div class="rounds" aria-label="Rounds"><span class="eyebrow">Round <b class="num">${now}</b></span><ol class="strip">${nodes.join('')}</ol></div>`;
 }
 
 function tierProgress(counts) {
@@ -3692,7 +4085,7 @@ function standingsPanel() {
       <div class="st ${p.id === ME() ? 'me' : ''} ${p.hp <= 0 && !ui.fighting ? 'out' : ''} ${f && f.p.id === p.id ? 'opp' : ''}">
         <span class="st-n">${p.placement ? ordinal(p.placement) : m.phase === 'shop' && !p.isBot && m.ready?.[p.id] ? '&#10003;' : ''}</span>
         <span class="st-name">${esc(nameOf(p))}${!p.isBot && p.id !== ME() ? ' <em>player</em>' : ''}<small>${esc(CHAR_BY_ID[p.charId].name)}</small></span>
-        <span class="st-bar"><i style="width:${(hpOf(p) / START_HP) * 100}%"></i></span>
+        <span class="st-bar hp-dashes"><i style="width:${(hpOf(p) / START_HP) * 100}%"></i></span>
         <span class="st-hp num">${hpOf(p)}</span>
       </div>`).join('')}
   </div>`;
@@ -3714,13 +4107,13 @@ function renderTray() {
   }
   el.innerHTML = `
     <div class="purse">
-      <div class="gold"><b class="num">${p.gold}</b><span>gold<br>+${income(m.round + 1) + interest(p.gold)} next round</span></div>
+      ${purseHtml(p, m)}
       <div class="row">
         <button class="btn" id="reroll" ${locked || p.gold < REROLL_COST ? 'disabled' : ''} title="New cards (R)">Reroll ${REROLL_COST}</button>
         <button class="btn ${p.locked ? 'on' : ''}" id="lock" ${locked ? 'disabled' : ''} title="Keep these cards for next round">${p.locked ? 'Locked' : 'Lock'}</button>
       </div>
     </div>
-    <div class="cards" role="list">
+    <div class="cards" role="list" style="--n:${SHOP_SIZE}">
       ${p.shop.map((cid, i) => {
         if (cid) shopGhost[i] = cid;
         if (!cid) return shopGhost[i] ? `<div class="card sold t-${CARD_BY_ID[shopGhost[i]].tier}" aria-hidden="true">${cardBody(CARD_BY_ID[shopGhost[i]], 0)}</div>` : '<div class="card sold t-1" aria-hidden="true"></div>';
@@ -3743,12 +4136,29 @@ function renderTray() {
   el.querySelector('#fight').onclick = toggleReady;
 }
 
+// Gold and what saving it earns: income plus 1 interest per 10 kept (max 2).
+function purseHtml(p, m) {
+  const inc = income(m.round + 1), bonus = interest(p.gold);
+  const cap = 20;
+  const hint = p.gold < 10 ? `Keep ${10 - p.gold} more for +1 interest`
+    : p.gold < cap ? `Keep ${cap - p.gold} more for +2 interest`
+      : `Max interest. Gold over ${cap} earns nothing more`;
+  const tip = `<b>Next round you get ${inc + bonus} gold</b><div class="tip-rows" style="grid-template-columns:1fr"><span>Income (4 + round, max 10)<b class="num">+${inc}</b></span><span>Interest (1 per 10 kept, max 2)<b class="num">+${bonus}</b></span></div>Interest counts the gold you have left when the fight starts.`;
+  return `<div class="gold"><b class="num">${p.gold}</b><span>gold</span></div>
+    <div class="eco" data-tip="${esc(tip)}" tabindex="0">
+      <div class="eco-line">Next round <b class="num">+${inc + bonus}</b></div>
+      <div class="eco-sub num">${inc} income + ${bonus} interest</div>
+      <div class="eco-bar" aria-hidden="true"><i style="width:${Math.min(1, p.gold / cap) * 100}%"></i><em style="left:50%"></em></div>
+      <div class="eco-hint ${p.gold >= cap ? 'max' : ''}">${hint}</div>
+    </div>`;
+}
+
 function cardBody(card, have) {
   return `<span class="cost num">${cardCost(card)}</span>
     <div class="top">${cardTags(card)}</div>
     <div class="nm">${esc(card.name)}</div>
     <div class="ds">${richDesc(card, Math.min(card.max, have + 1))}</div>
-    <div class="ft"><span>${TIER_NAMES[card.tier]}</span><span class="num">${have ? `Owned ${have}/${card.max}` : `Max ${card.max}`}</span></div>`;
+    <div class="ft"><span class="tier">${TIER_NAMES[card.tier]}</span><span class="num">${have ? `Owned ${have}/${card.max}` : `Max ${card.max}`}</span></div>`;
 }
 
 function doBuy(slot) {
@@ -3765,6 +4175,21 @@ function toggleReady() {
   const m = M();
   if (m.phase !== 'shop' || ui.fighting) return;
   S.act('ready', !m.ready?.[ME()]);
+}
+
+// Over the arena between fights: when the next fight starts, big.
+function renderPreview() {
+  const el = root.querySelector('#preview');
+  const m = M();
+  const me = m.players[ME()];
+  if (m.phase !== 'shop' || ui.fighting || ui.banner || me.hp <= 0) { el.innerHTML = ''; return; }
+  const timed = S.remaining?.() != null;
+  const scale = hpScale(m.round);
+  el.innerHTML = `<div class="preview">
+    <span class="eyebrow">Fight preview · starting stats</span>
+    ${timed ? `<div class="countdown"><span>Next fight in</span>${timerHtml()}</div>` : '<div class="countdown"><span>Press Fight when you are ready</span></div>'}
+    ${scale > 1 ? `<span class="hp-note">Round ${m.round}: everyone has ${scale.toFixed(2)}x max HP</span>` : ''}
+  </div>`;
 }
 
 function renderSpeed() {
@@ -3791,7 +4216,7 @@ function startFightAnimation() {
     ui.fighting = false;
     ui.fightStats = { live: false, round, stats: JSON.parse(JSON.stringify(result.stats)) };
     if (M()?.phase === 'fight' && M().fightRound === round) ui.banner = resultsBanner(result);
-    if (screenFor() === 'game' && arena) { arena.setPreview(loadout(M().players[ME()]), foeLoadout()); updateGame(); }
+    if (screenFor() === 'game' && arena) { arena.setPreview(myLoadout(), foeLoadout()); updateGame(); }
   });
   updateGame();
 }
