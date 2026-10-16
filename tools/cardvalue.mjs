@@ -21,7 +21,7 @@ for (let i = 0; snaps.length < 1500; i++) {
   while (m.phase !== 'over' && m.round < 30) {
     if (m.phase === 'signature') { botSignature(m, 0); botSignature(m, 1); }
     botShop(m, 0); botShop(m, 1);
-    if ([3, 5, 7, 9, 11].includes(m.round)) for (const p of m.players) snaps.push({ lo: loadout(p), bans: m.bans, round: m.round });
+    if ([3, 5, 7, 9, 11].includes(m.round)) for (const p of m.players) snaps.push({ lo: loadout(p, m.round), bans: m.bans, round: m.round });
     for (const [a, b, g] of m.pairs) resolveFight(m, a, b, makeFight(m, a, b).runToEnd(), g);
     finishRound(m);
   }

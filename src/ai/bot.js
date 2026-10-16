@@ -50,7 +50,7 @@ export function botSignature(m, id) {
     const enemy = rivalOf(m, id);
     let best = sigs[0], bestScore = -Infinity;
     for (const s of sigs) {
-      const score = evaluate({ ...loadout(p), sig: s.id }, loadout(enemy), m, 6);
+      const score = evaluate({ ...loadout(p, m.round), sig: s.id }, loadout(enemy, m.round), m, 6);
       if (score > bestScore) { bestScore = score; best = s; }
     }
     return chooseSignature(m, id, best.id);
@@ -153,9 +153,9 @@ export function botShop(m, id) {
   const enemy = rivalOf(m, id);
   const pl = plan(m, p);
   const rng = rngFor(m);
-  const enemyLo = loadout(enemy);
+  const enemyLo = loadout(enemy, m.round);
   const simulate = lv.sims > 0 && Object.keys(enemy.cards).length > 0;
-  let base = simulate ? evaluate(loadout(p), enemyLo, m, lv.sims) : 0;
+  let base = simulate ? evaluate(loadout(p, m.round), enemyLo, m, lv.sims) : 0;
   let rerolls = 0;
 
   for (let guard = 0; guard < 40; guard++) {
@@ -174,7 +174,7 @@ export function botShop(m, id) {
       for (const o of options.slice(0, lv.simTop)) {
         if (o.s < 1) continue;
         const cards = { ...p.cards, [o.card.id]: (p.cards[o.card.id] || 0) + 1 };
-        o.gain = evaluate({ ...loadout(p), cards }, enemyLo, m, lv.sims) - base;
+        o.gain = evaluate({ ...loadout(p, m.round), cards }, enemyLo, m, lv.sims) - base;
         o.s += o.gain * lv.simWeight;
       }
       options.sort((a, b) => b.s - a.s);

@@ -119,8 +119,9 @@ export function toggleLock(m, playerId) {
   m.players[playerId].locked = !m.players[playerId].locked;
 }
 
-export function loadout(p) {
-  return { charId: p.charId, cards: { ...p.cards }, sig: p.sig };
+// round sets the fighters' HP scaling (see hpScale in combat.js).
+export function loadout(p, round = 1) {
+  return { charId: p.charId, cards: { ...p.cards }, sig: p.sig, round };
 }
 
 // Random pairings each round, avoiding last round's opponent where possible.
@@ -149,7 +150,7 @@ export function pairings(m) {
 }
 
 export function makeFight(m, a, b) {
-  return new Fight(loadout(m.players[a]), loadout(m.players[b]), (m.seed + m.round * 31337 + a * 101 + b * 7) >>> 0);
+  return new Fight(loadout(m.players[a], m.round), loadout(m.players[b], m.round), (m.seed + m.round * 31337 + a * 101 + b * 7) >>> 0);
 }
 
 export function damageFor(round, survivorHpPct) {

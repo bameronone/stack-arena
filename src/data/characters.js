@@ -86,7 +86,7 @@ export const CHARACTERS = [
     innate: { desc: 'Start each fight with 1 Regen.', onStart: (f, u) => f.gain(u, 'regen', 1) },
     ability: { name: 'Overgrowth', desc: () => 'Heal 3% of max HP plus 0.5% per Regen.',
       cast: (f, u, p) => {
-        const h = u.maxHp * (0.03 + 0.005 * u.regen) * Math.min(p, 1.5);
+        const h = u.baseHp * (0.03 + 0.005 * u.regen) * Math.min(p, 1.5);
         const healed = f.heal(u, h, 'Overgrowth');
         if (u.sig === 'grove_thorn') hit(f, u, healed * 0.6);
       } },
