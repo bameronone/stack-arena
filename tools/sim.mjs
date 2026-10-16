@@ -24,7 +24,7 @@ export function playMatch(seed) {
       const r = f.runToEnd();
       fights++; fightTime += r.time;
       if (r.winner === -1) draws++;
-      if (r.time >= 89.9) timeouts++;
+      if (r.time >= 60) timeouts++;
       if (r.time > 30) sudden++;
       for (const u of f.units) for (const [k, v] of Object.entries(u.stats.byKind)) kinds[k] = (kinds[k] || 0) + v;
       resolveFight(m, a, b, r, ghost);
@@ -57,7 +57,7 @@ if (process.argv.includes('--json')) {
   process.exit(0);
 }
 const fmt = (s) => `${((s.wins / Math.max(1, s.games)) * 100).toFixed(1).padStart(5)}%  (${s.games})`;
-console.log(`matches ${N}  avg rounds ${(rounds / N).toFixed(1)}  avg fight ${(fightTime / fights).toFixed(1)}s  draws ${(draws / fights * 100).toFixed(1)}%  past-30s ${(sudden / fights * 100).toFixed(1)}%  timeouts ${(timeouts / fights * 100).toFixed(1)}%`);
+console.log(`matches ${N}  avg rounds ${(rounds / N).toFixed(1)}  avg fight ${(fightTime / fights).toFixed(1)}s  draws ${(draws / fights * 100).toFixed(1)}%  past-30s ${(sudden / fights * 100).toFixed(1)}%  past-60s ${(timeouts / fights * 100).toFixed(1)}%`);
 console.log(`avg cards at end ${(cardsEnd / N / 2).toFixed(1)}`);
 console.log('\ncharacters');
 for (const [id, s] of Object.entries(charStats).sort((a, b) => b[1].wins / b[1].games - a[1].wins / a[1].games)) console.log(`  ${id.padEnd(12)} ${fmt(s)}`);

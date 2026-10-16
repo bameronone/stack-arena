@@ -5,13 +5,14 @@
 0. **Lobby:** 2 to 8 players (you plus 1 to 7 bots). Two players is a duel; more is a free-for-all. The last gladiator standing wins; everyone else gets a placement in the order they're knocked out.
 1. **Ban:** each player secretly votes to ban one resource. The two most-voted resources are banned, with ties broken at random (in a duel that's simply both picks). Banned resources leave the card pool, along with every hybrid and counter card that uses them.
 2. **Pick:** gladiators whose resources are *all* banned are hidden. Two-resource gladiators with one banned stay pickable, with a warning.
-3. **Rounds:**
+3. **Timers** (online always, solo optional): ban 20s, pick 30s, signature 20s, shop 20/30/45s. Running out picks at random or starts the fight. In multiplayer the fight starts early once every living player has pressed Ready.
+4. **Rounds:**
    - Gold arrives: `min(10, 4 + round)` plus interest of 1 per 10 banked (max 2).
    - The shop shows 5 cards. Reroll costs 1 gold and you can lock the shop. There is no selling: every purchase is permanent.
    - Then the auto fights. Pairings are random each round, avoiding last round's opponent where possible. With an odd number alive, one player fights a **ghost**: a copy of another living player's build. Losing to a ghost costs HP; beating one doesn't hurt the player it copies.
    - In the browser, your fight is animated and the others resolve instantly. Once you're knocked out, the bots finish the match instantly and you see the final standings.
    - The loser takes `1 + ceil(0.8 × round) + 4 × winner's HP%` damage. Each player starts with 60 HP.
-4. **Round 7:** each player picks one of two signature upgrades for their gladiator.
+5. **Round 7:** each player picks one of two signature upgrades for their gladiator.
 
 ## Triggers and resources
 
@@ -48,8 +49,10 @@
 
 - The simulation runs at 20 ticks per second and is seeded, so replays are deterministic.
 - Frost freezes at 16 stacks. Armor blocks 1.25 damage per stack from each attack.
-- After 30s, all damage ramps up by 8% per second.
-- Hard cap at 90s; if it's reached, higher HP% wins.
+- **Overtime** (like TFT), so every fight ends in a death:
+  - from 30s: all damage +8% per second, and healing and shield gains -3% per second (gone entirely at about 63s);
+  - from 60s: the arena burns both fighters for unblockable damage that grows every second (0.5% of max HP per second, per second past 60).
+  - Even a mirror of two maximum-defense builds ends around 50s. In bot play about 4% of fights pass 30s and under 1% pass 60s.
 
 ## The rival AI
 
@@ -83,4 +86,5 @@ After changing cards, re-run `tools/cardvalue.mjs` (so the AI's card values stay
 - Shared card pool with limited copies, so players compete for a resource in free-for-all.
 - 8-player matches run about 17 rounds (`tools/ffa.mjs`). If that feels long, scale damage with the number of players alive.
 - Item and artifact slots (Auto Gladiators' equipment layer).
-- Multiplayer: the match state is plain JSON and the fight is deterministic from the seed, so a server only needs to relay shop actions.
+- Online play has been tested between browser pages on one machine (`tools/mptest.cjs`), not yet between two real networks.
+- Rejoining after a disconnect (today a bot takes over permanently).

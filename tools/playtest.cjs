@@ -25,7 +25,6 @@ const PLAYERS = Number(process.argv[5] || 2);
   await page.click('#start');
   await page.click('[data-res="regen"]');
   await page.screenshot({ path: `${out}/${tag}-2-bans.png` });
-  await page.click('#next');
   await page.screenshot({ path: `${out}/${tag}-3-pick.png` });
   await page.click('.char >> nth=0');
   await page.waitForTimeout(300);

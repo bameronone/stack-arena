@@ -9,6 +9,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const order = [
   'src/rng.js', 'src/data/tags.js', 'src/data/cards.js', 'src/data/characters.js',
   'src/engine/combat.js', 'src/engine/shop.js', 'src/engine/match.js', 'src/ai/cardValues.js', 'src/ai/bot.js',
+  'src/game/host.js', 'src/net/transport.js', 'src/game/session.js',
   'src/ui/arena.js', 'src/ui/app.js',
 ];
 // Every relative import must be bundled, and before the file that imports it.
@@ -19,9 +20,17 @@ order.forEach((f, i) => {
     if (at < 0 || at > i) throw new Error(`${f} imports ${dep}, which is ${at < 0 ? 'missing from' : 'after it in'} the bundle order`);
   }
 });
+// All modules share one scope in the bundle, so top-level names must be unique.
+const seen = new Map();
+for (const f of order) {
+  for (const [, name] of readFileSync(join(root, f), 'utf8').matchAll(/^(?:export )?(?:async )?(?:function\*?|const|let|class) ([A-Za-z_$][\w$]*)/gm)) {
+    if (seen.has(name)) throw new Error(`top-level name "${name}" is defined in both ${seen.get(name)} and ${f}`);
+    seen.set(name, f);
+  }
+}
 const strip = (src) => src
   .replace(/^import[\s\S]*?from\s+['"][^'"]+['"];[ \t]*\n/gm, '')
-  .replace(/^export (const|function|class|let) /gm, '$1 ');
+  .replace(/^export (async function|const|function|class|let) /gm, '$1 ');
 const js = '(() => {\n"use strict";\n' + order.map((f) => `// ---- ${f}\n${strip(readFileSync(join(root, f), 'utf8'))}`).join('\n') + '\n})();';
 if (/^\s*(import|export)\s/m.test(js)) throw new Error('unstripped import/export left in bundle');
 const css = readFileSync(join(root, 'src/ui/style.css'), 'utf8');

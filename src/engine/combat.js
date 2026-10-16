@@ -3,8 +3,18 @@ import { CARD_BY_ID } from '../data/cards.js';
 import { CHAR_BY_ID } from '../data/characters.js';
 
 export const DT = 0.05;
-export const SUDDEN_DEATH_AT = 30; // seconds; damage ramps after this
-export const TIME_LIMIT = 90;
+// Overtime, so every fight ends with a death (TFT-style):
+//   from 30s  all damage +8% per second, healing and shield gains -3% per
+//             second (gone entirely at about 63s)
+//   from 60s  the arena burns both fighters for unblockable damage that grows
+//             every second
+export const SUDDEN_DEATH_AT = 30;
+export const BURN_AT = 60;
+export const TIME_LIMIT = 180; // safety net only; the burn ends fights long before
+export function overtime(t) {
+  const over = Math.max(0, t - SUDDEN_DEATH_AT);
+  return { damage: 1 + over * 0.08, healing: Math.max(0, 1 - over * 0.03), burn: Math.max(0, t - BURN_AT) * 0.005 };
+}
 const DEFAULT_SOURCE = { attack: 'Attacks', poison: 'Poison', bleed: 'Bleed', thorns: 'Thorns', true: 'Other' };
 
 const HOOKS = ['onStart', 'onAttack', 'onHit', 'onCrit', 'onEvade', 'onPain', 'onCast', 'onFreeze', 'onHitTaken', 'onShieldBreak', 'bonusDamage'];
@@ -117,7 +127,7 @@ export class Fight {
     if (u.dead || !(k > 0)) return;
     switch (res) {
       case 'fire': u.fire = Math.min(u.fireCap, u.fire + k); u.fireIdle = 0; break;
-      case 'shield': u.shield = Math.min(u.maxHp * u.m.shieldCap, u.shield + k * u.m.shieldGain); break;
+      case 'shield': u.shield = Math.min(u.maxHp * u.m.shieldCap, u.shield + k * u.m.shieldGain * overtime(this.t).healing); break;
       case 'regen': u.regen += k; break;
       case 'arcane': u.arcane += k; break;
       case 'armor': u.armor += k; break;
@@ -172,7 +182,7 @@ export class Fight {
 
   heal(u, amt, source = 'Other') {
     if (u.dead || amt <= 0) return 0;
-    amt *= Math.max(0, 1 - this.antiheal(u));
+    amt *= Math.max(0, 1 - this.antiheal(u)) * overtime(this.t).healing;
     const room = u.maxHp - u.hp;
     const healed = Math.min(room, amt);
     u.hp += healed;
@@ -187,7 +197,7 @@ export class Fight {
   damage(src, tgt, amt, kind, info = {}) {
     if (tgt.dead || !(amt > 0)) return 0;
     const source = info.source || DEFAULT_SOURCE[kind] || src.char.ability.name;
-    if (this.t > SUDDEN_DEATH_AT) amt *= 1 + (this.t - SUDDEN_DEATH_AT) * 0.08;
+    amt *= overtime(this.t).damage;
     if (tgt.immune > 0) { this.tally(tgt, 'mit', 'Immunity', amt); return 0; }
     if (tgt.frozen > 0 && src.m.frozenBonus && (kind === 'attack' || kind === 'ability')) amt *= 1 + src.m.frozenBonus;
     let before = amt;
@@ -362,6 +372,9 @@ export class Fight {
       u.frost = Math.max(0, u.frost - 0.6 * e.m.frostDecay * dt);
 
       if (u.regen > 0) this.heal(u, u.regen * 0.002 * u.maxHp * dt, 'Regen');
+      const burn = overtime(this.t).burn;
+      if (burn > 0) this.damage(e, u, u.maxHp * burn * dt, 'true', { source: 'Arena burn' });
+      if (u.dead) continue;
       u.fireIdle += dt;
       if (u.fireIdle > u.fireLinger) u.fire = Math.max(0, u.fire - 2.5 * dt);
 

@@ -1,4 +1,4 @@
-import { buildUnit, DT, SUDDEN_DEATH_AT } from '../engine/combat.js';
+import { buildUnit, DT, SUDDEN_DEATH_AT, BURN_AT, overtime } from '../engine/combat.js';
 import { TAGS } from '../data/tags.js';
 
 // Canvas renderer for the pit. It either shows a static preview of both
@@ -312,7 +312,12 @@ export function createArena(canvas) {
       const t = fight.t;
       ctx.font = '600 14px "Barlow Semi Condensed", system-ui, sans-serif';
       ctx.fillStyle = t > SUDDEN_DEATH_AT ? '#d9505e' : '#a99c87';
-      const label = t > SUDDEN_DEATH_AT ? `SUDDEN DEATH  +${Math.round((t - SUDDEN_DEATH_AT) * 8)}% damage` : `${t.toFixed(1)}s`;
+      const o = overtime(t);
+      const label = t > BURN_AT
+        ? `ARENA BURN  ${(o.burn * 100).toFixed(1)}% max HP/s · +${Math.round((o.damage - 1) * 100)}% damage · no healing or shields`
+        : t > SUDDEN_DEATH_AT
+          ? `OVERTIME  +${Math.round((o.damage - 1) * 100)}% damage · ${Math.round(o.healing * 100)}% healing and shields`
+          : `${t.toFixed(1)}s`;
       ctx.fillText(label, w / 2, 22);
     } else {
       ctx.font = '600 13px "Barlow Semi Condensed", system-ui, sans-serif';
