@@ -73,28 +73,25 @@ export function createArena(canvas) {
   ro?.observe(canvas);
   resize();
 
-  // The board: bx runs -1 (left edge) to 1 (right edge), bz runs 0 (far edge)
-  // to 1 (near edge). Rows bunch up toward the back and the board narrows, so
-  // it reads as a plane tilted away from the camera.
-  function project(bx, bz) {
-    // Narrow screens drop the board lower, leaving room for the clock and buttons.
-    const top = w < 640 ? 0.46 : 0.2;
-    const k = 0.62 + 0.38 * bz;
-    const y = h * (top + (1 - top) * bz * (0.55 + 0.45 * bz));
-    return { x: w / 2 + bx * w * 0.5 * k, y, k };
+  // The stage, seen from the side: a back wall over the top part, then the
+  // floor narrowing away from the camera. Both fighters stand on the same
+  // line, near the front, as large as the arena allows.
+  function stage() {
+    const narrow = w < 640;
+    const floorTop = h * (narrow ? 0.36 : 0.3);
+    const feet = h * (narrow ? 0.76 : 0.9);
+    return { floorTop, feet, narrow };
   }
-  const SPOT = [{ bx: -0.36, bz: 0.62 }, { bx: 0.36, bz: 0.3 }];
   function pos(side) {
-    // Narrow screens spread the fighters wider so their bars don't touch.
-    const spread = w < 640 ? 1.45 : 1;
-    const p = project(SPOT[side].bx * spread, SPOT[side].bz);
-    return { x: p.x, y: p.y - baseRadius() * p.k * 1.05, k: p.k };
+    const st = stage();
+    const x = w * (side === 0 ? (st.narrow ? 0.27 : 0.32) : (st.narrow ? 0.73 : 0.68));
+    return { x, y: st.feet - baseRadius() * 1.05, k: 1 };
   }
   function baseRadius() {
-    return Math.max(26, Math.min(w * 0.09, h * 0.15, 62));
+    return Math.max(26, Math.min(w * 0.09, h * 0.17, 120));
   }
-  function radius(side) {
-    return baseRadius() * pos(side).k;
+  function radius() {
+    return baseRadius();
   }
   // Unit vector from a fighter toward the other one, for lunges.
   function toward(side) {
@@ -315,73 +312,68 @@ export function createArena(canvas) {
     ctx.closePath();
   }
 
-  // ------------------------------------------------------------ the board
-  const COLS = 8, ROWS = 6;
-  function quad(bx0, bz0, bx1, bz1) {
-    const a = project(bx0, bz0), b = project(bx1, bz0), c = project(bx1, bz1), d = project(bx0, bz1);
-    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(c.x, c.y); ctx.lineTo(d.x, d.y); ctx.closePath();
-  }
+  // ------------------------------------------------------------ the stage
   function drawFloor(dt) {
-    // Back wall and the stands above the far edge.
-    const top = project(0, 0).y;
-    const sky = ctx.createLinearGradient(0, 0, 0, top);
-    sky.addColorStop(0, '#0f0d12');
-    sky.addColorStop(1, '#221c22');
-    ctx.fillStyle = sky;
-    ctx.fillRect(0, 0, w, top);
-    ctx.fillStyle = '#15131a';
-    ctx.fillRect(0, top, w, h - top);
-    // Crowd silhouettes along the wall.
+    const { floorTop } = stage();
+    // Back wall with the crowd along its top edge.
+    const wall = ctx.createLinearGradient(0, 0, 0, floorTop);
+    wall.addColorStop(0, '#100e13');
+    wall.addColorStop(1, '#241d23');
+    ctx.fillStyle = wall;
+    ctx.fillRect(0, 0, w, floorTop);
     ctx.fillStyle = '#1a161c';
+    const crowdY = floorTop * 0.42;
     for (let i = 0; i < 46; i++) {
-      const x = (i / 45) * w, hh = top * (0.18 + ((i * 37) % 11) / 60);
-      ctx.beginPath(); ctx.arc(x, top - hh, Math.max(5, w / 90), 0, Math.PI * 2); ctx.fill();
-      ctx.fillRect(x - w / 110, top - hh, w / 55, hh);
+      const x = (i / 45) * w, hh = floorTop * (0.08 + ((i * 37) % 11) / 90);
+      ctx.beginPath(); ctx.arc(x, crowdY - hh, Math.max(5, w / 90), 0, Math.PI * 2); ctx.fill();
+      ctx.fillRect(x - w / 110, crowdY - hh, w / 55, hh + 4);
     }
     ctx.fillStyle = '#2b2328';
-    ctx.fillRect(0, top - 6, w, 6);
-    ctx.fillStyle = 'rgba(214,162,78,0.35)';
-    ctx.fillRect(0, top - 6, w, 1);
-
-    // Board slab edge, then the tiles.
-    const near = project(-1, 1), nearR = project(1, 1);
-    ctx.fillStyle = '#100e13';
-    ctx.beginPath(); ctx.moveTo(near.x, near.y); ctx.lineTo(nearR.x, nearR.y); ctx.lineTo(nearR.x, nearR.y + 14); ctx.lineTo(near.x, near.y + 14); ctx.closePath(); ctx.fill();
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
-        const bx0 = -1 + (2 * c) / COLS, bx1 = -1 + (2 * (c + 1)) / COLS;
-        const bz0 = r / ROWS, bz1 = (r + 1) / ROWS;
-        const mine = r >= ROWS / 2;
-        const light = (r + c) % 2 === 0;
-        ctx.fillStyle = mine ? (light ? '#3a3029' : '#30282a') : (light ? '#352b2e' : '#2b2429');
-        quad(bx0, bz0, bx1, bz1); ctx.fill();
-      }
-    }
-    // Light pooling in the middle of the board.
-    const mid = project(0, 0.5);
-    const g = ctx.createRadialGradient(mid.x, mid.y, 10, mid.x, mid.y, w * 0.55);
-    g.addColorStop(0, 'rgba(255,190,120,0.14)');
-    g.addColorStop(1, 'rgba(0,0,0,0.32)');
-    ctx.fillStyle = g;
-    quad(-1, 0, 1, 1); ctx.fill();
-    // Grid lines and the line between the halves.
-    ctx.strokeStyle = 'rgba(14,12,17,0.55)';
+    ctx.fillRect(0, crowdY, w, 5);
+    // Stone blocks in the wall.
+    ctx.strokeStyle = 'rgba(0,0,0,0.25)';
     ctx.lineWidth = 1;
-    for (let c = 0; c <= COLS; c++) {
-      const a = project(-1 + (2 * c) / COLS, 0), b = project(-1 + (2 * c) / COLS, 1);
-      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    const rowH = (floorTop - crowdY) / 4;
+    for (let r = 0; r < 4; r++) {
+      const y = crowdY + 5 + r * rowH;
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+      const bw = w / 12;
+      for (let x = (r % 2) * bw / 2; x < w; x += bw) { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + rowH); ctx.stroke(); }
     }
-    for (let r = 0; r <= ROWS; r++) {
-      const a = project(-1, r / ROWS), b = project(1, r / ROWS);
-      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    ctx.fillStyle = 'rgba(214,162,78,0.35)';
+    ctx.fillRect(0, floorTop - 2, w, 2);
+
+    // Floor: a trapezoid that narrows toward the wall.
+    const inset = w * 0.16;
+    ctx.fillStyle = '#120f14';
+    ctx.fillRect(0, floorTop, w, h - floorTop);
+    const fl = ctx.createLinearGradient(0, floorTop, 0, h);
+    fl.addColorStop(0, '#3b3029');
+    fl.addColorStop(1, '#5a4636');
+    ctx.fillStyle = fl;
+    ctx.beginPath(); ctx.moveTo(inset, floorTop); ctx.lineTo(w - inset, floorTop); ctx.lineTo(w + w * 0.04, h); ctx.lineTo(-w * 0.04, h); ctx.closePath(); ctx.fill();
+    // Seams: lines toward the vanishing point, and rows that widen toward you.
+    ctx.save();
+    ctx.clip();
+    ctx.strokeStyle = 'rgba(14,12,17,0.35)';
+    for (let c = 0; c <= 10; c++) {
+      const t = c / 10;
+      ctx.beginPath(); ctx.moveTo(inset + (w - 2 * inset) * t, floorTop); ctx.lineTo(-w * 0.04 + w * 1.08 * t, h); ctx.stroke();
     }
-    const ma = project(-1, 0.5), mb = project(1, 0.5);
-    ctx.strokeStyle = 'rgba(214,162,78,0.35)';
-    ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(ma.x, ma.y); ctx.lineTo(mb.x, mb.y); ctx.stroke();
-    ctx.strokeStyle = 'rgba(214,162,78,0.5)';
+    for (let r = 1; r < 6; r++) {
+      const y = floorTop + (h - floorTop) * (r / 6) ** 1.4;
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+    }
+    // Torchlight pooling under the fighters.
+    const g = ctx.createRadialGradient(w / 2, stage().feet, 10, w / 2, stage().feet, w * 0.5);
+    g.addColorStop(0, 'rgba(255,190,120,0.16)');
+    g.addColorStop(1, 'rgba(0,0,0,0.3)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, floorTop, w, h - floorTop);
+    ctx.restore();
+    ctx.strokeStyle = 'rgba(214,162,78,0.45)';
     ctx.lineWidth = 1.5;
-    quad(-1, 0, 1, 1); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-w * 0.04, h); ctx.lineTo(inset, floorTop); ctx.lineTo(w - inset, floorTop); ctx.lineTo(w + w * 0.04, h); ctx.stroke();
 
     if (!reduceMotion) {
       ctx.fillStyle = 'rgba(240,122,58,0.35)';
@@ -511,10 +503,10 @@ export function createArena(canvas) {
     const r = radius(u.side);
     const a = anim[u.side];
     const dir = toward(u.side);
-    // Dodging steps aside (perpendicular to the line between the fighters).
-    const side = a.dodge > 0 ? Math.sin(Math.min(1, a.dodge) * Math.PI) * r * 0.55 * a.dodgeDir : 0;
-    const x = p.x + dir.x * a.lunge * r * 0.5 - dir.y * side;
-    const y = p.y + dir.y * a.lunge * r * 0.5 + dir.x * side * 0.4;
+    // Dodging hops back, away from the attacker.
+    const hop = a.dodge > 0 ? Math.sin(Math.min(1, a.dodge) * Math.PI) : 0;
+    const x = p.x + dir.x * (a.lunge * r * 0.5 - hop * r * 0.7);
+    const y = p.y - hop * r * 0.15;
 
     // shadow
     ctx.fillStyle = 'rgba(0,0,0,0.4)';
@@ -549,7 +541,7 @@ export function createArena(canvas) {
     // Evasion: afterimages left where the fighter was standing.
     if (a.dodge > 0 && !u.dead) {
       for (const k of [1, -1]) {
-        figure(p.x - dir.y * side * 0.5 * k, p.y, { tint: [TAGS.evasion.color, 0.75], alpha: a.dodge * 0.45 });
+        figure(p.x - dir.x * hop * r * (k > 0 ? 0.25 : 0.5), p.y, { tint: [TAGS.evasion.color, 0.75], alpha: a.dodge * (k > 0 ? 0.5 : 0.3) });
       }
     }
     let tint = null;
@@ -563,7 +555,7 @@ export function createArena(canvas) {
     // bars
     // With a sprite, the bars sit above the figure's head instead of the medallion.
     const box = spriteBox(p.y, r);
-    const bw = Math.max(110, baseRadius() * 2.6) * Math.max(0.85, p.k), bx = p.x - bw / 2, by = sprites ? box.feet - box.size * 0.86 - 18 : p.y - r - 34;
+    const bw = Math.min(220, Math.max(110, baseRadius() * 2.4)), bx = p.x - bw / 2, by = sprites ? box.feet - box.size * 0.86 - 18 : p.y - r - 34;
     const bh = 10;
     bar(bx, by, bw, bh, u.hp / u.maxHp, u.side === 0 ? '#7fca6e' : '#d9505e');
     if (u.shield > 0) {
@@ -684,13 +676,12 @@ export function createArena(canvas) {
     drawFloor(dt);
     if (!units) return;
     drawFx(true);
-    // Back to front: the far fighter first.
-    for (const u of units.slice().sort((a, b) => SPOT[a.side].bz - SPOT[b.side].bz)) drawUnit(u);
+    for (const u of units) drawUnit(u);
     drawFx(false);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     if (fight) drawClock(fight.t);
-    const mid = project(0, 0.46);
+    const mid = { x: w / 2, y: pos(0).y };
     ctx.font = `${Math.round(baseRadius() * 0.6)}px "Grenze Gotisch", Georgia, serif`;
     ctx.fillStyle = 'rgba(214,162,78,0.55)';
     ctx.fillText('vs', mid.x, mid.y);
