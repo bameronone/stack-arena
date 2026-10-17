@@ -1,6 +1,19 @@
 // How each gladiator looks and swings, for PixelLab sprite generation.
 export const LOOKS = {
-  cinder: { description: 'fiery gladiator with a flaming sword, ember-red leather armor, wild orange hair', attack: 'swinging a sword in a fast overhead slash attack' },
+  cinder: {
+    // Cameron's hand-made PixelLab character in its Two-Handed Guard state;
+    // `fetch` pulls these PixMiniMax clips by animation id instead of by name.
+    // Idle and both swings were animated back to the guard pose, so they loop
+    // and hand off to each other cleanly.
+    description: 'fierce female gladiator, athletic woman with a long flaming sword held in both hands, ember-red armor, long wild orange hair in a high ponytail',
+    attack: 'swinging the flaming sword with both hands in a horizontal arc, then returning to the two-handed guard',
+    animations: {
+      idle: '74649177-8e35-4677-8247-a2043e07918b',
+      attack: 'a2d5f60f-91d9-4639-a954-581b446900c8', // left to right
+      attack2: '59eba069-2f39-452c-b2cc-36c4805bc4b4', // right to left
+      death: 'f97fb098-6cda-404f-a1ab-18a1f38f9fd1', // bursts into glowing dust
+    },
+  },
   glacia: { description: 'ice sorceress in pale blue robes with a frost crown and a crystal staff', attack: 'thrusting a staff forward in a quick strike' },
   viper: { description: 'hooded assassin with two curved daggers, green and black scale cloak', attack: 'lunging forward with two quick dagger stabs' },
   wisp: { description: 'nimble dancer with twin war fans, flowing teal and orange silk', attack: 'spinning and slashing with two fans' },

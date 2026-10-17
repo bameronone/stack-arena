@@ -24,7 +24,9 @@ function spriteSet(charId) {
   return set.base?.[0]?.complete && set.base[0].naturalWidth ? set : null;
 }
 // One-shot animations: seconds for the whole clip, however many frames it has.
-const CLIP = { attack: 0.45, cast: 0.7, hurt: 0.35, death: 0.9 };
+const CLIP = { attack: 0.45, attack2: 0.45, cast: 0.7, hurt: 0.35, death: 0.9 };
+// Seconds a new clip takes to fade in over the last frame of the old one.
+const BLEND = 0.12;
 let tintCanvas = null;
 function tinted(img, color, alpha) {
   tintCanvas ??= document.createElement('canvas');
@@ -61,9 +63,16 @@ export function createArena(canvas) {
   let mystery = false; // the right fighter is an unrevealed opponent
   // Standings on the back wall: one plaque per player, best on the left.
   let board = [], plaqueX = {}, plaqueRects = [], onPick = null;
-  const anim = [0, 1].map(() => ({ lunge: 0, flash: 0, cast: 0, dodge: 0, dodgeDir: 1, stutter: 0, clip: 'idle', clipT: 0, spawn: {} }));
+  const anim = [0, 1].map(() => ({ lunge: 0, flash: 0, cast: 0, dodge: 0, dodgeDir: 1, stutter: 0, clip: 'idle', clipT: 0, from: null, spawn: {} }));
   let clock = 0;
-  const startClip = (a, clip) => { if (a.clip !== 'death') { a.clip = clip; a.clipT = 0; } };
+  // Switching clips remembers where the old one was so the two can blend.
+  const setClip = (a, clip) => { a.from = { clip: a.clip, clipT: a.clipT }; a.clip = clip; a.clipT = 0; };
+  // A sprite without a clip (say, no hurt frames) keeps playing what it was.
+  const startClip = (a, clip) => {
+    const u = units?.[anim.indexOf(a)];
+    const set = u && spriteSet(u.char.id);
+    if (a.clip !== 'death' && (!set || set[clip])) setClip(a, clip);
+  };
   let dotSeen = [{ poison: 0, bleed: 0 }, { poison: 0, bleed: 0 }];
   // Tag slots under each fighter: fixed for the fight, so chips don't jump
   // around as stacks come and go (an empty one shows 0).
@@ -119,7 +128,12 @@ export function createArena(canvas) {
   function onEvent(ev) {
     const a = anim[ev.side];
     switch (ev.type) {
-      case 'attack': a.lunge = 1; startClip(a, 'attack'); break;
+      case 'attack': {
+        // Sprites with a second swing alternate between the two.
+        const set = units?.[ev.side] && spriteSet(units[ev.side].char.id);
+        a.swing = set?.attack2 ? !a.swing : false;
+        a.lunge = 1; startClip(a, a.swing ? 'attack2' : 'attack'); break;
+      }
       case 'dmg':
         anim[ev.side].flash = 1;
         if (anim[ev.side].clip === 'idle') startClip(anim[ev.side], 'hurt');
@@ -128,7 +142,7 @@ export function createArena(canvas) {
       case 'dodge': a.dodge = 1; a.dodgeDir = -a.dodgeDir; float(ev.side, 'DODGE', TAGS.evasion.color, 15, -10); break;
       case 'freeze': float(ev.side, 'FROZEN', TAGS.frost.color, 18, -18); shards(ev.side); break;
       case 'cast': a.cast = 1; startClip(a, 'cast'); float(ev.side, ev.name, TAGS.spell.color, 16, -32); break;
-      case 'revive': a.clip = 'idle'; float(ev.side, 'REVIVED', TAGS.fire.color, 20, -24); break;
+      case 'revive': setClip(a, 'idle'); float(ev.side, 'REVIVED', TAGS.fire.color, 20, -24); break;
       case 'resist': float(ev.side, 'RESISTED', '#a8a39a', 14, -18); break;
       case 'immune': float(ev.side, 'IMMUNE', '#e9eef5', 14, -18); break;
       case 'burst': float(ev.side, 'PANDEMIC', TAGS.poison.color, 18, -18); break;
@@ -210,10 +224,11 @@ export function createArena(canvas) {
     const pace = fight ? Math.max(1, speed / 2) : 1;
     for (const [side, a] of anim.entries()) {
       const u = units?.[side];
-      if (u?.dead && a.clip !== 'death') { a.clip = 'death'; a.clipT = 0; }
-      if (u && !u.dead && a.clip === 'death') a.clip = 'idle';
+      if (u?.dead && a.clip !== 'death') setClip(a, 'death');
+      if (u && !u.dead && a.clip === 'death') setClip(a, 'idle');
       a.clipT += dt * pace;
-      if (CLIP[a.clip] && a.clip !== 'death' && a.clipT >= CLIP[a.clip]) { a.clip = 'idle'; a.clipT = 0; }
+      if (CLIP[a.clip] && a.clip !== 'death' && a.clipT >= CLIP[a.clip]) setClip(a, 'idle');
+      if (a.from && a.clipT >= BLEND) a.from = null;
       a.lunge = Math.max(0, a.lunge - dt * 6 * pace);
       a.flash = Math.max(0, a.flash - dt * 5);
       a.cast = Math.max(0, a.cast - dt * 2);
@@ -612,10 +627,29 @@ export function createArena(canvas) {
     return { size: r * 3.4, feet: y + r * 1.05 };
   }
 
+  // Canvas sizes differ between characters, so sprites are scaled by the
+  // figure in the base image: its height is 88% of the box, its feet on the
+  // ground line. Measured once per character from the base image's pixels.
+  function spriteFit(set) {
+    if (set.fit) return set.fit;
+    const base = set.base[0], w = base.naturalWidth, h = base.naturalHeight;
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const g = c.getContext('2d');
+    g.drawImage(base, 0, 0);
+    const px = g.getImageData(0, 0, w, h).data;
+    let top = h, bottom = 0;
+    for (let i = 3; i < px.length; i += 4) if (px[i] > 20) { const row = (i >> 2) / w | 0; top = Math.min(top, row); bottom = row + 1; }
+    if (bottom <= top) { top = 0; bottom = h; }
+    return (set.fit = { height: bottom - top, feet: bottom - h / 2 });
+  }
+
   function spriteFrame(set, a) {
     const frames = set[a.clip] || set.idle || set.base;
     const n = frames.length;
-    const i = a.clip === 'idle' ? Math.floor(clock * 8) % n
+    // Idle loops from its first frame each time it comes back, so it picks up
+    // from the ready pose the other clips start and end on.
+    const i = a.clip === 'idle' ? Math.floor(a.clipT * 8) % n
       : Math.min(n - 1, Math.floor((a.clipT / (CLIP[a.clip] || 0.4)) * n));
     return frames[i]?.complete && frames[i].naturalWidth ? frames[i] : set.base[0];
   }
@@ -629,9 +663,9 @@ export function createArena(canvas) {
     // needs room), with the figure centred at the same pixel scale. So every
     // frame is drawn at the base image's scale around the same centre point.
     const { size, feet } = spriteBox(y, r);
-    const base = set.base[0];
-    const scale = size / base.naturalWidth;
-    const cy = feet - base.naturalHeight * 0.48 * scale;
+    const fit = spriteFit(set);
+    const scale = (size * 0.88) / fit.height;
+    const cy = feet - fit.feet * scale;
     const dw = img.naturalWidth * scale, dh = img.naturalHeight * scale;
     ctx.save();
     ctx.imageSmoothingEnabled = false;
@@ -639,6 +673,13 @@ export function createArena(canvas) {
     ctx.translate(x, 0);
     if ((flip ? 1 - u.side : u.side) === 1) ctx.scale(-1, 1);
     ctx.drawImage(src, -dw / 2, cy - dh / 2, dw, dh);
+    // The old clip's frame fades out on top while the new clip comes in.
+    if (a.from) {
+      const old = spriteFrame(set, { clip: a.from.clip, clipT: Math.min(a.from.clipT, CLIP[a.from.clip] || Infinity) });
+      const ow = old.naturalWidth * scale, oh = old.naturalHeight * scale;
+      ctx.globalAlpha *= 1 - a.clipT / BLEND;
+      ctx.drawImage(tint ? tinted(old, tint[0], tint[1]) : old, -ow / 2, cy - oh / 2, ow, oh);
+    }
     ctx.restore();
   }
 
