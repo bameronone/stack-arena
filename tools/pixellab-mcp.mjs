@@ -9,7 +9,7 @@
 // The key comes from PIXELLAB_API_KEY or the git-ignored .pixellab-key file.
 // The PixelLab character id is saved in assets/sprites/<gladiator>/pixellab.json.
 // Behind an HTTPS proxy, run with NODE_USE_ENV_PROXY=1.
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, unlinkSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { LOOKS } from './pixellab-looks.mjs';
@@ -88,8 +88,12 @@ async function fetchFrames(id) {
   for (const m of text.matchAll(/^\s+(\w+) — .*\n\s+east: (https:\S+)\{i\}\.png(\S*) \(i=0\.\.(\d+)\)/gm)) {
     const [, clip, prefix, query, last] = m;
     if (!CLIPS[clip]) continue;
-    for (let i = 0; i <= Number(last); i++) await save(`${prefix}${i}.png${query}`, `${clip}_${i}.png`);
-    console.log(`${clip}: ${Number(last) + 1} frames`);
+    // v3 clips open on the standing reference pose; a look can pick which
+    // generated frames to keep, in order, so clips start from the ready stance.
+    const keep = LOOKS[id].frames?.[clip] || Array.from({ length: Number(last) + 1 }, (_, i) => i);
+    for (const f of readdirSync(dir)) if (f.startsWith(`${clip}_`)) unlinkSync(join(dir, f));
+    for (const [i, src] of keep.entries()) await save(`${prefix}${src}.png${query}`, `${clip}_${i}.png`);
+    console.log(`${clip}: ${keep.length} of ${Number(last) + 1} frames`);
     clips++;
   }
   console.log(`Saved base + ${clips} clips to assets/sprites/${id}/`);

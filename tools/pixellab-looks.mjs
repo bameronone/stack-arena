@@ -10,6 +10,15 @@ export const LOOKS = {
       hurt: 'recoiling backward from a hit, still holding the sword, then recovering to a ready stance',
       death: 'staggering, dropping to her knees and falling back, the sword falling beside her',
     },
+    // Generated frames to keep per clip. Idle rocks back and forth inside the
+    // ready stance; the others skip the upright frames they open on.
+    frames: {
+      idle: [4, 5, 6, 7, 8, 7, 6, 5],
+      attack: [3, 4, 5, 6, 7, 8],
+      cast: [2, 3, 4, 5, 6],
+      hurt: [3, 4, 5, 6],
+      death: [2, 3, 4, 5, 6],
+    },
   },
   glacia: { description: 'ice sorceress in pale blue robes with a frost crown and a crystal staff', attack: 'thrusting a staff forward in a quick strike' },
   viper: { description: 'hooded assassin with two curved daggers, green and black scale cloak', attack: 'lunging forward with two quick dagger stabs' },
