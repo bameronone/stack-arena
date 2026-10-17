@@ -1,23 +1,21 @@
 // How each gladiator looks and swings, for PixelLab sprite generation.
 export const LOOKS = {
   cinder: {
+    // Cameron's hand-made PixelLab character (Fighting Pose state); `fetch`
+    // pulls these PixMiniMax clips by animation id instead of by clip name.
     description: 'fierce female gladiator, athletic woman with a long flaming sword held in her right hand, ember-red leather armor, long wild orange hair in a high ponytail',
-    attack: 'stepping forward in a low lunge and swinging the sword in a fast overhead slash, knees bent, body leaning into the swing',
-    // Every clip spells out the sword so templates never draw her unarmed.
-    clips: {
-      idle: 'breathing in a low ready stance, knees bent, both hands gripping the sword held up in front of her',
-      cast: 'raising the sword overhead as flames gather on the blade, then thrusting it forward to throw a fireball',
-      hurt: 'recoiling backward from a hit, still holding the sword, then recovering to a ready stance',
-      death: 'staggering, dropping to her knees and falling back, the sword falling beside her',
+    attack: 'grab the sword with both hands and swing it in a full arc, then return to the fighting stance',
+    animations: {
+      idle: 'IDLE_ID',
+      attack: 'a896e7b9-54bb-4717-9b8e-7049cb6b78b5',
+      death: 'aed68eb9-0024-48d3-a899-c610f25b8fc8',
     },
-    // Generated frames to keep per clip. Idle rocks back and forth inside the
-    // ready stance; the others skip the upright frames they open on.
+    // Generated frames to keep per clip: the attack skips its slow wind-up and
+    // plays every other frame so the whole swing fits one attack; death skips
+    // two frames that jump out of the stance.
     frames: {
-      idle: [4, 5, 6, 7, 8, 7, 6, 5],
-      attack: [3, 4, 5, 6, 7, 8],
-      cast: [2, 3, 4, 5, 6],
-      hurt: [3, 4, 5, 6],
-      death: [2, 3, 4, 5, 6],
+      attack: [6, 8, 10, 12, 14, 15, 16, 17, 18, 20, 22, 24, 26, 28, 30, 32],
+      death: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
     },
   },
   glacia: { description: 'ice sorceress in pale blue robes with a frost crown and a crystal staff', attack: 'thrusting a staff forward in a quick strike' },

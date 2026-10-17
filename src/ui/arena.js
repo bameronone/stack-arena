@@ -67,7 +67,12 @@ export function createArena(canvas) {
   let clock = 0;
   // Switching clips remembers where the old one was so the two can blend.
   const setClip = (a, clip) => { a.from = { clip: a.clip, clipT: a.clipT }; a.clip = clip; a.clipT = 0; };
-  const startClip = (a, clip) => { if (a.clip !== 'death') setClip(a, clip); };
+  // A sprite without a clip (say, no hurt frames) keeps playing what it was.
+  const startClip = (a, clip) => {
+    const u = units?.[anim.indexOf(a)];
+    const set = u && spriteSet(u.char.id);
+    if (a.clip !== 'death' && (!set || set[clip])) setClip(a, clip);
+  };
   let dotSeen = [{ poison: 0, bleed: 0 }, { poison: 0, bleed: 0 }];
   let dotTimer = 0;
   let embers = Array.from({ length: 40 }, () => ({ x: Math.random(), y: Math.random(), v: 0.02 + Math.random() * 0.04, r: Math.random() * 1.6 + 0.4 }));

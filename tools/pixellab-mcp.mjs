@@ -85,9 +85,12 @@ async function fetchFrames(id) {
   if (!east) throw new Error(`No east rotation yet:\n${text.slice(0, 400)}`);
   await save(east, 'base.png');
   let clips = 0;
-  for (const m of text.matchAll(/^\s+(\w+) — .*\n\s+east: (https:\S+)\{i\}\.png(\S*) \(i=0\.\.(\d+)\)/gm)) {
-    const [, clip, prefix, query, last] = m;
-    if (!CLIPS[clip]) continue;
+  // Clips are found by name, or by animation id when the look lists one.
+  const byId = Object.fromEntries(Object.entries(LOOKS[id].animations || {}).map(([clip, anim]) => [anim, clip]));
+  for (const m of text.matchAll(/^\s+(.+?) — .*\n\s+east: (https:\S+\/animations\/([\w-]+)\/east\/)\{i\}\.png(\S*) \(i=0\.\.(\d+)\)/gm)) {
+    const [, name, prefix, anim, query, last] = m;
+    const clip = byId[anim] || (!LOOKS[id].animations && CLIPS[name] ? name : null);
+    if (!clip) continue;
     // v3 clips open on the standing reference pose; a look can pick which
     // generated frames to keep, in order, so clips start from the ready stance.
     const keep = LOOKS[id].frames?.[clip] || Array.from({ length: Number(last) + 1 }, (_, i) => i);
