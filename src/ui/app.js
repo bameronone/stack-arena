@@ -10,6 +10,7 @@ import { SHOP_TIMES } from '../game/host.js';
 import { soloSession, hostSession, clientSession, BOT_NAMES, cleanName } from '../game/session.js';
 import { cleanCode } from '../net/transport.js';
 import { createArena } from './arena.js';
+import { DT } from '../engine/combat.js';
 
 const root = document.getElementById('app');
 const params = new URLSearchParams(location.search);
@@ -709,7 +710,7 @@ function renderSide(id, p, mine, watchLabel = null) {
       <h2>${esc(c.name)}</h2>
       <div class="sub">${chip(c.trigger, true)} ${c.resources.map((r) => chip(r, true)).join(' ')}</div>
     </div>
-    <div class="sub"><b style="color:var(--bronze)">${esc(c.ability.name)}</b>: ${esc(c.ability.desc())}${sig ? `<br><b style="color:var(--bronze)">${esc(sig.name)}</b>: ${esc(sig.desc)}` : ''}</div>
+    <div class="sub"><b style="color:var(--bronze)">${esc(c.ability.name)}</b>: ${esc(c.ability.desc())}<br><b style="color:var(--bronze)">Innate</b>: ${esc(c.innate.desc)}${sig ? `<br><b style="color:var(--bronze)">${esc(sig.name)}</b>: ${esc(sig.desc)}` : ''}</div>
     <div><div class="eyebrow" style="margin-bottom:6px">Tag progress</div><div class="progress">${tierProgress(counts)}</div></div>
     ${hybrids.length ? `<div class="sub">Close to a Hybrid: ${hybrids.map((h) => `${esc(h.name)} (${h.tags.map((t) => `${TAGS[t].name} ${counts[t] || 0}/${HYBRID_REQ}`).join(', ')})`).join('; ')}</div>` : ''}
     <div class="stats-panel" id="stats-${id}">${statsPanel(mine ? 0 : 1)}</div>`;
@@ -734,7 +735,7 @@ function renderBoard() {
   const seen = ui.fightSeenAt || 0;
   const until = {};
   results.forEach((r) => {
-    const end = seen + r.time * 1000;
+    const end = seen + (r.time * 1000) / ui.speed;
     until[r.a] = Math.max(until[r.a] || 0, end);
     if (!r.ghost) until[r.b] = Math.max(until[r.b] || 0, end);
   });
@@ -904,6 +905,11 @@ function watchFight(i) {
   const round = m.fightRound;
   ui.watching = { a: r.a, b: r.b, ghost: r.ghost, round };
   const f = makeFight(m, r.a, r.b);
+  // Join in progress: every fight started when the round did, so skip ahead
+  // to where it is now (or near its end, if it already finished).
+  const elapsed = ((performance.now() - (ui.fightSeenAt || performance.now())) / 1000) * ui.speed;
+  const target = Math.min(elapsed, Math.max(0, r.time - 3));
+  while (f.t + DT <= target && !f.over) f.step(DT);
   ui.savedStats = ui.fightStats;
   ui.fightStats = { live: true, round, watched: true, stats: [f.units[0].stats, f.units[1].stats] };
   const statsTimer = setInterval(refreshStats, 250);

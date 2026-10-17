@@ -1161,6 +1161,82 @@ const CHARACTERS = [
       { id: 'shade_veil', name: 'Thick Smoke', desc: 'Start each fight with 30% Focus.', setup: (u) => { u.focusStart += 0.3; } },
     ],
   },
+  {
+    id: 'chainbreaker', name: 'Chainbreaker', epithet: 'the Living Conduit', trigger: 'strike', resources: ['lightning'],
+    stats: { hp: 670, ad: 28, as: 1.05 },
+    innate: { desc: 'On attack, gain 3 Lightning.', onAttack: (f, u) => f.gain(u, 'lightning', u.sig === 'chain_voltage' ? 4 : 3) },
+    ability: { name: 'Thunderfall', desc: (u) => `Deal 45 + ${u?.sig === 'chain_aftershock' ? 22 : 14} per bolt called this fight (${Math.round(45 + (u?.sig === 'chain_aftershock' ? 22 : 14) * (u?.bolts ?? 0))}).`,
+      cast: (f, u, p) => { hit(f, u, (45 + (u.sig === 'chain_aftershock' ? 22 : 14) * u.bolts) * p); } },
+    signatures: [
+      { id: 'chain_voltage', name: 'High Voltage', desc: 'Attacks grant 4 Lightning instead of 3.' },
+      { id: 'chain_aftershock', name: 'Aftershock', desc: 'Thunderfall deals 22 per bolt called instead of 14.' },
+    ],
+  },
+  {
+    id: 'oathcleaver', name: 'Oathcleaver', epithet: 'the Rusted Judge', trigger: 'strike', resources: ['bleed', 'armor'],
+    stats: { hp: 915, ad: 29 },
+    innate: { desc: 'On attack, apply 1 Bleed. Every 3rd attack, gain 1 Armor.',
+      onAttack: (f, u) => {
+        f.apply(u, 'bleed', u.sig === 'oath_jagged' ? 2 : 1);
+        u.oathHits = (u.oathHits || 0) + 1;
+        if (u.oathHits % 3 === 0) f.gain(u, 'armor', u.sig === 'oath_iron' ? 2 : 1);
+      } },
+    ability: { name: 'Rusted Verdict', desc: (u) => `Deal 40 + 4 per Bleed on the enemy + 3 per Armor (${Math.round(40 + 4 * (u?.enemy?.bleed ?? 0) + 3 * (u?.armor ?? 0))}).`,
+      cast: (f, u, p) => { hit(f, u, (40 + 4 * u.enemy.bleed + 3 * u.armor) * p); } },
+    signatures: [
+      { id: 'oath_jagged', name: 'Jagged Edge', desc: 'Attacks apply 2 Bleed instead of 1.' },
+      { id: 'oath_iron', name: 'Iron Habit', desc: 'Every 3rd attack grants 2 Armor instead of 1.' },
+    ],
+  },
+  {
+    id: 'snowthorn', name: 'Snowthorn', epithet: 'the Last Huntress', trigger: 'precision', resources: ['frost'],
+    stats: { hp: 1370, ad: 30, crit: 0.18 },
+    innate: { desc: 'On crit, apply 5 Frost.', onCrit: (f, u) => f.apply(u, 'frost', u.sig === 'snow_pierce' ? 7 : 5) },
+    ability: { name: "Winter's Kiss", desc: (u) => `Deal 60 + 5 per Frost on the enemy + 30 per freeze this fight (${Math.round(60 + 5 * (u?.enemy?.frost ?? 0) + 30 * (u?.freezesDone ?? 0))}).`,
+      cast: (f, u, p) => {
+        const exec = u.sig === 'snow_exec' && u.enemy.frozen > 0 ? 40 : 0;
+        hit(f, u, (60 + 5 * u.enemy.frost + 30 * u.freezesDone + exec) * p);
+      } },
+    signatures: [
+      { id: 'snow_pierce', name: 'Piercing Cold', desc: 'Crits apply 7 Frost instead of 5.' },
+      { id: 'snow_exec', name: 'Cold Execution', desc: "Winter's Kiss deals 40 more damage to frozen enemies." },
+    ],
+  },
+  {
+    id: 'runevolt', name: 'Runevolt', epithet: 'the Thunderbrand', trigger: 'precision', resources: ['arcane', 'lightning'],
+    stats: { hp: 455, ad: 28, crit: 0.15 },
+    innate: { desc: 'On crit, gain 3 Arcane and 5 Lightning.', onCrit: (f, u) => { f.gain(u, 'arcane', 3); f.gain(u, 'lightning', u.sig === 'rune_charged' ? 7 : 5); } },
+    ability: { name: 'Runic Discharge', desc: (u) => `Deal 40 + 3 per Arcane + ${u?.sig === 'rune_storm' ? 20 : 12} per bolt called this fight (${Math.round(40 + 3 * (u?.arcane ?? 0) + (u?.sig === 'rune_storm' ? 20 : 12) * (u?.bolts ?? 0))}).`,
+      cast: (f, u, p) => { hit(f, u, (40 + 3 * u.arcane + (u.sig === 'rune_storm' ? 20 : 12) * u.bolts) * p); } },
+    signatures: [
+      { id: 'rune_charged', name: 'Charged Runes', desc: 'Crits grant 7 Lightning instead of 5.' },
+      { id: 'rune_storm', name: 'Storm Inscription', desc: 'Runic Discharge deals 20 per bolt called instead of 12.' },
+    ],
+  },
+  {
+    id: 'dawnfeather', name: 'Dawnfeather', epithet: 'the Reborn Flame', trigger: 'evasion', resources: ['fire', 'regen'],
+    stats: { hp: 740, ad: 27, as: 1.1, focusGain: 0.07 },
+    innate: { desc: 'Gains 7% Focus each time she is hit. Dodges grant 4 Fire and 1 Regen.',
+      onEvade: (f, u) => { f.gain(u, 'fire', u.sig === 'dawn_wings' ? 6 : 4); f.gain(u, 'regen', u.sig === 'dawn_spring' ? 2 : 1); } },
+    ability: { name: 'Phoenix Waltz', desc: (u) => `Deal 40 + 3 per Fire (${Math.round(40 + 3 * (u?.fire ?? 0))}) and heal 0.5% of max HP per Regen (${((u?.regen ?? 0) * 0.5).toFixed(1)}%).`,
+      cast: (f, u, p) => { hit(f, u, (40 + 3 * u.fire) * p); f.heal(u, u.baseHp * 0.005 * u.regen * Math.min(p, 1.5), 'Phoenix Waltz'); } },
+    signatures: [
+      { id: 'dawn_wings', name: 'Blazing Wings', desc: 'Dodges grant 6 Fire instead of 4.' },
+      { id: 'dawn_spring', name: 'Second Spring', desc: 'Dodges grant 2 Regen instead of 1.' },
+    ],
+  },
+  {
+    id: 'gravespike', name: 'Gravespike', epithet: 'the Unyielding', trigger: 'pain', resources: ['bleed', 'armor'],
+    stats: { hp: 255, ad: 27, as: 0.9 },
+    innate: { desc: 'When hurt: apply 2 Bleed and gain 1 Armor.',
+      onPain: (f, u) => { f.apply(u, 'bleed', u.sig === 'grave_debt' ? 3 : 2); f.gain(u, 'armor', u.sig === 'grave_bones' ? 2 : 1); } },
+    ability: { name: 'Grave Sentence', desc: (u) => `Deal 40 + 1 per Bleed on the enemy and Armor (${Math.round(40 + (u?.enemy?.bleed ?? 0) + (u?.armor ?? 0))}).`,
+      cast: (f, u, p) => { hit(f, u, (40 + u.enemy.bleed + u.armor) * p); } },
+    signatures: [
+      { id: 'grave_debt', name: 'Blood Debt', desc: 'Being hurt applies 3 Bleed instead of 2.' },
+      { id: 'grave_bones', name: 'Unbroken Bones', desc: 'Being hurt grants 2 Armor instead of 1.' },
+    ],
+  },
 ];
 
 const CHAR_BY_ID = Object.fromEntries(CHARACTERS.map((c) => [c.id, c]));
@@ -3079,7 +3155,8 @@ function createArena(canvas) {
     acc = 0;
     floaters = [];
     fx = []; strikes = [];
-    dotSeen = [{ poison: 0, bleed: 0 }, { poison: 0, bleed: 0 }];
+    // Count from where the fight is now: a watched fight may join mid-way.
+    dotSeen = units.map((u) => ({ poison: u.enemy.stats.byKind.poison || 0, bleed: u.enemy.stats.byKind.bleed || 0 }));
     start();
   }
 
@@ -3255,7 +3332,7 @@ function createArena(canvas) {
     const slot = (w - margin * 2) / n;
     const pw = Math.min(160, slot - 6), ph = narrow ? 26 : 40;
     const compact = pw < 92;
-    const y = narrow ? 92 : Math.max(58, floorTop - ph - 26);
+    const y = narrow ? 92 : Math.max(58, floorTop - ph - 54);
     const now = performance.now();
     board.forEach((b, i) => {
       const target = margin + slot * i + slot / 2;
@@ -4486,7 +4563,7 @@ function renderSide(id, p, mine, watchLabel = null) {
       <h2>${esc(c.name)}</h2>
       <div class="sub">${chip(c.trigger, true)} ${c.resources.map((r) => chip(r, true)).join(' ')}</div>
     </div>
-    <div class="sub"><b style="color:var(--bronze)">${esc(c.ability.name)}</b>: ${esc(c.ability.desc())}${sig ? `<br><b style="color:var(--bronze)">${esc(sig.name)}</b>: ${esc(sig.desc)}` : ''}</div>
+    <div class="sub"><b style="color:var(--bronze)">${esc(c.ability.name)}</b>: ${esc(c.ability.desc())}<br><b style="color:var(--bronze)">Innate</b>: ${esc(c.innate.desc)}${sig ? `<br><b style="color:var(--bronze)">${esc(sig.name)}</b>: ${esc(sig.desc)}` : ''}</div>
     <div><div class="eyebrow" style="margin-bottom:6px">Tag progress</div><div class="progress">${tierProgress(counts)}</div></div>
     ${hybrids.length ? `<div class="sub">Close to a Hybrid: ${hybrids.map((h) => `${esc(h.name)} (${h.tags.map((t) => `${TAGS[t].name} ${counts[t] || 0}/${HYBRID_REQ}`).join(', ')})`).join('; ')}</div>` : ''}
     <div class="stats-panel" id="stats-${id}">${statsPanel(mine ? 0 : 1)}</div>`;
@@ -4511,7 +4588,7 @@ function renderBoard() {
   const seen = ui.fightSeenAt || 0;
   const until = {};
   results.forEach((r) => {
-    const end = seen + r.time * 1000;
+    const end = seen + (r.time * 1000) / ui.speed;
     until[r.a] = Math.max(until[r.a] || 0, end);
     if (!r.ghost) until[r.b] = Math.max(until[r.b] || 0, end);
   });
@@ -4681,6 +4758,11 @@ function watchFight(i) {
   const round = m.fightRound;
   ui.watching = { a: r.a, b: r.b, ghost: r.ghost, round };
   const f = makeFight(m, r.a, r.b);
+  // Join in progress: every fight started when the round did, so skip ahead
+  // to where it is now (or near its end, if it already finished).
+  const elapsed = ((performance.now() - (ui.fightSeenAt || performance.now())) / 1000) * ui.speed;
+  const target = Math.min(elapsed, Math.max(0, r.time - 3));
+  while (f.t + DT <= target && !f.over) f.step(DT);
   ui.savedStats = ui.fightStats;
   ui.fightStats = { live: true, round, watched: true, stats: [f.units[0].stats, f.units[1].stats] };
   const statsTimer = setInterval(refreshStats, 250);
