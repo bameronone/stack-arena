@@ -44,7 +44,7 @@
 ## Evasion (Focus)
 
 - Dodge chance starts at 0.
-- Each hit you take adds your Focus gain (10% innate on Wisp Dancer, 4.5% on Nightshade, +3% per Evasion card, +3% per Light Feet). A dodge resets Focus to 0.
+- Each hit you take adds your Focus gain (10% innate on Haze, 4.5% on Nightshade, +3% per Evasion card, +3% per Light Feet). A dodge resets Focus to 0.
 - Focus is checked *before* it grows, so you can never dodge twice in a row. At +10% per hit, that comes to about 21.5% of attacks dodged.
 - Focus is capped at 60%.
 - Counterplay:
@@ -52,7 +52,7 @@
   - Toxin, Bleed and abilities can't be dodged.
   - True Sight makes every 4th attack undodgeable.
   - Unsettling Blows drains 10% of the target's Focus per copy.
-  - Wisp Dancer sheds 4 Toxin and 4 Bleed on each dodge, so evasion still has an answer to damage over time.
+  - Haze sheds 4 Toxin and 4 Bleed on each dodge, so evasion still has an answer to damage over time.
 
 ## Fights
 
