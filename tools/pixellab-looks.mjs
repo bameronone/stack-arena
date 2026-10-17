@@ -28,6 +28,7 @@ export const LOOKS = {
       attack: '31d103a4-e2ff-486b-abc9-64ab1ba6dfd1', // low sweep
       attack2: '0f86bede-ec10-4e69-8610-5d2f51af9a38', // overhead hooking reap
       cast: 'cfd1aa24-c4a1-4642-a54d-2cbd550ed3b1', // Rupture
+      // death_11..14 had a stray grey dash above the mist, erased by hand after fetching
       death: '0faefa12-9682-439d-97d2-7383f1c34ffe', // fades into red mist
     },
     description: "gaunt male gladiator, pale lean man with a long hooked scythe held in both hands, crimson sash and dark leather wraps, green vine tattoos on his bare arms, shaggy black hair",
