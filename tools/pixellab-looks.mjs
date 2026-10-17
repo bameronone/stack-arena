@@ -68,6 +68,15 @@ export const LOOKS = {
     attack: "flicking her right hand forward to the right and throwing a spread of green-tipped needles, then drawing a new set from her bandolier",
   },
   dawnfeather: {
+    // v3 character in its Winged Stance state, clips animated from that pose
+    // padded to 176x176 (docs/sprites.md).
+    animations: {
+      idle: '14b25fda-cedb-4e53-bc0e-c8ee13e2f995',
+      attack: 'e4fc080f-d5d9-4ecf-b8b6-64d1d7c7235f', // spinning slash
+      attack2: '010b6712-52c8-488f-9566-5c269e7a50e3', // diving strike
+      cast: '2142d7a4-bf6c-4e5e-8b16-0e72ca3005d6', // Phoenix Waltz
+      death: 'aa00e3c1-3c56-4876-8e69-688993d357fd', // burns to ash, a sprout rises
+    },
     description: "graceful female dancer with a long cape of gold and flame-coloured feathers, golden skin, barefoot, flowing red-gold hair, a curved golden sickle in each hand",
     attack: "spinning forward to the right with both sickles slashing in a circle, the feather cape whirling out in a ring of fire, ending back in her winged stance",
   },
