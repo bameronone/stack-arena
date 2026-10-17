@@ -48,6 +48,16 @@ export const LOOKS = {
     attack: "whipping the chain overhead and lashing it forward to the right in a long crack, yellow lightning arcing along the links, then reeling it back into his fist",
   },
   oathcleaver: {
+    // PixelLab character made through the API in v3 mode, in its
+    // Executioner's Stance state; clips were animated from that pose padded
+    // to 176x176, and all but death end back in it.
+    animations: {
+      idle: 'b84f917f-2188-4d53-a6df-f53d62b72f47',
+      attack: '01edafad-1f4b-4176-a808-8cd696003cd1', // overhead chop
+      attack2: 'dc3cad4f-6a8e-43a3-89b6-a487468cfe6f', // flat cleave (prompt adds "staying side-on facing right the whole time")
+      cast: '2b3c3938-b8dc-4a1a-9af7-267b370454a1', // Rusted Verdict
+      death: 'e4bd8bbf-e8cd-4c3a-8bc5-a417901c9e95', // crumbles into rust
+    },
     description: "tall male knight in rust-red plate armor and a tattered grey tabard, closed great helm, a huge executioner's axe held in both hands",
     attack: "heaving the axe off his shoulder and chopping it straight down in front of him to the right with both hands, then hauling it back up onto his shoulder",
   },
