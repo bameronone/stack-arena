@@ -6,6 +6,7 @@
 // two resources and one banned stay pickable but get a warning.
 
 const hit = (f, u, amount) => f.damage(u, u.enemy, amount, 'ability');
+const fangs = (u) => Math.min(8, 3 + Math.floor(((u?.enemy?.poison ?? 0) + (u?.enemy?.bleed ?? 0)) / 12));
 
 export const CHARACTERS = [
   {
@@ -38,8 +39,8 @@ export const CHARACTERS = [
     id: 'viper', name: 'Viper Saint', epithet: 'Twice-Fanged', trigger: 'precision', resources: ['poison', 'bleed'],
     stats: { hp: 855, ad: 27, crit: 0.15 },
     innate: { desc: 'Crits apply 2 Toxin and 2 Bleed.', onCrit: (f, u) => { f.apply(u, 'poison', 2); f.apply(u, 'bleed', 2); } },
-    ability: { name: 'Fang Flurry', desc: () => 'Make 3 quick attacks.',
-      cast: (f, u) => { for (let i = 0; i < 3; i++) { if (u.sig === 'viper_lacerate') u.forceCrit += 1; f.queueExtraAttack(u); } } },
+    ability: { name: 'Fang Flurry', desc: (u) => `Make 3 quick attacks, plus 1 per 12 Toxin and Bleed on the enemy, up to 8 (${fangs(u)}).`,
+      cast: (f, u) => { const k = fangs(u); for (let i = 0; i < k; i++) { if (u.sig === 'viper_lacerate') u.forceCrit += 1; f.queueExtraAttack(u); } } },
     signatures: [
       { id: 'viper_neuro', name: 'Neurotoxin', desc: 'Toxin and Bleed deal +25% damage.', setup: (u) => { u.m.poisonDmg += 0.25; u.m.bleedDmg += 0.25; } },
       { id: 'viper_lacerate', name: 'Lacerate', desc: 'Fang Flurry attacks always crit.' },
@@ -70,13 +71,13 @@ export const CHARACTERS = [
     ],
   },
   {
-    id: 'stormseer', name: 'Stormseer', epithet: 'Speaker of Squalls', trigger: 'spell', resources: ['arcane', 'frost'],
+    id: 'stormseer', name: 'Stormseer', epithet: 'Speaker of Squalls', trigger: 'spell', resources: ['arcane', 'lightning'],
     stats: { hp: 610, ad: 24, manaMax: 85 },
-    innate: { desc: 'On cast, gain 3 Mana stacks.', onCast: (f, u) => f.gain(u, 'arcane', 3) },
-    ability: { name: 'Blizzard', desc: () => 'Deal 75 and apply 5 Frost.',
-      cast: (f, u, p) => { hit(f, u, 75 * p); f.apply(u, 'frost', u.sig === 'storm_front' ? 10 : 5); } },
+    innate: { desc: 'On cast, gain 3 Mana stacks and 5 Lightning.', onCast: (f, u) => { f.gain(u, 'arcane', 3); f.gain(u, 'lightning', 5); } },
+    ability: { name: 'Thunderclap', desc: (u) => `Deal 50 + 10 per bolt called this fight (${Math.round(50 + 10 * (u?.bolts ?? 0))}).`,
+      cast: (f, u, p) => { hit(f, u, (50 + 10 * u.bolts) * p); } },
     signatures: [
-      { id: 'storm_front', name: 'Storm Front', desc: 'Blizzard applies 10 Frost instead of 5.' },
+      { id: 'storm_front', name: 'Storm Front', desc: 'Bolts need 7 Lightning instead of 10.', setup: (u) => { u.boltAt = Math.min(u.boltAt, 7); } },
       { id: 'storm_conduit', name: 'Conduit', desc: '+5 mana per attack.', setup: (u) => { u.manaPerAttack += 5; } },
     ],
   },
@@ -99,8 +100,8 @@ export const CHARACTERS = [
     id: 'ashen', name: 'Ashen Witch', epithet: 'Mother of Smoke', trigger: 'spell', resources: ['fire', 'poison'],
     stats: { hp: 865, ad: 25, manaMax: 90 },
     innate: { desc: 'On cast, gain 5 Fire.', onCast: (f, u) => f.gain(u, 'fire', 5) },
-    ability: { name: 'Cinderplague', desc: () => 'Deal 40 and apply 12 Toxin plus 1 per 2 Fire.',
-      cast: (f, u, p) => { hit(f, u, 40 * p); f.apply(u, 'poison', Math.round((12 + u.fire / 2) * p)); } },
+    ability: { name: 'Cinderplague', desc: (u) => `Deal 40 + 1 per Toxin on the enemy (${Math.round(40 + (u?.enemy?.poison ?? 0))}) and apply 12 Toxin plus 1 per 2 Fire.`,
+      cast: (f, u, p) => { hit(f, u, (40 + u.enemy.poison) * p); f.apply(u, 'poison', Math.round((12 + u.fire / 2) * p)); } },
     signatures: [
       { id: 'ashen_kindled', name: 'Kindled Plague', desc: 'Your Toxin deals +30% damage.', setup: (u) => { u.m.poisonDmg += 0.3; } },
       { id: 'ashen_pyre', name: 'Pyre', desc: 'Cinderplague costs 25% less mana.', setup: (u) => { u.m.castCost *= 0.75; } },
@@ -146,8 +147,8 @@ export const CHARACTERS = [
     id: 'nightshade', name: 'Nightshade', epithet: 'Smoke and Needles', trigger: 'evasion', resources: ['poison', 'shield'],
     stats: { hp: 1065, ad: 25, as: 1.1, focusGain: 0.045 },
     innate: { desc: 'Gains 4.5% Focus each time she is hit. Dodges apply 4 Toxin.', onEvade: (f, u) => f.apply(u, 'poison', 4) },
-    ability: { name: 'Smoke Veil', desc: () => 'Gain 25% Focus and 30 Shield, and apply 6 Toxin.',
-      cast: (f, u, p) => { f.gain(u, 'focus', 0.25); f.gain(u, 'shield', 30 * p); f.apply(u, 'poison', Math.round(6 * p)); } },
+    ability: { name: 'Smoke Veil', desc: (u) => `Gain 25% Focus and 30 Shield + 1 per Toxin on the enemy (${Math.round(30 + (u?.enemy?.poison ?? 0))}), and apply 6 Toxin plus 1 per 5 already on them.`,
+      cast: (f, u, p) => { f.gain(u, 'focus', 0.25); f.gain(u, 'shield', (30 + u.enemy.poison) * p); f.apply(u, 'poison', Math.round((6 + u.enemy.poison / 5) * p)); } },
     signatures: [
       { id: 'shade_needles', name: 'Needle Rain', desc: 'Dodges apply 4 more Toxin.', onEvade: (f, u) => f.apply(u, 'poison', 4) },
       { id: 'shade_veil', name: 'Thick Smoke', desc: 'Start each fight with 30% Focus.', setup: (u) => { u.focusStart += 0.3; } },

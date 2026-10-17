@@ -7,7 +7,7 @@ import { TAGS } from '../data/tags.js';
 // auto-battler camera: you stand near the front left, your opponent at the
 // back right.
 
-const SELF_STACKS = ['fire', 'shield', 'regen', 'arcane', 'armor'];
+const SELF_STACKS = ['fire', 'shield', 'regen', 'arcane', 'lightning', 'armor'];
 
 // Pixel-art sprites embedded by the build from assets/sprites (made with
 // tools/pixellab.mjs). Gladiators without sprites are drawn as medallions.
@@ -55,6 +55,7 @@ export function createArena(canvas) {
   let raf = 0;
   let floaters = [];
   let fx = [];
+  let strikes = []; // lightning bolts on screen
   let names = ['', '']; // player names shown over each fighter
   const anim = [0, 1].map(() => ({ lunge: 0, flash: 0, cast: 0, dodge: 0, dodgeDir: 1, clip: 'idle', clipT: 0, spawn: {} }));
   let clock = 0;
@@ -123,6 +124,8 @@ export function createArena(canvas) {
       case 'resist': float(ev.side, 'RESISTED', '#a8a39a', 14, -18); break;
       case 'immune': float(ev.side, 'IMMUNE', '#e9eef5', 14, -18); break;
       case 'burst': float(ev.side, 'PANDEMIC', TAGS.poison.color, 18, -18); break;
+      case 'bolt': strikes.push(makeStrike(ev.side)); anim[ev.side].flash = 1; break;
+      case 'grit': float(ev.side, 'GRIT', '#d6a24e', 18, -26); break;
     }
   }
 
@@ -131,7 +134,7 @@ export function createArena(canvas) {
     fight = null;
     onDone = null;
     floaters = [];
-    fx = [];
+    fx = []; strikes = [];
     try {
       const a = buildUnit(loadA, 0), b = buildUnit(loadB, 1);
       a.enemy = b; b.enemy = a;
@@ -148,7 +151,7 @@ export function createArena(canvas) {
     onDone = done;
     acc = 0;
     floaters = [];
-    fx = [];
+    fx = []; strikes = [];
     dotSeen = [{ poison: 0, bleed: 0 }, { poison: 0, bleed: 0 }];
     start();
   }
@@ -232,6 +235,7 @@ export function createArena(canvas) {
     bleed: { per: (u) => Math.min(16, 3 + u.bleed / 2) },
     fire: { per: (u) => Math.min(14, u.fire * 0.7) },
     regen: { per: (u) => Math.min(3, 0.6 + u.regen / 12) },
+    lightning: { per: (u) => Math.min(10, 1 + u.lightning * 0.8) },
     frost: { per: (u) => (u.frozen > 0 ? 6 : Math.min(4, u.frost / 4)) },
   };
   function spawnStatus(u, a, dt) {
@@ -249,6 +253,7 @@ export function createArena(canvas) {
         else if (k === 'bleed') fx.push({ kind: 'drop', x: p.x + rx * 0.8, y: p.y - r * 0.2 + Math.random() * r * 0.6, vx: (Math.random() - 0.5) * 10, vy: 10, g: 260, floor: feet - Math.random() * r * 0.15, size: 2.2 + Math.random() * 2.4 * p.k, ttl: 1.8, life: 1, color: TAGS.bleed.color });
         else if (k === 'fire') fx.push({ kind: 'flame', x: p.x + rx, y: feet - Math.random() * r * 0.3, vx: (Math.random() - 0.5) * 6, vy: -30 - Math.random() * 25, size: 3 + Math.random() * 3 * p.k, ttl: 0.7, life: 1, color: TAGS.fire.color });
         else if (k === 'regen') fx.push({ kind: 'cross', x: p.x + rx, y: p.y + r * 0.2, vx: 0, vy: -22, size: 3 + p.k * 2, ttl: 1.2, life: 1, color: TAGS.regen.color });
+        else if (k === 'lightning') { const ang = Math.random() * Math.PI * 2; fx.push({ kind: 'shard', x: p.x + Math.cos(ang) * r * 0.9, y: p.y + Math.sin(ang) * r * 0.9, vx: Math.cos(ang) * 30, vy: Math.sin(ang) * 30, size: 1.5 + Math.random() * 1.5, ttl: 0.25, life: 1, color: TAGS.lightning.color, rot: ang }); }
         else if (k === 'frost') fx.push({ kind: 'flake', x: p.x + rx * 1.2, y: p.y - r * (0.9 + Math.random() * 0.4), vx: (Math.random() - 0.5) * 6, vy: 14 + Math.random() * 10, size: 1.4 + Math.random() * 1.6, ttl: 1.6, life: 1, color: '#d8f1ff' });
       }
     }
@@ -259,6 +264,36 @@ export function createArena(canvas) {
       const ang = Math.random() * Math.PI * 2, v = 60 + Math.random() * 90;
       fx.push({ kind: 'shard', x: p.x, y: p.y, vx: Math.cos(ang) * v, vy: Math.sin(ang) * v - 40, g: 220, floor: p.y + r * 1.05, size: 2 + Math.random() * 3, ttl: 0.9, life: 1, color: '#bfe7ff', rot: ang });
     }
+  }
+  // A jagged bolt from above the stage down onto the target.
+  function makeStrike(side) {
+    const p = pos(side), r = radius(side);
+    const pts = [];
+    let x = p.x + (Math.random() - 0.5) * r;
+    const y0 = 0, y1 = p.y;
+    for (let i = 0; i <= 8; i++) {
+      pts.push([x, y0 + ((y1 - y0) * i) / 8]);
+      x += (Math.random() - 0.5) * r * 0.5;
+      x += (p.x - x) * 0.25;
+    }
+    return { pts, life: 1 };
+  }
+  function drawStrikes(dt) {
+    for (const st of strikes) {
+      st.life -= dt * 3;
+      if (st.life <= 0) continue;
+      ctx.save();
+      ctx.globalAlpha = st.life;
+      ctx.lineJoin = 'round';
+      for (const [wd, col] of [[9, 'rgba(245,228,91,0.25)'], [4, TAGS.lightning.color], [1.5, '#fffbe0']]) {
+        ctx.strokeStyle = col; ctx.lineWidth = wd;
+        ctx.beginPath();
+        st.pts.forEach(([px, py], i) => (i ? ctx.lineTo(px, py) : ctx.moveTo(px, py)));
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+    strikes = strikes.filter((st) => st.life > 0);
   }
   function drawFx(front) {
     for (const p of fx) {
@@ -523,6 +558,12 @@ export function createArena(canvas) {
       ctx.lineWidth = 3;
       ctx.beginPath(); ctx.arc(x, y, r * (1.25 + (1 - a.cast) * 0.5), 0, Math.PI * 2); ctx.stroke();
     }
+    // grit: a bronze ring while incoming damage is cut
+    if (u.grit > 0) {
+      ctx.strokeStyle = `rgba(214,162,78,${0.5 + 0.3 * Math.sin(clock * 12)})`;
+      ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(x, y, r + 20, 0, Math.PI * 2); ctx.stroke();
+    }
     // shield ring
     if (u.shield > 0) {
       ctx.strokeStyle = 'rgba(233,238,245,0.85)';
@@ -678,6 +719,7 @@ export function createArena(canvas) {
     drawFx(true);
     for (const u of units) drawUnit(u);
     drawFx(false);
+    drawStrikes(dt);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     if (fight) drawClock(fight.t);

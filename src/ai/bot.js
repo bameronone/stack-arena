@@ -23,7 +23,7 @@ export const LEVELS = {
 const level = (p) => LEVELS[p.level] || LEVELS.normal;
 
 // Resources that tend to dominate bot-vs-bot play; smarter bots ban these.
-const THREAT = { poison: 3, regen: 3, bleed: 2, shield: 2, armor: 1.5, fire: 1.5, frost: 1.2, arcane: 1 };
+const THREAT = { poison: 3, regen: 3, bleed: 2, shield: 2, armor: 1.5, fire: 1.5, frost: 1.2, arcane: 1, lightning: 1.2 };
 
 export function botBan(m, id) {
   const p = m.players[id];

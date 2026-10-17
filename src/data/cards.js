@@ -10,6 +10,7 @@
 //         onPain(f, u, n)             each time you lose another slice of max HP
 //         onCast(f, u, n)
 //         onFreeze(f, u, n)           you froze the enemy
+//         onBolt(f, u, n)             your Lightning called a bolt
 //         onHitTaken(f, u, n, src)
 //         onShieldBreak(f, u, n)
 //         every: [seconds, (f, u, n) => {}]
@@ -47,6 +48,9 @@ export const CARDS = [
   { id: 'pulse', name: 'Pulse', tags: ['strike', 'regen'], tier: 1, max: 5,
     desc: (n) => `Every 3rd attack, gain ${n} Regen.`,
     onAttack: (f, u, n) => { if (u.attackCount % 3 === 0) f.gain(u, 'regen', n); } },
+  { id: 'static_blade', name: 'Static Blade', tags: ['strike', 'lightning'], tier: 1, max: 5,
+    desc: (n) => `On attack, gain ${n} Lightning.`,
+    onAttack: (f, u, n) => f.gain(u, 'lightning', n) },
   { id: 'quick_hands', name: 'Quick Hands', tags: ['strike'], tier: 1, max: 5,
     desc: (n) => `+${6 * n}% attack speed.`,
     setup: (u, n) => { u.asBonus += 0.06 * n; } },
@@ -85,6 +89,9 @@ export const CARDS = [
   { id: 'insight', name: 'Insight', tags: ['precision', 'arcane'], tier: 1, max: 5,
     desc: (n) => `On crit, gain ${2 * n} Mana stacks and ${10 * n} mana.`,
     onCrit: (f, u, n) => { f.gain(u, 'arcane', 2 * n); u.mana += 10 * n; } },
+  { id: 'thunder_crit', name: 'Thundercrack', tags: ['precision', 'lightning'], tier: 1, max: 5,
+    desc: (n) => `On crit, gain ${4 * n} Lightning.`,
+    onCrit: (f, u, n) => f.gain(u, 'lightning', 4 * n) },
   { id: 'keen_edge', name: 'Keen Edge', tags: ['precision'], tier: 1, max: 5,
     desc: (n) => `+${5 * n}% crit chance.`,
     setup: (u, n) => { u.crit += 0.05 * n; } },
@@ -123,6 +130,9 @@ export const CARDS = [
   { id: 'mind_over_blade', name: 'Mind Over Blade', tags: ['evasion', 'arcane'], tier: 1, max: 5,
     desc: (n) => `On dodge, gain ${2 * n} Mana stacks and ${10 * n} mana.`,
     onEvade: (f, u, n) => { f.gain(u, 'arcane', 2 * n); u.mana += 10 * n; } },
+  { id: 'storm_step', name: 'Storm Step', tags: ['evasion', 'lightning'], tier: 1, max: 5,
+    desc: (n) => `On dodge, gain ${4 * n} Lightning.`,
+    onEvade: (f, u, n) => f.gain(u, 'lightning', 4 * n) },
   { id: 'light_feet', name: 'Light Feet', tags: ['evasion'], tier: 1, max: 5,
     desc: (n) => `+${3 * n}% Focus each time you're hit.`,
     setup: (u, n) => { u.focusGain += 0.03 * n; } },
@@ -161,6 +171,9 @@ export const CARDS = [
   { id: 'pained_insight', name: 'Pained Insight', tags: ['pain', 'arcane'], tier: 1, max: 5,
     desc: (n) => `When hurt: gain ${n} Mana stack${n > 1 ? 's' : ''} and ${5 * n} mana.`,
     onPain: (f, u, n) => { f.gain(u, 'arcane', n); u.mana += 5 * n; } },
+  { id: 'storm_blood', name: 'Storm Blood', tags: ['pain', 'lightning'], tier: 1, max: 5,
+    desc: (n) => `When hurt: gain ${2 * n} Lightning.`,
+    onPain: (f, u, n) => f.gain(u, 'lightning', 2 * n) },
   { id: 'thin_skin', name: 'Thin Skin', tags: ['pain'], tier: 1, max: 4,
     desc: (n) => `You get hurt ${n}% of max HP sooner.`,
     setup: (u, n) => { u.painStep -= 0.01 * n; } },
@@ -209,6 +222,9 @@ export const CARDS = [
   { id: 'hemomancy', name: 'Hemomancy', tags: ['spell', 'bleed'], tier: 1, max: 5,
     desc: (n) => `On cast, apply ${7 * n} Bleed.`,
     onCast: (f, u, n) => f.apply(u, 'bleed', 7 * n) },
+  { id: 'chain_cast', name: 'Chain Cast', tags: ['spell', 'lightning'], tier: 1, max: 5,
+    desc: (n) => `On cast, gain ${7 * n} Lightning.`,
+    onCast: (f, u, n) => f.gain(u, 'lightning', 7 * n) },
   { id: 'focused_mind', name: 'Focused Mind', tags: ['spell'], tier: 1, max: 4,
     desc: (n) => `Start each fight with ${20 * n} mana.`,
     setup: (u, n) => { u.manaStart += 20 * n; } },
@@ -369,6 +385,30 @@ export const CARDS = [
     desc: () => 'Your ability costs 30% less mana.',
     setup: (u) => { u.m.castCost *= 0.7; } },
 
+  // ------------------------------------------------------------- Lightning
+  { id: 'static_build', name: 'Static Build', tags: ['lightning'], tier: 1, max: 5,
+    desc: (n) => `On attack, 30% chance to gain ${3 * n} Lightning.`,
+    onAttack: (f, u, n) => { if (chance(f)) f.gain(u, 'lightning', 3 * n); } },
+  { id: 'capacitor', name: 'Capacitor', tags: ['lightning'], tier: 1, max: 5,
+    desc: (n) => `Your bolts deal +${12 * n}% damage.`,
+    setup: (u, n) => { u.m.boltDmg += 0.12 * n; } },
+  { id: 'static_field', name: 'Static Field', tags: ['lightning'], tier: 2, max: 3,
+    desc: (n) => `Every 2s, gain ${2 * n} Lightning.`,
+    every: [2, (f, u, n) => f.gain(u, 'lightning', 2 * n)] },
+  { id: 'conductor', name: 'Conductor', tags: ['lightning'], tier: 2, max: 3,
+    desc: (n) => `Bolts need ${10 - n} Lightning instead of 10.`,
+    setup: (u, n) => { u.boltAt = Math.min(u.boltAt, 10 - n); } },
+  { id: 'chain_lightning', name: 'Chain Lightning', tags: ['lightning'], tier: 3, max: 2,
+    desc: (n) => `Each bolt jumps back for another ${30 * n}% of its damage.`,
+    onBolt: (f, u, n) => f.damage(u, u.enemy, f.boltDamage(u) * 0.3 * n * Math.max(0, u.enemy.m.boltTaken), 'ability', { source: 'Chain Lightning' }) },
+  { id: 'galvanize', name: 'Galvanize', tags: ['lightning'], tier: 3, max: 2,
+    desc: (n) => `Each bolt gives you ${4 * n}% attack speed for the rest of the fight (max +${40 * n}%).`,
+    onBolt: (f, u, n) => { u.galv = Math.min(0.4 * n, u.galv + 0.04 * n); } },
+  { id: 'tempest', name: 'Tempest', tags: ['lightning'], tier: 4, max: 1,
+    desc: () => 'Bolts need half as much Lightning, and every 5th bolt strikes three times.',
+    setup: (u) => { u.flags.tempest = true; },
+    onBolt: (f, u) => { if (u.bolts % 5 === 0) for (let i = 0; i < 2; i++) f.damage(u, u.enemy, f.boltDamage(u) * Math.max(0, u.enemy.m.boltTaken), 'ability', { source: 'Tempest' }); } },
+
   // ----------------------------------------------------------------- Armor
   { id: 'plating', name: 'Plating', tags: ['armor'], tier: 1, max: 5,
     desc: (n) => `Start each fight with ${3 * n} Armor.`,
@@ -422,6 +462,14 @@ export const CARDS = [
     desc: () => 'Gain 1 Regen for every 8 Bleed you apply.',
     setup: (u) => { u.flags.bloodRite = true; } },
 
+  { id: 'storm_mind', name: 'Storm Mind', tags: ['lightning', 'arcane'], tier: 'hybrid', max: 1,
+    desc: () => 'Each bolt gives you 12 mana and 1 Mana stack.',
+    onBolt: (f, u) => { u.mana += 12; f.gain(u, 'arcane', 1); } },
+  { id: 'superconductor', name: 'Superconductor', tags: ['lightning', 'frost'], tier: 'hybrid', max: 1,
+    desc: () => 'Each bolt applies 3 Frost. Bolts deal +50% damage to frozen enemies.',
+    onBolt: (f, u) => f.apply(u, 'frost', 3),
+    setup: (u) => { u.flags.superconductor = true; } },
+
   // ------------------------------------------------ Counters (no tags)
   { id: 'antivenom', name: 'Antivenom', tags: [], tier: 'counter', max: 2, counters: 'poison',
     desc: (n) => `Take ${30 * n}% less Toxin damage.`,
@@ -450,6 +498,12 @@ export const CARDS = [
   { id: 'nullstone', name: 'Nullstone', tags: [], tier: 'counter', max: 2, counters: 'arcane',
     desc: (n) => `Take ${25 * n}% less ability damage.`,
     setup: (u, n) => { u.m.abilityTaken -= 0.25 * n; } },
+  { id: 'grounding_rod', name: 'Grounding Rod', tags: [], tier: 'counter', max: 2, counters: 'lightning',
+    desc: (n) => `Take ${30 * n}% less damage from Lightning bolts.`,
+    setup: (u, n) => { u.m.boltTaken -= 0.3 * n; } },
+  { id: 'steadfast', name: 'Steadfast', tags: [], tier: 'counter', max: 2,
+    desc: (n) => `Grit kicks in after losing ${30 - 5 * n}% of max HP in 2s instead of 30%, and blocks ${50 + 10 * n}% instead of 50%.`,
+    setup: (u, n) => { u.gritAt = 0.3 - 0.05 * n; u.gritCut = 0.5 + 0.1 * n; } },
   { id: 'cooling_draught', name: 'Cooling Draught', tags: [], tier: 'counter', max: 2, counters: 'fire',
     desc: (n) => `The enemy's Fire cap is reduced by ${6 * n}.`,
     setup: (u, n) => { u.m.enemyFireCapCut += 6 * n; } },
@@ -458,5 +512,5 @@ export const CARDS = [
 export const CARD_BY_ID = Object.fromEntries(CARDS.map((c) => [c.id, c]));
 
 export function cardResources(card) {
-  return card.tags.filter((t) => ['fire', 'frost', 'poison', 'bleed', 'shield', 'regen', 'arcane', 'armor'].includes(t));
+  return card.tags.filter((t) => ['fire', 'frost', 'poison', 'bleed', 'shield', 'regen', 'arcane', 'lightning', 'armor'].includes(t));
 }

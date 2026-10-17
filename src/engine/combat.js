@@ -22,11 +22,18 @@ export function hpScale(round = 1) {
 }
 const DEFAULT_SOURCE = { attack: 'Attacks', poison: 'Toxin', bleed: 'Bleed', thorns: 'Thorns', true: 'Other' };
 
-const HOOKS = ['onStart', 'onAttack', 'onHit', 'onCrit', 'onEvade', 'onPain', 'onHeal', 'onCast', 'onFreeze', 'onHitTaken', 'onShieldBreak', 'bonusDamage'];
+const HOOKS = ['onStart', 'onAttack', 'onHit', 'onCrit', 'onEvade', 'onPain', 'onHeal', 'onCast', 'onFreeze', 'onBolt', 'onHitTaken', 'onShieldBreak', 'bonusDamage'];
 // Healing this share of base max HP counts as one "On heal".
 export const HEAL_STEP = 0.05;
 // Max HP each Health (pain) card gives.
 export const HEALTH_PER_CARD = 5;
+// Each freeze you suffer needs this much more Frost than the last one.
+export const FREEZE_STEP = 10;
+// Grit: losing GRIT_AT of max HP within GRIT_WINDOW seconds halves the damage
+// you take for GRIT_DUR seconds, at most once every GRIT_CD seconds.
+export const GRIT = { at: 0.3, window: 2, dur: 1.5, cut: 0.5, cd: 6 };
+// Lightning: this many stacks call a bolt.
+export const BOLT_AT = 10;
 const BASE = { hp: 600, ad: 30, as: 1.0, crit: 0.05, critMult: 1.75, manaMax: 100, manaPerAttack: 10, focusGain: 0 };
 
 // Build a combat unit from a loadout: { charId, cards: {id: copies}, sig, round }.
@@ -40,10 +47,13 @@ export function buildUnit(loadout, side) {
     // stacks on self
     fire: 0, fireCap: 25, fireStart: 0, fireIdle: 0, fireLinger: 3,
     shield: 0, regen: 0, arcane: 0, arcaneValue: 0.04, armor: 0,
+    lightning: 0, boltAt: BOLT_AT, bolts: 0, galv: 0,
     // stacks the enemy put on you
     frost: 0, poison: 0, bleed: 0,
     // freeze settings you impose on the enemy
-    freezeAt: 16, freezeDur: 1.5, freezesDone: 0, freezeImmune: 0,
+    freezeAt: 16, freezeDur: 1.5, freezesDone: 0, freezeImmune: 0, freezesTaken: 0,
+    // grit
+    recent: [], grit: 0, gritCd: 0, gritAt: GRIT.at, gritCut: GRIT.cut,
     // evasion
     focus: 0, focusGain: s.focusGain, focusCap: 0.6, focusReset: 0, focusStart: 0,
     // pain
@@ -56,13 +66,13 @@ export function buildUnit(loadout, side) {
       poisonTaken: 1, frostTaken: 1, bleedTaken: 1, abilityTaken: 1, enemyHealCut: 0, enemyFireCapCut: 0,
       abilityPower: 1, castCost: 1, frozenBonus: 0, reflect: 0, manaWard: 0, armorPierce: 0,
       focusDrain: 0, trueSight: 0, critMissing: 0, castRefund: 0, berserk: 0, bleedLeech: 0,
-      pandemic: 0, secondWind: 0, healGain: 1,
+      pandemic: 0, secondWind: 0, healGain: 1, boltDmg: 1, boltTaken: 1,
     },
     flags: {},
     used: {},
     hooks: Object.fromEntries(HOOKS.map((h) => [h, []])),
     timers: [],
-    stats: { dealt: 0, taken: 0, healed: 0, dodges: 0, crits: 0, casts: 0, freezes: 0, byKind: {}, dmg: {}, heal: {}, mit: {} },
+    stats: { dealt: 0, taken: 0, healed: 0, dodges: 0, crits: 0, casts: 0, freezes: 0, bolts: 0, byKind: {}, dmg: {}, heal: {}, mit: {} },
     tagCounts: {},
   };
 
@@ -97,6 +107,7 @@ export function buildUnit(loadout, side) {
 
   if (u.flags.titan) { u.maxHp *= 1.6; u.asBase *= 0.8; u.hooks.bonusDamage.push({ fn: (f, x) => x.baseHp * 0.03, n: 1 }); }
   if (u.flags.bullseye) u.crit *= 2;
+  if (u.flags.tempest) u.boltAt = Math.max(3, Math.round(u.boltAt / 2));
   u.crit = Math.min(u.crit, 0.95);
   // Effects worth "x% of max HP" (bleed, regen, shields...) use baseHp, the
   // HP before round scaling, so they don't grow faster than everything else.
@@ -146,6 +157,10 @@ export class Fight {
       case 'arcane': u.arcane += k; break;
       case 'armor': u.armor += k; break;
       case 'focus': u.focus = Math.min(u.focusCap, u.focus + k); break;
+      case 'lightning':
+        u.lightning += k;
+        while (u.lightning >= u.boltAt && !u.dead && !u.enemy.dead) { u.lightning -= u.boltAt; this.bolt(u); }
+        break;
     }
   }
 
@@ -155,7 +170,7 @@ export class Fight {
     if (tgt.dead || !(k > 0)) return;
     if (res === 'frost') {
       tgt.frost += k * Math.max(0, tgt.m.frostTaken);
-      if (tgt.frost >= Math.max(6, src.freezeAt)) this.freeze(src, tgt);
+      if (tgt.frost >= this.freezePoint(src, tgt)) this.freeze(src, tgt);
     } else if (res === 'poison') {
       tgt.poison += k;
       if (src.m.pandemic && tgt.poison >= 40) {
@@ -173,9 +188,15 @@ export class Fight {
     }
   }
 
+  // Frost needed to freeze tgt: rises by FREEZE_STEP with every freeze it suffered.
+  freezePoint(src, tgt) {
+    return Math.max(6, src.freezeAt) + FREEZE_STEP * tgt.freezesTaken;
+  }
+
   freeze(src, tgt) {
     tgt.frost = 0;
     if (tgt.freezeImmune > 0) { tgt.freezeImmune--; this.emit('resist', tgt); return; }
+    tgt.freezesTaken++;
     src.freezesDone++;
     src.flags.bigFreeze = src.flags.absoluteZero && src.freezesDone % 3 === 0;
     tgt.frozen = src.flags.bigFreeze ? 4 : src.freezeDur;
@@ -185,8 +206,26 @@ export class Fight {
     src.flags.bigFreeze = false;
   }
 
+  // A Lightning bolt: ability damage that grows with every bolt this fight
+  // and knocks the enemy's next swing back to the start.
+  bolt(u) {
+    const e = u.enemy;
+    const d = this.boltDamage(u) * Math.max(0, e.m.boltTaken);
+    u.bolts++;
+    u.stats.bolts++;
+    this.emit('bolt', e);
+    this.damage(u, e, d, 'ability', { source: 'Lightning' });
+    e.attackTimer = 0;
+    this.run(u, 'onBolt');
+  }
+
+  boltDamage(u) {
+    const frozen = u.flags.superconductor && u.enemy.frozen > 0 ? 1.5 : 1;
+    return (40 + 4 * Math.min(20, u.bolts)) * u.m.boltDmg * frozen;
+  }
+
   antiheal(u) {
-    return Math.min(0.5, u.poison * 0.01) + u.enemy.m.enemyHealCut;
+    return Math.min(0.9, u.enemy.m.enemyHealCut);
   }
 
   // Per-source tallies for the stats panel. `mit` is damage prevented.
@@ -258,9 +297,14 @@ export class Fight {
       this.tally(tgt, 'mit', 'Mana Shield', amt * tgt.m.manaWard);
       amt *= 1 - tgt.m.manaWard;
     }
+    if (tgt.grit > 0 && source !== 'Arena burn') {
+      this.tally(tgt, 'mit', 'Grit', amt * tgt.gritCut);
+      amt *= 1 - tgt.gritCut;
+    }
     if (amt <= 0) return 0;
 
     tgt.hp -= amt;
+    if (source !== 'Arena burn') this.checkGrit(tgt, amt);
     src.stats.dealt += amt;
     this.tally(src, 'dmg', source, amt);
     src.stats.byKind[kind] = (src.stats.byKind[kind] || 0) + amt;
@@ -303,8 +347,21 @@ export class Fight {
     return amt;
   }
 
+  // Grit: a burst of damage in a short window makes you tougher for a moment.
+  checkGrit(u, amt) {
+    u.recent.push([this.t, amt]);
+    while (u.recent.length && u.recent[0][0] < this.t - GRIT.window) u.recent.shift();
+    if (u.grit > 0 || u.gritCd > 0 || u.hp <= 0) return;
+    let sum = 0;
+    for (const [, a] of u.recent) sum += a;
+    if (sum >= u.gritAt * u.maxHp) {
+      u.grit = GRIT.dur; u.gritCd = GRIT.cd; u.recent = [];
+      this.emit('grit', u);
+    }
+  }
+
   attackSpeed(u) {
-    let as = u.asBase * (1 + u.asBonus + 0.025 * u.fire + Math.min(u.momentumCap, 0.01 * u.attackCount));
+    let as = u.asBase * (1 + u.asBonus + u.galv + 0.025 * u.fire + Math.min(u.momentumCap, 0.01 * u.attackCount));
     if (u.m.berserk) as *= 1 + u.m.berserk * (1 - u.hp / u.maxHp);
     return as * this.slow(u);
   }
@@ -332,7 +389,6 @@ export class Fight {
       this.tally(d, 'mit', 'Dodge', a.ad);
       this.emit('dodge', d);
       this.run(d, 'onEvade');
-      a.mana += a.manaPerAttack * 0.5 * this.slow(a);
       return;
     }
     if (d.focusGain > 0) d.focus = Math.min(d.focusCap, d.focus + d.focusGain);
@@ -348,7 +404,6 @@ export class Fight {
       a.stats.crits++;
     }
     const dealt = this.damage(a, d, dmg, 'attack', { crit });
-    a.mana += a.manaPerAttack * this.slow(a);
     const hit = { crit, dmg: dealt };
     this.emit('attack', a, { crit });
     this.run(a, 'onHit', hit);
@@ -376,6 +431,8 @@ export class Fight {
       u.frozen = Math.max(0, u.frozen - dt);
       u.immune = Math.max(0, u.immune - dt);
       u.bastionCd = Math.max(0, u.bastionCd - dt);
+      u.grit = Math.max(0, u.grit - dt);
+      u.gritCd = Math.max(0, u.gritCd - dt);
 
       // Damage over time the enemy put on this unit.
       if (u.poison > 0) {
@@ -407,8 +464,10 @@ export class Fight {
       }
 
       if (u.frozen <= 0) {
-        u.mana += u.manaRegen * dt * this.slow(u);
-        u.attackTimer += this.attackSpeed(u) * dt;
+        // Mana fills smoothly: mana per attack times attacks per second.
+        const as = this.attackSpeed(u);
+        u.mana += (u.manaRegen * this.slow(u) + u.manaPerAttack * as) * dt;
+        u.attackTimer += as * dt;
         let guard = 0;
         while (u.attackTimer >= 1 && guard++ < 4 && !u.dead && !e.dead) {
           u.attackTimer -= 1;
