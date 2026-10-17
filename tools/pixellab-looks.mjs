@@ -46,6 +46,14 @@ export const LOOKS = {
   viper: {
     description: "wiry male assassin in tight green and black scaled leather, hood shaped like a snake's head, lower face masked, a curved dagger in each hand, the left blade dripping green and the right dripping red",
     attack: "lunging forward to the right with a quick stab of the left dagger followed by a slash of the right dagger, leaving green and red streaks, then springing back into his crouch",
+    // PixMiniMax clips on the Low Crouched Stance state; idle, swings and cast end back in the crouch.
+    animations: {
+      idle: 'dbe46be9-8565-4432-945d-923e7adbc592',
+      attack: '377eceb9-8ecb-467e-b973-a1ba619ce3e1', // stab then slash
+      attack2: '8ccaf899-a181-4ad7-b258-0f11ca7949c0', // spinning X slash
+      cast: '0e66a96c-2e09-4636-87ca-e950cfe64f5a', // Fang Flurry
+      death: '72a2918e-fd19-47da-a6d5-d9a0e7b7250a', // melts into venom
+    },
   },
   duelist: {
     description: "proud female fencer, lean woman in a dark steel half-cuirass over a white shirt, short cropped hair, a thin rapier in her right hand with a glowing white-hot tip",
