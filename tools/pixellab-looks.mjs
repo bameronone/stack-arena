@@ -9,9 +9,9 @@ export const LOOKS = {
     attack: 'swinging the flaming sword with both hands in a horizontal arc, then returning to the two-handed guard',
     animations: {
       idle: '74649177-8e35-4677-8247-a2043e07918b',
-      attack: '9191b741-7c1c-43b7-9d4b-663e64f846fe', // left to right
-      attack2: '024d0654-3fb7-4e4d-9e76-4057e3853ece', // right to left
-      death: '28631e29-c464-41c1-b3d0-0062372a3583', // bursts into glowing dust
+      attack: 'a2d5f60f-91d9-4639-a954-581b446900c8', // left to right
+      attack2: '59eba069-2f39-452c-b2cc-36c4805bc4b4', // right to left
+      death: 'f97fb098-6cda-404f-a1ab-18a1f38f9fd1', // bursts into glowing dust
     },
   },
   glacia: { description: 'ice sorceress in pale blue robes with a frost crown and a crystal staff', attack: 'thrusting a staff forward in a quick strike' },
