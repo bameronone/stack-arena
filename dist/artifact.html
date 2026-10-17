@@ -1006,8 +1006,7 @@ function cardResources(card) {
 // an innate passive, an ability cast at full mana, and two signature upgrades
 // offered at the milestone round.
 //
-// A character is hidden when ALL of its resources are banned. Characters with
-// two resources and one banned stay pickable but get a warning.
+// A character is hidden when ANY of its resources is banned.
 
 const hit = (f, u, amount) => f.damage(u, u.enemy, amount, 'ability');
 const fangs = (u) => Math.min(8, 3 + Math.floor(((u?.enemy?.poison ?? 0) + (u?.enemy?.bleed ?? 0)) / 12));
@@ -1238,12 +1237,9 @@ const CHARACTERS = [
 
 const CHAR_BY_ID = Object.fromEntries(CHARACTERS.map((c) => [c.id, c]));
 
-// Visibility after bans. Returns 'hidden', 'weakened' or 'ok'.
+// Visibility after bans. Returns 'hidden' or 'ok'.
 function characterStatus(char, bans) {
-  const left = char.resources.filter((r) => !bans.includes(r));
-  if (left.length === 0) return 'hidden';
-  if (left.length < char.resources.length) return 'weakened';
-  return 'ok';
+  return char.resources.some((r) => bans.includes(r)) ? 'hidden' : 'ok';
 }
 
 // ---- src/engine/combat.js
@@ -4399,13 +4395,12 @@ function renderPick() {
       mine ? `You chose ${esc(CHAR_BY_ID[mine].name)}` : 'Choose your gladiator',
       mine ? `Waiting for ${plural(waiting, 'more player')}...` : 'Each gladiator has a trigger and one or two resources. The shop offers their cards more often, and their ability grows with those stacks.')}
     <div class="char-grid">
-      ${vis.map(({ char: c, status }) => `
+      ${vis.map(({ char: c }) => `
         <button class="char ${mine === c.id ? 'chosen' : ''}" data-char="${c.id}" ${mine ? 'disabled' : ''}>
           ${charInfo(c)}
-          ${status === 'weakened' ? `<div class="warn">${c.resources.filter((r) => m.bans.includes(r)).map((r) => TAGS[r].name).join(', ')} is banned. This build is weaker.</div>` : ''}
         </button>`).join('')}
     </div>
-    ${hidden.length ? `<p class="hidden-note">Sitting out (all their resources are banned): ${hidden.map((c) => esc(c.name)).join(', ')}.</p>` : ''}
+    ${hidden.length ? `<p class="hidden-note">Sitting out (one of their resources is banned): ${hidden.map((c) => esc(c.name)).join(', ')}.</p>` : ''}
   </div></div>`;
   root.querySelectorAll('[data-char]').forEach((b) => b.onclick = () => S.act('pick', b.dataset.char));
 }

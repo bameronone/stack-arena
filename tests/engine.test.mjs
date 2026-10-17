@@ -130,13 +130,13 @@ test('freezing at the threshold stops attacks', () => {
   assert.equal(f.b.attackCount, before);
 });
 
-test('pure characters are hidden when their resource is banned', () => {
+test('characters are hidden when any of their resources is banned', () => {
   assert.equal(characterStatus(CHAR_BY_ID.cinder, ['fire']), 'hidden');
-  assert.equal(characterStatus(CHAR_BY_ID.ashen, ['fire']), 'weakened');
+  assert.equal(characterStatus(CHAR_BY_ID.ashen, ['fire']), 'hidden');
   assert.equal(characterStatus(CHAR_BY_ID.ashen, ['fire', 'poison']), 'hidden');
   assert.equal(characterStatus(CHAR_BY_ID.ashen, ['frost', 'bleed']), 'ok');
   const vis = visibleCharacters(['fire', 'regen']).map((v) => v.char.id);
-  assert.ok(!vis.includes('cinder') && !vis.includes('grove') && vis.includes('ashen'));
+  assert.ok(!vis.includes('cinder') && !vis.includes('grove') && !vis.includes('ashen') && vis.includes('glacia'));
 });
 
 test('banned resources never appear in shops, including hybrids and counters', () => {

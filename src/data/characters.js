@@ -2,8 +2,7 @@
 // an innate passive, an ability cast at full mana, and two signature upgrades
 // offered at the milestone round.
 //
-// A character is hidden when ALL of its resources are banned. Characters with
-// two resources and one banned stay pickable but get a warning.
+// A character is hidden when ANY of its resources is banned.
 
 const hit = (f, u, amount) => f.damage(u, u.enemy, amount, 'ability');
 const fangs = (u) => Math.min(8, 3 + Math.floor(((u?.enemy?.poison ?? 0) + (u?.enemy?.bleed ?? 0)) / 12));
@@ -234,10 +233,7 @@ export const CHARACTERS = [
 
 export const CHAR_BY_ID = Object.fromEntries(CHARACTERS.map((c) => [c.id, c]));
 
-// Visibility after bans. Returns 'hidden', 'weakened' or 'ok'.
+// Visibility after bans. Returns 'hidden' or 'ok'.
 export function characterStatus(char, bans) {
-  const left = char.resources.filter((r) => !bans.includes(r));
-  if (left.length === 0) return 'hidden';
-  if (left.length < char.resources.length) return 'weakened';
-  return 'ok';
+  return char.resources.some((r) => bans.includes(r)) ? 'hidden' : 'ok';
 }
