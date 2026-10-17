@@ -16,6 +16,15 @@ export const LOOKS = {
   },
   // The rest follow docs/gladiator-prompts.md, which has each one's pose and clip prompts.
   glacia: {
+    // v3 character made through the API, in its Casting Stance state. Idle,
+    // both attacks and cast were animated back to the stance.
+    animations: {
+      idle: '8a081eae-d07f-408f-b859-0b3123a44c9b',
+      attack: '606138f0-c360-42f5-9e48-59fe6a1ebd03', // staff thrust, ice shards
+      attack2: 'cfeccec3-3c68-4255-893c-3fce00cd5f72', // hand sweep, hail
+      cast: '7e4dc646-39f1-4a83-953b-f3365eec3d92', // Hailstorm
+      death: '26753a30-841a-42be-a235-be02bcc00f1b', // freezes and shatters
+    },
     description: "tall female ice sorceress in a white fur mantle over pale blue robes, crown of icicles, long white hair, holding a frost-crusted crystal staff in her right hand",
     attack: "thrusting the crystal staff forward to the right, a burst of jagged ice shards spraying from its tip, then drawing it back upright",
   },
