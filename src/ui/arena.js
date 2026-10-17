@@ -162,7 +162,8 @@ export function createArena(canvas) {
     acc = 0;
     floaters = [];
     fx = []; strikes = [];
-    dotSeen = [{ poison: 0, bleed: 0 }, { poison: 0, bleed: 0 }];
+    // Count from where the fight is now: a watched fight may join mid-way.
+    dotSeen = units.map((u) => ({ poison: u.enemy.stats.byKind.poison || 0, bleed: u.enemy.stats.byKind.bleed || 0 }));
     start();
   }
 
@@ -338,7 +339,7 @@ export function createArena(canvas) {
     const slot = (w - margin * 2) / n;
     const pw = Math.min(160, slot - 6), ph = narrow ? 26 : 40;
     const compact = pw < 92;
-    const y = narrow ? 92 : Math.max(58, floorTop - ph - 26);
+    const y = narrow ? 92 : Math.max(58, floorTop - ph - 54);
     const now = performance.now();
     board.forEach((b, i) => {
       const target = margin + slot * i + slot / 2;
