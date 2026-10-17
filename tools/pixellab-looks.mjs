@@ -42,6 +42,14 @@ export const LOOKS = {
   sage: {
     description: "broad-shouldered female battle-mage in a violet long coat with gold trim, short dark hair, a glowing gold hexagonal shield on her left forearm and a short rune-carved rod in her right hand",
     attack: "shoving the gold hex shield forward to the right, a wave of golden light bursting from its face, then pulling it back into guard",
+    // v3 character in its Shield Guard state, clips animated from the padded pose (docs/sprites.md).
+    animations: {
+      idle: '98b93fc5-0344-4d01-b1de-09aa44b6707e',
+      attack: '52109a4a-0cf9-441b-af34-d183e8b67829', // shield bash
+      attack2: 'ea5b25ac-c5b3-4c68-8192-891b5cd9263b', // rod bolt
+      cast: '77113191-7e2a-4fc7-bdb3-bbd42f33b414', // Arcane Barrier
+      death: '0dcb95af-02db-424c-ab69-9c45c06b41cd', // shatters into sparks
+    },
   },
   viper: {
     description: "wiry male assassin in tight green and black scaled leather, hood shaped like a snake's head, lower face masked, a curved dagger in each hand, the left blade dripping green and the right dripping red",
