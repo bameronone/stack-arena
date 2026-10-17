@@ -82,6 +82,15 @@ export const LOOKS = {
   wisp: {
     description: "slight female dancer in flowing pale blue and orange scarves, barefoot, long white hair, a folded war fan in each hand, one frost-blue and one ember-orange",
     attack: "spinning on one foot and slashing both fans forward to the right in a sweeping arc, a trail of frost and embers following, ending back in her dancer's stance",
+    animations: {
+      idle: '4818f9e1-80db-4268-8913-29c4c7eb25d5',
+      attack: '2036c27d-43a4-4f05-806e-e9d9fec51a6c',
+      attack2: 'f4a664ae-f2d7-4659-bf2e-f93dcf5129c3',
+      cast: '1c4815bd-d709-4e55-8b0a-3d934e3813c6',
+      death: '015679af-31f3-480e-82e5-d8709d996427',
+    },
+    // cast opens on two frames of striped blur; start at the split.
+    frames: { cast: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] },
   },
   nightshade: {
     description: "masked female assassin in a dark purple bodysuit and a hooded smoke-grey cloak, a needle bandolier across her chest, a fan of long green-tipped needles held between the fingers of her right hand",
