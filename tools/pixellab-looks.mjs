@@ -46,6 +46,14 @@ export const LOOKS = {
   chainbreaker: {
     description: "huge bare-chested male gladiator, muscular ex-prisoner with broken iron shackles on both wrists, a heavy iron chain wrapped around his right fist with a long loop hanging down, ragged brown trousers, shaved head",
     attack: "whipping the chain overhead and lashing it forward to the right in a long crack, yellow lightning arcing along the links, then reeling it back into his fist",
+    // PixMiniMax clips on the Brawler Stance state; idle, swings and cast end back in the stance.
+    animations: {
+      idle: '102537f2-27a2-4bdb-9a08-e000b0f2a0b5',
+      attack: 'c93aa6b1-648c-42f4-aa51-269bb3a595b5', // overhead chain lash
+      attack2: 'bbb147cd-0668-408b-8b76-2bf96d6ee565', // low sweep
+      cast: '156438d4-8271-4611-8a5b-f119deeb7ee5', // Thunderfall
+      death: '1eb029d7-84f0-487e-927b-b8caa16a09c0', // lightning surge, topples onto his back
+    },
   },
   oathcleaver: {
     // PixelLab character made through the API in v3 mode, in its
