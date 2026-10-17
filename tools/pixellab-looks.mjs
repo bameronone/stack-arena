@@ -6,7 +6,7 @@ export const LOOKS = {
     description: 'fierce female gladiator, athletic woman with a long flaming sword held in her right hand, ember-red leather armor, long wild orange hair in a high ponytail',
     attack: 'grab the sword with both hands and swing it in a full arc, then return to the fighting stance',
     animations: {
-      idle: 'IDLE_ID',
+      idle: 'b6883ead-b285-4fd5-aee3-58ccb327e603',
       attack: 'a896e7b9-54bb-4717-9b8e-7049cb6b78b5',
       death: 'aed68eb9-0024-48d3-a899-c610f25b8fc8',
     },
