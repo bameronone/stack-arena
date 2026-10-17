@@ -64,6 +64,14 @@ export const LOOKS = {
   stormseer: {
     description: "old male storm wizard, thin bearded man with a white blindfold over his eyes, long storm-grey robe with violet runes on the hem, holding a forked iron lightning-rod staff in both hands",
     attack: "thrusting the forked staff forward to the right, a jagged yellow lightning bolt crackling from the forks, then pulling the staff back",
+    // PixMiniMax clips on the "Staff Forward" state; idle, both swings and cast return to the pose.
+    animations: {
+      idle: 'a37e9b47-8424-4a43-9179-cf0c9656a275',
+      attack: 'cfbf803b-b346-4810-aa98-aa55c524cf06', // forward thrust with a bolt
+      attack2: '601116bc-7249-4199-8666-4d51ab247143', // overhead strike
+      cast: 'dc3d657b-9db0-4c69-a7aa-24830f38958f', // Thunderclap: staff butt to the ground
+      death: '419da81e-f45f-4511-ae10-266d5d5aa840', // struck by lightning, crumples
+    },
   },
   ashen: {
     description: "hunched old female witch in layered soot-black rags, glowing ember-orange eyes, long tangled grey hair, a smoking brass censer on a chain held in her right hand leaking green fumes",
