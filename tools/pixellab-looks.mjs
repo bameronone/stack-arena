@@ -107,6 +107,14 @@ export const LOOKS = {
   grove: {
     description: "towering half-man half-tree warden, body of rough brown bark with mossy green patches, thick moss beard, leafy branches on his shoulders, a gnarled wooden club held in both hands",
     attack: "lifting the club high with both hands and slamming it down in front of him to the right, leaves and bark chips flying, then raising it back across his body",
+    // v3 character in its Rooted Stance state; PixMiniMax clips from the 176px pose.
+    animations: {
+      idle: '81de4dc7-d093-4568-af68-7240e2cbf328',
+      attack: '43b85b0e-56f0-48a2-a07b-d9b16b90d15d', // overhead slam
+      attack2: '275cce9d-27bf-45c6-825f-13504aef4f9a', // horizontal sweep
+      cast: '39afbefc-a193-405d-a6ec-e1f0de702153', // Overgrowth: vines and flowers bloom
+      death: '9faad795-6ea9-4b8f-a904-c190755ef94e', // hardens into a leafless stump
+    },
   },
   gravespike: {
     description: "grim male gravedigger-knight in black iron armor, bone spikes jutting from his shoulders, pale gaunt face, a long spiked shovel-spear held in both hands",
