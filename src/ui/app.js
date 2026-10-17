@@ -6,7 +6,7 @@ import {
   visibleCharacters, makeFight, loadout, income, interest, INTEREST_STEP, INTEREST_MAX, START_HP, SIGNATURE_ROUND,
   opponentOf, standings, MAX_PLAYERS, BAN_COUNT,
 } from '../engine/match.js';
-import { SHOP_TIMES } from '../game/host.js';
+import { SHOP_TIMES, ROUND_PACE } from '../game/host.js';
 import { soloSession, hostSession, clientSession, BOT_NAMES, cleanName } from '../game/session.js';
 import { cleanCode } from '../net/transport.js';
 import { createArena } from './arena.js';
@@ -41,7 +41,7 @@ let savedResultFor = null;
 const shopGhost = [];
 const ui = {
   tab: params.get('room') ? 'online' : 'solo',
-  speed: 2, banner: null, mobileTab: null, modal: null,
+  speed: 2, mobileTab: null, modal: null,
   lobby: (() => { const l = store.get('lobby', ['normal']); return Array.isArray(l) && l.length && l.every((x) => DIFFICULTY_IDS.includes(x)) ? l.slice(0, MAX_PLAYERS - 1) : ['normal']; })(),
   soloTime: SHOP_TIMES.includes(store.get('solo-time', 30)) ? store.get('solo-time', 30) : 30,
   name: store.get('name', ''),
@@ -193,7 +193,7 @@ function toast(msg) {
 function useSession(session) {
   S?.close?.();
   S = session;
-  ui.banner = null; ui.fightStats = null; ui.animRound = null; ui.fighting = false; ui.watching = null; ui.error = null;
+  ui.fightStats = null; ui.animRound = null; ui.fighting = false; ui.watching = null; ui.error = null;
   lastCounts = null;
   S.onChange(onSessionChange);
   render();
@@ -246,7 +246,6 @@ function onSessionChange() {
       }
     }
     lastCounts = counts;
-    if (m.phase !== 'fight' && ui.banner) ui.banner = null;
     if (m.phase !== 'fight' && (ui.fighting || ui.watching)) arena?.skip();
   }
   render();
@@ -255,7 +254,6 @@ function onSessionChange() {
     ui.fightSeenAt = performance.now();
     if ((m.watchers || []).includes(ME()) || (m.players[ME()].hp > 0 && opponentOf(m, ME()))) startFightAnimation();
     else {
-      ui.banner = resultsBanner(null);
       updateGame();
       // Knocked out (or sitting this round out): watch a fight live instead
       // of only reading the results. Prefer one with a person in it.
@@ -312,7 +310,7 @@ const RULES = () => `
   <div class="rules">
     <div class="rule"><h3>Triggers and resources</h3><p>Triggers decide <i>when</i> you gain stacks (Strike, Crit, Dodge, Health, Spell). Resources decide <i>what</i> stacks do. A card like ${chip('precision', true)} <span class="arrow">&#9656;</span> ${chip('poison', true)} always fires. Cards with only a resource fire 30% of the time.</p></div>
     <div class="rule"><h3>Build up, unlock more</h3><p>Own ${TIER_UNLOCK[2]}, ${TIER_UNLOCK[3]} and ${TIER_UNLOCK[4]} cards of a tag to unlock its Uncommon, Rare and Mythic cards. Own ${HYBRID_REQ} of two resources to unlock their Hybrid card.</p></div>
-    <div class="rule"><h3>Bans</h3><p>Every gladiator secretly votes to ban one resource, and the ${BAN_COUNT} with the most votes are banned. Banned cards never appear, and gladiators who only use banned resources sit the match out.</p></div>
+    <div class="rule"><h3>Bans</h3><p>Every gladiator secretly votes to ban one resource, and the ${BAN_COUNT} with the most votes are banned. Banned cards never appear, and a gladiator sits the match out if any of its resources is banned.</p></div>
     <div class="rule"><h3>Focus, not luck</h3><p>Dodging builds Focus. Every hit you take adds to your dodge chance, and a dodge resets it, so you can never dodge twice in a row. Toxin, Bleed and abilities can't be dodged.</p></div>
     <div class="rule"><h3>Grit</h3><p>Anyone who loses 30% of their max HP within 2 seconds takes half damage for the next 1.5 seconds, at most once every 6 seconds. Freezes also get harder: each one needs 10 more Frost than the last.</p></div>
   </div>
@@ -523,7 +521,7 @@ function renderBan() {
 }
 
 function charStats(c) {
-  const s = { hp: 600, ad: 30, as: 1.0, crit: 0.05, manaMax: 100, ...c.stats };
+  const s = { hp: 1800, ad: 30, as: 1.0, crit: 0.05, manaMax: 100, ...c.stats };
   return `${s.hp} HP · ${s.ad} damage · ${s.as.toFixed(2)} attacks/s · ${Math.round(s.crit * 100)}% crit · ${s.manaMax} mana${s.focusGain ? ` · +${+(s.focusGain * 100).toFixed(1)}% Focus per hit taken` : ''}`;
 }
 
@@ -573,7 +571,6 @@ function renderGame() {
           <canvas id="arena" aria-label="Fight view"></canvas>
           <div class="speed" id="speed"></div>
           <div id="preview"></div>
-          <div id="banner"></div>
         </section>
         <aside class="side foe" id="foe" aria-label="Opponent"></aside>
       </main>
@@ -604,7 +601,6 @@ function updateGame() {
   renderTray();
   renderSpeed();
   renderPreview();
-  renderBanner();
   renderModal();
   renderTabs();
 }
@@ -617,16 +613,22 @@ function renderHud() {
       <div class="top"><span>${ghost ? 'Ghost of ' : ''}${esc(nameOf(p))} · ${esc(CHAR_BY_ID[p.charId].name)}</span><span class="num">${hpOf(p)} / ${START_HP}</span></div>
       <div class="bar hp-dashes"><i style="width:${(hpOf(p) / START_HP) * 100}%"></i></div>
     </div>`;
+  // Three columns, so the rounds strip sits in the middle of the screen
+  // whatever is on either side of it.
   root.querySelector('#hud').innerHTML = `
-    <div class="logo">Stack <span>Arena</span></div>
-    <div class="eyebrow">Bans: ${m.bans.map((b) => chip(b, true)).join(' ')}</div>
+    <div class="hud-l">
+      <div class="logo">Stack <span>Arena</span></div>
+      <div class="eyebrow">Bans: ${m.bans.map((b) => chip(b, true)).join(' ')}</div>
+    </div>
     ${roundsStrip()}
-    <div class="vs">${life(me, 'me')}${f ? (foeRevealed() ? life(f.p, 'foe', f.ghost) : `
-    <div class="life foe shrouded">
-      <div class="top"><span>Next opponent · ???</span><span class="num">? / ${START_HP}</span></div>
-      <div class="bar hp-dashes"><i style="width:0"></i></div>
-    </div>`) : ''}</div>
-    <div class="tools"><button class="btn" id="codex">Tags</button><button class="btn" id="quit">${S.mode === 'solo' ? 'Quit' : 'Leave'}</button></div>`;
+    <div class="hud-r">
+      <div class="vs">${life(me, 'me')}${f ? (foeRevealed() ? life(f.p, 'foe', f.ghost) : `
+      <div class="life foe shrouded">
+        <div class="top"><span>Next opponent · ???</span><span class="num">? / ${START_HP}</span></div>
+        <div class="bar hp-dashes"><i style="width:0"></i></div>
+      </div>`) : ''}</div>
+      <div class="tools"><button class="btn" id="codex">Tags</button><button class="btn" id="quit">${S.mode === 'solo' ? 'Quit' : 'Leave'}</button></div>
+    </div>`;
   root.querySelector('#codex').onclick = () => { ui.modal = 'codex'; renderModal(); };
   root.querySelector('#quit').onclick = () => { ui.modal = 'quit'; renderModal(); };
 }
@@ -734,7 +736,10 @@ function renderBoard() {
   const seen = ui.fightSeenAt || 0;
   const until = {};
   results.forEach((r) => {
-    const end = seen + (r.time * 1000) / ui.speed;
+    // Your own fight is over once you've seen it end (or skipped it).
+    const mine = r.a === ME() || (!r.ghost && r.b === ME());
+    if (mine && !ui.fighting) return;
+    const end = seen + (r.time * 1000) / ROUND_PACE;
     until[r.a] = Math.max(until[r.a] || 0, end);
     if (!r.ghost) until[r.b] = Math.max(until[r.b] || 0, end);
   });
@@ -846,13 +851,33 @@ function renderPreview() {
   const el = root.querySelector('#preview');
   const m = M();
   const me = m.players[ME()];
-  if (m.phase !== 'shop' || ui.fighting || ui.banner || me.hp <= 0) { el.innerHTML = ''; return; }
+  if (m.phase === 'fight' && !ui.fighting && !ui.watching) { el.innerHTML = roundWaitHtml(); return; }
+  if (m.phase !== 'shop' || ui.fighting || me.hp <= 0) { el.innerHTML = ''; return; }
   const timed = S.remaining?.() != null;
   el.innerHTML = `<div class="preview">
     <span class="eyebrow">Fight preview · starting stats</span>
     ${timed ? `<div class="countdown"><span>Next fight in</span>${timerHtml()}</div>` : '<div class="countdown"><span>Press Fight when you are ready</span></div>'}
   </div>`;
 }
+
+// After your fight, while the rest of the round plays out: no popup, just a
+// line saying how your fight went and what is still going.
+function roundWaitHtml() {
+  const m = M(), me = ME();
+  const mine = m.lastResults.find((r) => r.a === me || (!r.ghost && r.b === me));
+  const elapsed = (performance.now() - (ui.fightSeenAt || performance.now())) / 1000 * ROUND_PACE;
+  const going = m.lastResults.filter((r) => r !== mine && r.time > elapsed).length;
+  let head = '';
+  if (mine) {
+    const out = mine.winner === null ? 'Draw' : mine.winner === me ? 'Won' : 'Lost';
+    const hp = mine.winner === me ? (mine.ghost ? '' : `, they lost ${mine.damage} HP`) : `, you lost ${mine.winner === null ? Math.ceil(mine.damage) : mine.damage} HP`;
+    head = `<span class="eyebrow">Round ${m.fightRound}: ${out}${hp}</span>`;
+  }
+  const line = going ? `${plural(going, 'fight')} still going. Click a plaque with crossed swords to watch.` : 'Next round starting...';
+  return `<div class="preview wait">${head}<span class="slot-note">${line}</span></div>`;
+}
+// Refresh the "still going" count while the round plays out.
+setInterval(() => { if (M()?.phase === 'fight' && !ui.fighting && !ui.watching && root.querySelector('#preview')) renderPreview(); }, 500);
 
 function renderSpeed() {
   const el = root.querySelector('#speed');
@@ -870,7 +895,7 @@ function showPreview() {
 }
 
 // Your fight replays locally from the shared seed; the host has already
-// computed the same result, which the banner reports.
+// computed the same result.
 function startFightAnimation() {
   const m = M();
   const opp = opponentOf(m, ME());
@@ -890,7 +915,9 @@ function startFightAnimation() {
     ui.fighting = false;
     const result = { ...raw, stats: mine(raw.stats) };
     ui.fightStats = { live: false, round, stats: JSON.parse(JSON.stringify(result.stats)) };
-    if (M()?.phase === 'fight' && M().fightRound === round) ui.banner = resultsBanner(result);
+    // No results popup: say you're done, and the round moves on by itself
+    // once every other fight has played out too.
+    if (M()?.phase === 'fight' && M().fightRound === round && !M().watched?.[ME()]) S.act('watched');
     if (screenFor() === 'game' && arena) { showPreview(); updateGame(); }
   }, mine(labels), { flip: second });
   updateGame();
@@ -906,7 +933,7 @@ function watchFight(i) {
   const f = makeFight(m, r.a, r.b);
   // Join in progress: every fight started when the round did, so skip ahead
   // to where it is now (or near its end, if it already finished).
-  const elapsed = ((performance.now() - (ui.fightSeenAt || performance.now())) / 1000) * ui.speed;
+  const elapsed = ((performance.now() - (ui.fightSeenAt || performance.now())) / 1000) * ROUND_PACE;
   const target = Math.min(elapsed, Math.max(0, r.time - 3));
   while (f.t + DT <= target && !f.over) f.step(DT);
   ui.savedStats = ui.fightStats;
@@ -923,66 +950,6 @@ function stopWatching() {
   ui.watching = null;
   ui.fightStats = ui.savedStats;
   if (screenFor() === 'game' && arena) { showPreview(); updateGame(); }
-}
-
-function resultsBanner(result) {
-  const m = M();
-  const me = ME();
-  const mineIdx = m.lastResults.findIndex((r) => r.a === me || (!r.ghost && r.b === me));
-  const mine = m.lastResults[mineIdx];
-  const name = (id) => (id === me ? 'You' : m.players[id].name);
-  const others = m.lastResults.map((r, i) => ({ i, text: r.winner === null
-    ? `${name(r.a)} and ${name(r.b)}${r.ghost ? ' (ghost)' : ''} drew`
-    : `${name(r.winner)}${r.ghost && r.winner === r.b ? ' (ghost)' : ''} beat ${name(r.loser)}${r.ghost && r.loser === r.b ? ' (ghost)' : ''}${r.ghost && r.loser === r.b ? '' : `, -${r.damage} HP`}` }))
-    .filter((o) => o.i !== mineIdx);
-  if (!mine || !result) return { spectator: true, others };
-  const s = result.stats[0], o = result.stats[1];
-  return {
-    ghost: mine.ghost && mine.a === me,
-    others,
-    outcome: mine.winner === me ? 'win' : mine.winner === null ? 'draw' : 'loss',
-    damage: mine.damage,
-    time: result.time,
-    line: `You dealt ${Math.round(s.dealt)} damage and took ${Math.round(s.taken)}.` +
-      (s.dodges ? ` ${plural(s.dodges, 'dodge')}.` : '') + (s.crits ? ` ${plural(s.crits, 'crit')}.` : '') + (s.freezes ? ` ${plural(s.freezes, 'freeze')}.` : '') +
-      (o.dodges ? ` Your opponent dodged ${plural(o.dodges, 'time')}.` : ''),
-  };
-}
-
-function renderBanner() {
-  const el = root.querySelector('#banner');
-  const b = ui.banner;
-  const m = M();
-  if (!b || ui.watching) { el.innerHTML = ''; return; }
-  const list = b.others?.length ? `<ul class="others">${b.others.map((o) => `<li><span>${esc(o.text)}</span><button class="btn watch" data-watch="${o.i}">Watch</button></li>`).join('')}</ul>` : '';
-  if (b.spectator) {
-    el.innerHTML = `<div class="banner" role="status"><span class="eyebrow">Round ${m.fightRound} results</span>${list}
-      <p class="slot-note waiting">Waiting for the players still in the match...</p></div>`;
-    wireWatch(el);
-    return;
-  }
-  const me = m.players[ME()];
-  const meOut = me.hp <= 0;
-  const lastStanding = m.players.filter((p) => p.hp > 0).length <= 1;
-  const title = meOut && !isDuel() ? 'Knocked out' : b.outcome === 'win' ? 'Victory' : b.outcome === 'loss' ? 'Defeat' : 'Draw';
-  const sub = b.outcome === 'win'
-    ? (b.ghost ? 'You beat the ghost. Ghosts lose no HP.' : `Your opponent loses ${b.damage} HP.`)
-    : b.outcome === 'loss' ? `You lose ${b.damage} HP.` : `You ${b.ghost ? '' : 'both '}lose ${Math.ceil(b.damage)} HP.`;
-  const watched = !!m.watched?.[ME()];
-  const waitingFor = (m.watchers || []).filter((id) => !m.watched?.[id] && !m.players[id].isBot).length;
-  el.innerHTML = `<div class="banner ${b.outcome}" role="status">
-    <span class="eyebrow">Round ${m.fightRound} · ${b.time.toFixed(1)}s</span>
-    <h2>${title}</h2><p>${sub}</p><p style="font-size:13px">${esc(b.line)}</p>
-    ${list}
-    ${watched ? `<p class="slot-note waiting">Waiting for ${plural(waitingFor, 'player')} to finish watching... ${timerHtml()}</p>`
-      : `<button class="btn primary" id="cont">${lastStanding || (meOut && humansAlive().length === 0) ? 'See the result' : meOut ? 'Keep watching' : 'Next round'}</button>`}
-  </div>`;
-  const cont = el.querySelector('#cont');
-  if (cont) { cont.onclick = () => S.act('watched'); cont.focus({ preventScroll: true }); }
-  wireWatch(el);
-}
-function wireWatch(el) {
-  el.querySelectorAll('[data-watch]').forEach((b) => b.onclick = () => watchFight(Number(b.dataset.watch)));
 }
 
 function renderModal() {
@@ -1044,17 +1011,20 @@ function renderOver() {
   const won = me.placement === 1;
   const list = (p) => Object.entries(p.cards).map(([id, n]) => `${esc(CARD_BY_ID[id].name)} x${n}`).join(', ') || 'No cards';
   const winner = m.players.find((p) => p.placement === 1);
+  // Replay starts the same lobby again straight away; Back to lobby lets you
+  // change it first.
   const actions = S.mode === 'solo'
-    ? '<button class="btn primary" id="again">Play again</button><button class="btn" id="home">Back to the title screen</button>'
+    ? '<button class="btn primary" id="again">Replay</button><button class="btn" id="lobby">Back to lobby</button>'
     : S.mode === 'host'
-      ? '<button class="btn primary" id="room">Back to the room</button><button class="btn" id="home">Close the room</button>'
-      : '<span class="slot-note waiting">Waiting for the host to start another match...</span><button class="btn" id="home">Leave the room</button>';
+      ? `<button class="btn primary" id="again" ${S.canStart() ? '' : 'disabled'}>Replay</button><button class="btn" id="lobby">Back to lobby</button><button class="btn" id="home">Close the room</button>`
+      : '<span class="slot-note waiting">Waiting for the host to replay or reopen the lobby...</span><button class="btn" id="lobby">Back to lobby</button><button class="btn" id="home">Leave the room</button>';
   root.innerHTML = `
   <div class="screen"><div class="screen-inner">
     <div>
       <div class="eyebrow">After ${m.round} rounds · you won ${plural(me.wins, 'fight')}</div>
       <h1 class="brand" style="color:${won ? 'var(--bronze)' : 'var(--blood)'}">${won ? 'Champion' : isDuel() ? 'Fallen' : `${ordinal(me.placement)} of ${m.players.length}`}</h1>
     </div>
+    <div class="row">${actions}</div>
     <table class="final">
       <thead><tr><th>Place</th><th>Gladiator</th><th>Player</th><th class="num">Fights won</th></tr></thead>
       <tbody>${standings(m).map((p) => `<tr class="${p.id === ME() ? 'me' : ''}"><td class="num">${ordinal(p.placement)}</td><td>${esc(CHAR_BY_ID[p.charId].name)}</td><td>${esc(playerLabel(p))}</td><td class="num">${p.wins}</td></tr>`).join('')}</tbody>
@@ -1063,11 +1033,10 @@ function renderOver() {
       <div class="rule"><h3>${esc(CHAR_BY_ID[me.charId].name)} (you)</h3><div class="progress">${tierProgress(tagCounts(me.cards))}</div><p>${list(me)}</p></div>
       ${winner && winner.id !== ME() ? `<div class="rule"><h3>${esc(CHAR_BY_ID[winner.charId].name)} (${esc(winner.name)}, winner)</h3><div class="progress">${tierProgress(tagCounts(winner.cards))}</div><p>${list(winner)}</p></div>` : ''}
     </div>
-    <div class="row">${actions}</div>
   </div></div>`;
-  root.querySelector('#again')?.addEventListener('click', startSolo);
-  root.querySelector('#room')?.addEventListener('click', () => S.backToLobby());
-  root.querySelector('#home').onclick = leave;
+  root.querySelector('#again')?.addEventListener('click', () => (S.mode === 'solo' ? startSolo() : S.start()));
+  root.querySelector('#lobby')?.addEventListener('click', () => (S.mode === 'solo' ? leave() : S.backToLobby()));
+  root.querySelector('#home')?.addEventListener('click', leave);
 }
 
 // ---------------------------------------------------------------- tooltips
@@ -1105,10 +1074,6 @@ document.addEventListener('keydown', (e) => {
   if (screenFor() !== 'game' || e.target.closest?.('input,textarea') || e.metaKey || e.ctrlKey || e.altKey) return;
   if (e.key === 'Escape' && ui.modal) { ui.modal = null; renderModal(); return; }
   const m = M();
-  if (m.phase === 'fight') {
-    if ((e.key === 'Enter' || e.key === ' ') && ui.banner && !ui.banner.spectator && !m.watched?.[ME()] && document.activeElement?.id !== 'cont') { e.preventDefault(); S.act('watched'); }
-    return;
-  }
   if (m.phase !== 'shop' || ui.fighting) return;
   if (e.key >= '1' && e.key <= '5') doBuy(Number(e.key) - 1);
   else if (e.key === 'r' || e.key === 'R') S.act('reroll');

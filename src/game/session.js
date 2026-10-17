@@ -12,7 +12,10 @@ import { MAX_PLAYERS } from '../engine/match.js';
 //   onChange(fn)
 // Hosted rooms also manage lobby slots; joined rooms only mirror the host.
 
-export const PROTOCOL = 1;
+// Host and players must run the same build, or the host's rules (bans,
+// combat) would differ from what a player's page shows. The build stamps a
+// hash of the code into BUILD; unbundled (tests, tools) it is 1.
+export const PROTOCOL = typeof BUILD !== 'undefined' ? BUILD : 1;
 export const BOT_NAMES = ['Varro', 'Lucia', 'Crixus', 'Flamma', 'Priscus', 'Verus', 'Tetraites'];
 
 function changeEmitter() {
@@ -39,7 +42,7 @@ export function soloSession({ bots, shopTime }) {
     shopTime,
   });
   host.onChange(ev.emit);
-  const timer = setInterval(() => host.tick(), 250);
+  const timer = setInterval(() => { host.tick(); host.poll(); }, 250);
   return {
     mode: 'solo', stage: 'game', me: 0,
     get M() { return host.M; },
@@ -100,7 +103,7 @@ export async function hostSession({ name, kind = 'peer' }) {
       for (const [conn, id] of connToPlayer) t.send(conn, { t: 'start', you: id });
       s.stage = 'game';
       clearInterval(timer);
-      timer = setInterval(() => host.tick(), 250);
+      timer = setInterval(() => { host.tick(); host.poll(); }, 250);
       broadcastState();
       ev.emit();
     },
@@ -134,7 +137,7 @@ export async function hostSession({ name, kind = 'peer' }) {
   t.onMessage((conn, msg) => {
     if (!msg || typeof msg !== 'object') return;
     if (msg.t === 'hello') {
-      if (msg.v !== PROTOCOL) { t.send(conn, { t: 'refused', reason: 'You have a different version of the game. Reload the page and try again.' }); return t.kick(conn); }
+      if (msg.v !== PROTOCOL) { t.send(conn, { t: 'refused', reason: 'You and the host have different versions of the game. Both of you should reload the page, then try again.' }); return t.kick(conn); }
       if (s.stage !== 'lobby') {
         if (host && rejoin(conn, msg)) return;
         t.send(conn, { t: 'refused', reason: 'That match has already started.' });
@@ -186,6 +189,8 @@ export async function clientSession({ code, name, kind = 'peer' }) {
     remaining: () => (deadline == null ? null : Math.max(0, (deadline - Date.now()) / 1000)),
     act: (a, v) => t.send({ t: 'act', a, v }),
     onChange: ev.on,
+    // After a match: look at the room while the host decides what's next.
+    backToLobby: () => { if (s.lobby) { s.stage = 'lobby'; ev.emit(); } },
     close: () => { t.close(); s.stage = 'closed'; },
   };
   const ready = new Promise((resolve, reject) => {
@@ -202,7 +207,7 @@ export async function clientSession({ code, name, kind = 'peer' }) {
       } else if (msg.t === 'state') {
         s.M = msg.M;
         deadline = msg.remaining == null ? null : Date.now() + msg.remaining * 1000;
-        if (s.me != null) s.stage = 'game';
+        if (s.me != null && !(s.stage === 'lobby' && msg.M?.phase === 'over')) s.stage = 'game';
       } else if (msg.t === 'refused') {
         clearTimeout(timeout);
         s.closedReason = msg.reason;

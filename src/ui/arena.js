@@ -1,4 +1,4 @@
-import { buildUnit, DT, SUDDEN_DEATH_AT, BURN_AT, overtime } from '../engine/combat.js';
+import { buildUnit, attackSpeedOf, DT, SUDDEN_DEATH_AT, BURN_AT, overtime } from '../engine/combat.js';
 import { TAGS } from '../data/tags.js';
 
 // Canvas renderer for the pit. It either shows a static preview of both
@@ -61,10 +61,14 @@ export function createArena(canvas) {
   let mystery = false; // the right fighter is an unrevealed opponent
   // Standings on the back wall: one plaque per player, best on the left.
   let board = [], plaqueX = {}, plaqueRects = [], onPick = null;
-  const anim = [0, 1].map(() => ({ lunge: 0, flash: 0, cast: 0, dodge: 0, dodgeDir: 1, clip: 'idle', clipT: 0, spawn: {} }));
+  const anim = [0, 1].map(() => ({ lunge: 0, flash: 0, cast: 0, dodge: 0, dodgeDir: 1, stutter: 0, clip: 'idle', clipT: 0, spawn: {} }));
   let clock = 0;
   const startClip = (a, clip) => { if (a.clip !== 'death') { a.clip = clip; a.clipT = 0; } };
   let dotSeen = [{ poison: 0, bleed: 0 }, { poison: 0, bleed: 0 }];
+  // Tag slots under each fighter: fixed for the fight, so chips don't jump
+  // around as stacks come and go (an empty one shows 0).
+  let slots = [[], []];
+  let rings = []; // Afterburner shockwaves
   let dotTimer = 0;
   let embers = Array.from({ length: 40 }, () => ({ x: Math.random(), y: Math.random(), v: 0.02 + Math.random() * 0.04, r: Math.random() * 1.6 + 0.4 }));
 
@@ -130,6 +134,8 @@ export function createArena(canvas) {
       case 'burst': float(ev.side, 'PANDEMIC', TAGS.poison.color, 18, -18); break;
       case 'bolt': strikes.push(makeStrike(ev.side)); anim[ev.side].flash = 1; break;
       case 'grit': float(ev.side, 'GRIT', '#d6a24e', 18, -26); break;
+      case 'stutter': a.stutter = 1; break;
+      case 'afterburner': float(ev.side, 'AFTERBURNER', TAGS.fire.color, 22, -30); afterburst(ev.side); break;
     }
   }
 
@@ -145,6 +151,7 @@ export function createArena(canvas) {
       const a = buildUnit(loadA, 0), b = buildUnit(loadB, 1);
       a.enemy = b; b.enemy = a;
       units = [a, b];
+      slots = units.map(slotsFor);
     } catch { units = null; }
     start();
   }
@@ -158,10 +165,11 @@ export function createArena(canvas) {
     fight = f;
     fight.onEvent = onEvent;
     units = fight.units;
+    slots = units.map(slotsFor);
     onDone = done;
     acc = 0;
     floaters = [];
-    fx = []; strikes = [];
+    fx = []; strikes = []; rings = [];
     // Count from where the fight is now: a watched fight may join mid-way.
     dotSeen = units.map((u) => ({ poison: u.enemy.stats.byKind.poison || 0, bleed: u.enemy.stats.byKind.bleed || 0 }));
     start();
@@ -210,6 +218,7 @@ export function createArena(canvas) {
       a.flash = Math.max(0, a.flash - dt * 5);
       a.cast = Math.max(0, a.cast - dt * 2);
       a.dodge = Math.max(0, a.dodge - dt * 2.2 * pace);
+      a.stutter = Math.max(0, a.stutter - dt * 3);
       if (u && !u.dead) spawnStatus(u, a, dt);
     }
     for (const f of floaters) { f.life -= dt * 0.9; f.y -= dt * 38; }
@@ -268,6 +277,42 @@ export function createArena(canvas) {
         else if (k === 'frost') fx.push({ kind: 'flake', x: p.x + rx * 1.2, y: p.y - r * (0.9 + Math.random() * 0.4), vx: (Math.random() - 0.5) * 6, vy: 14 + Math.random() * 10, size: 1.4 + Math.random() * 1.6, ttl: 1.6, life: 1, color: '#d8f1ff' });
       }
     }
+  }
+  // Afterburner: a burst of flame and a shockwave rolling out from the fighter.
+  function afterburst(side) {
+    const p = pos(side), r = radius(side);
+    for (let i = 0; i < 46; i++) {
+      const ang = Math.random() * Math.PI * 2, v = 90 + Math.random() * 160;
+      fx.push({ kind: 'flame', x: p.x, y: p.y + r * 0.3, vx: Math.cos(ang) * v, vy: Math.sin(ang) * v * 0.6 - 60, size: 4 + Math.random() * 5, ttl: 0.9, life: 1, color: TAGS.fire.color });
+    }
+    rings.push({ side, life: 1 });
+    anim[side].flash = 1;
+  }
+  function drawRings(dt) {
+    for (const g of rings) {
+      g.life -= dt * 1.6;
+      if (g.life <= 0) continue;
+      const p = pos(g.side), r = radius(g.side);
+      const k = 1 - g.life;
+      ctx.save();
+      ctx.globalAlpha = g.life;
+      ctx.strokeStyle = '#ffd27a'; ctx.lineWidth = 6 * g.life + 1;
+      ctx.beginPath(); ctx.ellipse(p.x, p.y + r * 1.05, r * (0.6 + k * 3), r * (0.18 + k * 0.8), 0, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = TAGS.fire.color; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(p.x, p.y, r * (0.8 + k * 2.2), 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
+    }
+    rings = rings.filter((g) => g.life > 0);
+  }
+  // The tag slots a fighter could ever fill this fight: stacks its own build
+  // makes, Focus if it can dodge, and the stacks the enemy's build puts on it.
+  function slotsFor(u) {
+    const has = (x, k) => x.char.resources.includes(k) || (x.tagCounts[k] || 0) > 0;
+    const out = SELF_STACKS.filter((k) => has(u, k));
+    if (u.focusGain > 0 || u.focus > 0 || u.focusStart > 0) out.push('evasion');
+    // An opponent you haven't seen yet gives nothing away.
+    if (!(mystery && u.side === 0)) for (const k of ON_ME) if (has(u.enemy, k)) out.push(k);
+    return out;
   }
   function shards(side) {
     const p = pos(side), r = radius(side);
@@ -717,7 +762,7 @@ export function createArena(canvas) {
     // bars
     // With a sprite, the bars sit above the figure's head instead of the medallion.
     const box = spriteBox(p.y, r);
-    const bw = Math.min(220, Math.max(110, baseRadius() * 2.4)), bx = p.x - bw / 2, by = sprites ? box.feet - box.size * 0.86 - 18 : p.y - r - 34;
+    const bw = Math.min(220, Math.max(110, baseRadius() * 2.4)), bx = p.x - bw / 2, by = sprites ? box.feet - box.size * 0.86 - 26 : p.y - r - 42;
     const bh = 10;
     bar(bx, by, bw, bh, u.hp / u.maxHp, (flip ? 1 - u.side : u.side) === 0 ? '#7fca6e' : '#d9505e');
     if (u.shield > 0) {
@@ -735,6 +780,7 @@ export function createArena(canvas) {
       ctx.globalAlpha = 1;
     }
     bar(bx, by + bh + 3, bw, 4, u.mana / (u.manaMax * u.m.castCost), '#5b8cff');
+    drawSwing(u, bx, by + bh + 10, bw);
     // Player name over gladiator name, with HP on the right.
     ctx.textBaseline = 'alphabetic';
     ctx.textAlign = 'left';
@@ -753,10 +799,12 @@ export function createArena(canvas) {
     ctx.fillText(`${Math.ceil(u.hp)}`, bx + bw, by - 5);
 
     // stacks
-    const chips = [];
-    for (const k of SELF_STACKS) if (u[k] >= 1) chips.push({ k, v: u[k], mine: true });
-    if (u.focusGain > 0 || u.focus > 0) chips.push({ k: 'evasion', v: Math.round(u.focus * 100) + '%', mine: true });
-    for (const k of ON_ME) if (u[k] >= 1) chips.push({ k, v: u[k], mine: false });
+    // A stack from somewhere unexpected gets a slot too, and keeps it.
+    const own = slots[u.side] || (slots[u.side] = []);
+    for (const k of [...SELF_STACKS, ...ON_ME]) if (u[k] >= 1 && !own.includes(k)) own.push(k);
+    const chips = own.map((k) => (k === 'evasion'
+      ? { k, v: Math.round(u.focus * 100) + '%', mine: true, zero: u.focus <= 0 }
+      : { k, v: u[k], mine: !ON_ME.includes(k), zero: !(u[k] >= 1) }));
     const cw = 46, ch = 20, gap = 4;
     const perRow = Math.max(2, Math.floor((w * 0.4) / (cw + gap)));
     ctx.textBaseline = 'middle';
@@ -766,6 +814,7 @@ export function createArena(canvas) {
       const cx = p.x - (n * (cw + gap) - gap) / 2 + col * (cw + gap);
       const cy = p.y + r * 1.05 + 14 + row * (ch + gap);
       const color = TAGS[c.k].color;
+      ctx.globalAlpha = c.zero ? 0.45 : 1;
       ctx.fillStyle = '#15131acc';
       roundRect(cx, cy, cw, ch, 4); ctx.fill();
       ctx.fillStyle = color + '22';
@@ -782,7 +831,37 @@ export function createArena(canvas) {
       ctx.textAlign = 'right';
       ctx.fillStyle = '#e9dcc0';
       ctx.fillText(typeof c.v === 'number' ? Math.floor(c.v) : c.v, cx + cw - 5, cy + ch / 2 + 1);
+      ctx.globalAlpha = 1;
     });
+  }
+
+  // Swing timer: how far the next attack has wound up, and attacks per
+  // second. A Lightning bolt stutters the swing: the bar drops back (the red
+  // part is time pushed past the start) and the number shows the seconds it
+  // added to this swing, in red, until the attack lands.
+  function drawSwing(u, x, y, ww) {
+    const a = anim[u.side];
+    const numW = 40, bw = ww - numW, hh = 4;
+    const t = u.attackTimer || 0;
+    ctx.fillStyle = '#0e0c11';
+    roundRect(x, y, bw, hh, 2); ctx.fill();
+    if (t > 0) {
+      ctx.fillStyle = u.frozen > 0 ? '#6cc4f0' : '#e9dcc0';
+      roundRect(x, y, Math.max(hh, bw * Math.min(1, t)), hh, 2); ctx.fill();
+    } else if (t < 0) {
+      ctx.fillStyle = '#d9505e';
+      roundRect(x, y, Math.max(hh, bw * Math.min(1, -t)), hh, 2); ctx.fill();
+    }
+    if (a.stutter > 0) {
+      ctx.strokeStyle = `rgba(217,80,94,${a.stutter})`; ctx.lineWidth = 2;
+      roundRect(x - 1, y - 1, bw + 2, hh + 2, 3); ctx.stroke();
+    }
+    const delayed = u.swingDelay > 0.005;
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    ctx.font = '700 10px "Barlow Semi Condensed", system-ui, sans-serif';
+    ctx.fillStyle = delayed ? '#ff5a68' : '#a99c87';
+    ctx.fillText(delayed ? `+${u.swingDelay.toFixed(2)}s` : `${attackSpeedOf(u).toFixed(2)}/s`, x + ww, y + hh / 2 + 1);
   }
 
   // The fight clock: elapsed time, with a bar that fills toward overtime
@@ -842,6 +921,7 @@ export function createArena(canvas) {
     for (const u of units) drawUnit(u);
     drawFx(false);
     drawStrikes(dt);
+    drawRings(dt);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     if (fight) drawClock(fight.t);

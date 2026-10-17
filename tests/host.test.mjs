@@ -1,11 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { HostGame, PHASE_TIME } from '../src/game/host.js';
+import { visibleCharacters } from '../src/engine/match.js';
 
 const players = (n) => [{ name: 'You' }, ...Array.from({ length: n - 1 }, (_, i) => ({ name: 'B' + i, isBot: true, level: 'normal' }))];
 
 test('solo game: phases advance on player actions, bots act on their own', () => {
-  const g = new HostGame({ players: players(4), seed: 5, shopTime: 0 });
+  let t = 0;
+  const g = new HostGame({ players: players(4), seed: 5, shopTime: 0, now: () => t });
   assert.equal(g.M.phase, 'ban');
   assert.equal(g.remaining(), null);
   g.act(0, 'ban', 'fire');
@@ -20,8 +22,30 @@ test('solo game: phases advance on player actions, bots act on their own', () =>
   assert.equal(g.M.phase, 'fight');
   assert.ok(g.M.lastResults.length >= 2);
   g.act(0, 'watched');
+  assert.equal(g.M.phase, 'fight', 'the other fights are still playing out');
+  t = g.M.fightsEndAt;
+  g.poll();
   assert.equal(g.M.round, 2);
   assert.equal(g.M.phase, 'shop');
+});
+
+test('the round waits for every fight to play out, then moves on with no button', () => {
+  let t = 0;
+  const g = new HostGame({ players: [{ name: 'A' }, { name: 'B' }, ...players(4).slice(1)], seed: 8, shopTime: 30, now: () => t });
+  g.act(0, 'ban', 'fire'); g.act(1, 'ban', 'frost');
+  const vis = visibleCharacters(g.M.bans).map((v) => v.char.id);
+  g.act(0, 'pick', vis[0]); g.act(1, 'pick', vis[1]);
+  g.act(0, 'ready'); g.act(1, 'ready');
+  assert.equal(g.M.phase, 'fight');
+  const longest = Math.max(...g.M.lastResults.map((r) => r.time));
+  // Both humans finish watching early: the bots' fights keep going.
+  g.act(0, 'watched'); g.act(1, 'watched');
+  t = 1000; g.poll();
+  assert.equal(g.M.phase, 'fight');
+  t = g.M.fightsEndAt; g.poll();
+  assert.equal(g.M.phase, 'shop');
+  assert.equal(g.M.round, 2);
+  assert.ok(g.M.fightsEndAt >= (longest / 2) * 1000);
 });
 
 test('timers: an idle player is auto-banned, auto-picked and auto-readied', () => {
@@ -40,13 +64,14 @@ test('timers: an idle player is auto-banned, auto-picked and auto-readied', () =
 });
 
 test('when every human is out, the bots finish the match instantly', () => {
-  const g = new HostGame({ players: players(4), seed: 21, shopTime: 0 });
+  let t = 0;
+  const g = new HostGame({ players: players(4), seed: 21, shopTime: 0, now: () => t });
   g.act(0, 'ban', 'regen');
   g.act(0, 'pick', g.M.bans.includes('fire') ? 'viper' : 'cinder');
   for (let i = 0; i < 200 && g.M.phase !== 'over'; i++) {
     if (g.M.phase === 'signature') g.act(0, 'sig', g.M.players[0].charId && require0Sig(g));
     if (g.M.phase === 'shop') g.act(0, 'ready');
-    if (g.M.phase === 'fight') g.act(0, 'watched');
+    if (g.M.phase === 'fight') { g.act(0, 'watched'); t = g.M.fightsEndAt; g.poll(); }
   }
   assert.equal(g.M.phase, 'over');
   assert.deepEqual(g.M.players.map((p) => p.placement).sort(), [1, 2, 3, 4]);

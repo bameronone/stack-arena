@@ -246,7 +246,7 @@ export const CARDS = [
     desc: (n) => `On attack, 30% chance to gain ${2 * n} Fire.`,
     onAttack: (f, u, n) => { if (chance(f)) f.gain(u, 'fire', 2 * n); } },
   { id: 'stoke', name: 'Stoke', tags: ['fire'], tier: 2, max: 3,
-    desc: (n) => `Fire cap +${8 * n}.`,
+    desc: (n) => `Fire cap +${8 * n}, so Afterburner waits longer and burns more.`,
     setup: (u, n) => { u.fireCap += 8 * n; } },
   { id: 'flare', name: 'Flare', tags: ['fire'], tier: 2, max: 3,
     desc: (n) => `Every 8th attack deals bonus damage equal to ${2 * n}x your Fire.`,
@@ -505,8 +505,8 @@ export const CARDS = [
     desc: (n) => `Grit kicks in after losing ${30 - 5 * n}% of max HP in 2s instead of 30%, and blocks ${50 + 10 * n}% instead of 50%.`,
     setup: (u, n) => { u.gritAt = 0.3 - 0.05 * n; u.gritCut = 0.5 + 0.1 * n; } },
   { id: 'cooling_draught', name: 'Cooling Draught', tags: [], tier: 'counter', max: 2, counters: 'fire',
-    desc: (n) => `The enemy's Fire cap is reduced by ${6 * n}.`,
-    setup: (u, n) => { u.m.enemyFireCapCut += 6 * n; } },
+    desc: (n) => `Take ${35 * n}% less damage from the enemy's Afterburner.`,
+    setup: (u, n) => { u.m.afterburnTaken -= 0.35 * n; } },
 ];
 
 export const CARD_BY_ID = Object.fromEntries(CARDS.map((c) => [c.id, c]));

@@ -32,9 +32,20 @@ export const FREEZE_STEP = 10;
 // Grit: losing GRIT_AT of max HP within GRIT_WINDOW seconds halves the damage
 // you take for GRIT_DUR seconds, at most once every GRIT_CD seconds.
 export const GRIT = { at: 0.3, window: 2, dur: 1.5, cut: 0.5, cd: 6 };
-// Lightning: this many stacks call a bolt.
+// Lightning: this many stacks call a bolt. Each bolt deals BOLT.base plus
+// BOLT.step for every bolt already called this fight (up to BOLT.maxSteps),
+// and stutters the enemy's swing: it is pushed back by BOLT.stutter of a
+// swing (never more than BOLT.maxDelay of a swing behind).
 export const BOLT_AT = 10;
-const BASE = { hp: 600, ad: 30, as: 1.0, crit: 0.05, critMult: 1.75, manaMax: 100, manaPerAttack: 10, focusGain: 0 };
+export const BOLT = { base: 40, step: 5, maxSteps: 20, stutter: 0.25, maxDelay: 0.5 };
+// Fire: +FIRE.as attack speed per stack. Reaching your Fire cap sets off
+// Afterburner: all your Fire burns out in a blast of FIRE.blast damage per
+// stack, and you attack FIRE.rush faster for FIRE.rushDur seconds.
+export const FIRE = { cap: 40, as: 0.01, blast: 5, rush: 0.5, rushDur: 3 };
+// Toxin and Bleed lose DOT_DECAY of their stacks every DOT_EVERY seconds.
+export const DOT_DECAY = 1 / 3;
+export const DOT_EVERY = 2;
+const BASE = { hp: 1800, ad: 30, as: 1.0, crit: 0.05, critMult: 1.75, manaMax: 100, manaPerAttack: 10, focusGain: 0 };
 
 // Build a combat unit from a loadout: { charId, cards: {id: copies}, sig, round }.
 export function buildUnit(loadout, side) {
@@ -45,7 +56,7 @@ export function buildUnit(loadout, side) {
     maxHp: s.hp, hp: 0, ad: s.ad, asBase: s.as, asBonus: 0, crit: s.crit, critMult: s.critMult,
     manaMax: s.manaMax, mana: 0, manaStart: 0, manaPerAttack: s.manaPerAttack, manaRegen: 0,
     // stacks on self
-    fire: 0, fireCap: 25, fireStart: 0, fireIdle: 0, fireLinger: 3,
+    fire: 0, fireCap: FIRE.cap, fireStart: 0, fireIdle: 0, fireLinger: 3, rush: 0, afterburners: 0,
     shield: 0, regen: 0, arcane: 0, arcaneValue: 0.04, armor: 0,
     lightning: 0, boltAt: BOLT_AT, bolts: 0, galv: 0,
     // stacks the enemy put on you
@@ -59,20 +70,20 @@ export function buildUnit(loadout, side) {
     // pain
     painStep: 0.12, painAcc: 0, healAcc: 0,
     // timers and counters
-    frozen: 0, immune: 0, bastionCd: 0, attackTimer: 0, attackCount: 0, castCount: 0, forceCrit: 0,
+    frozen: 0, immune: 0, bastionCd: 0, attackTimer: 0, swingDelay: 0, dotTimer: 0, attackCount: 0, castCount: 0, forceCrit: 0,
     momentumCap: 0, pendingAttacks: 0, bleedApplied: 0,
     m: {
       poisonDmg: 1, bleedDmg: 1, bleedDecay: 1, frostDecay: 1, shieldGain: 1, shieldCap: 1, vsShield: 1,
-      poisonTaken: 1, frostTaken: 1, bleedTaken: 1, abilityTaken: 1, enemyHealCut: 0, enemyFireCapCut: 0,
+      poisonTaken: 1, frostTaken: 1, bleedTaken: 1, abilityTaken: 1, enemyHealCut: 0,
       abilityPower: 1, castCost: 1, frozenBonus: 0, reflect: 0, manaWard: 0, armorPierce: 0,
       focusDrain: 0, trueSight: 0, critMissing: 0, castRefund: 0, berserk: 0, bleedLeech: 0,
-      pandemic: 0, secondWind: 0, healGain: 1, boltDmg: 1, boltTaken: 1,
+      pandemic: 0, secondWind: 0, healGain: 1, boltDmg: 1, boltTaken: 1, afterburnTaken: 1,
     },
     flags: {},
     used: {},
     hooks: Object.fromEntries(HOOKS.map((h) => [h, []])),
     timers: [],
-    stats: { dealt: 0, taken: 0, healed: 0, dodges: 0, crits: 0, casts: 0, freezes: 0, bolts: 0, byKind: {}, dmg: {}, heal: {}, mit: {} },
+    stats: { dealt: 0, taken: 0, healed: 0, dodges: 0, crits: 0, casts: 0, freezes: 0, bolts: 0, afterburners: 0, byKind: {}, dmg: {}, heal: {}, mit: {} },
     tagCounts: {},
   };
 
@@ -117,6 +128,17 @@ export function buildUnit(loadout, side) {
   return u;
 }
 
+// Attacks per second right now (the renderer's swing timer uses it too).
+export function attackSpeedOf(u) {
+  let as = u.asBase * (1 + u.asBonus + u.galv + FIRE.as * u.fire + (u.rush > 0 ? FIRE.rush : 0) + Math.min(u.momentumCap, 0.01 * u.attackCount));
+  if (u.m.berserk) as *= 1 + u.m.berserk * (1 - u.hp / u.maxHp);
+  return as * slowOf(u);
+}
+
+function slowOf(u) {
+  return Math.max(0.3, 1 - 0.015 * u.frost);
+}
+
 export class Fight {
   constructor(loadoutA, loadoutB, seed = 1) {
     this.rng = makeRng(seed);
@@ -130,7 +152,6 @@ export class Fight {
     this.winner = null; // 0, 1, or -1 for a draw
     this.onEvent = null; // set by the renderer to receive hit/dodge/cast events
     for (const u of this.units) {
-      u.fireCap = Math.max(5, u.fireCap - u.enemy.m.enemyFireCapCut);
       u.mana = Math.min(u.manaMax * 0.9, u.manaStart);
       u.focus = Math.min(u.focusCap, u.focusStart);
       if (u.fireStart) this.gain(u, 'fire', u.fireStart);
@@ -150,8 +171,12 @@ export class Fight {
   gain(u, res, k) {
     if (u.dead || !(k > 0)) return;
     switch (res) {
-      // Fire melts the Frost on you, stack for stack.
-      case 'fire': u.fire = Math.min(u.fireCap, u.fire + k); u.fireIdle = 0; u.frost = Math.max(0, u.frost - k); break;
+      // Fire melts the Frost on you, stack for stack. Hitting the cap sets
+      // off Afterburner.
+      case 'fire':
+        u.fire = Math.min(u.fireCap, u.fire + k); u.fireIdle = 0; u.frost = Math.max(0, u.frost - k);
+        if (u.fire >= u.fireCap) this.afterburner(u);
+        break;
       case 'shield': u.shield = Math.min(u.maxHp * u.m.shieldCap, u.shield + k * u.m.shieldGain * overtime(this.t).healing); break;
       case 'regen': u.regen += k; break;
       case 'arcane': u.arcane += k; break;
@@ -207,7 +232,7 @@ export class Fight {
   }
 
   // A Lightning bolt: ability damage that grows with every bolt this fight
-  // and knocks the enemy's next swing back to the start.
+  // and stutters the enemy's swing, pushing their next attack back.
   bolt(u) {
     const e = u.enemy;
     const d = this.boltDamage(u) * Math.max(0, e.m.boltTaken);
@@ -215,13 +240,40 @@ export class Fight {
     u.stats.bolts++;
     this.emit('bolt', e);
     this.damage(u, e, d, 'ability', { source: 'Lightning' });
-    e.attackTimer = 0;
+    this.stutter(e, BOLT.stutter);
     this.run(u, 'onBolt');
   }
 
   boltDamage(u) {
     const frozen = u.flags.superconductor && u.enemy.frozen > 0 ? 1.5 : 1;
-    return (40 + 4 * Math.min(20, u.bolts)) * u.m.boltDmg * frozen;
+    return (BOLT.base + BOLT.step * Math.min(BOLT.maxSteps, u.bolts)) * u.m.boltDmg * frozen;
+  }
+
+  // Push u's next attack back by `frac` of a swing. swingDelay keeps the
+  // seconds added to the current swing for the swing timer.
+  stutter(u, frac) {
+    const before = u.attackTimer;
+    u.attackTimer = Math.max(-BOLT.maxDelay, u.attackTimer - frac);
+    const lost = before - u.attackTimer;
+    if (lost > 0) {
+      u.swingDelay += lost / Math.max(0.05, this.attackSpeed(u));
+      this.emit('stutter', u, { delay: u.swingDelay });
+    }
+  }
+
+  // Afterburner: your Fire hit its cap. It all burns out in one blast, and
+  // you attack much faster for a moment.
+  afterburner(u) {
+    if (u.dead || u.burning) return;
+    u.burning = true;
+    const burned = u.fire;
+    u.fire = 0;
+    u.afterburners++;
+    u.stats.afterburners++;
+    u.rush = FIRE.rushDur;
+    this.emit('afterburner', u, { burned });
+    this.damage(u, u.enemy, FIRE.blast * burned * Math.max(0, u.enemy.m.afterburnTaken), 'ability', { source: 'Afterburner' });
+    u.burning = false;
   }
 
   antiheal(u) {
@@ -361,13 +413,11 @@ export class Fight {
   }
 
   attackSpeed(u) {
-    let as = u.asBase * (1 + u.asBonus + u.galv + 0.025 * u.fire + Math.min(u.momentumCap, 0.01 * u.attackCount));
-    if (u.m.berserk) as *= 1 + u.m.berserk * (1 - u.hp / u.maxHp);
-    return as * this.slow(u);
+    return attackSpeedOf(u);
   }
 
   slow(u) {
-    return Math.max(0.3, 1 - 0.015 * u.frost);
+    return slowOf(u);
   }
 
   queueExtraAttack(u) {
@@ -431,6 +481,7 @@ export class Fight {
       u.frozen = Math.max(0, u.frozen - dt);
       u.immune = Math.max(0, u.immune - dt);
       u.bastionCd = Math.max(0, u.bastionCd - dt);
+      u.rush = Math.max(0, u.rush - dt);
       u.grit = Math.max(0, u.grit - dt);
       u.gritCd = Math.max(0, u.gritCd - dt);
 
@@ -440,13 +491,19 @@ export class Fight {
         if (e.flags.toxicFrost && (u.frost >= 5 || u.frozen > 0)) mult *= 1.6;
         const d = this.damage(e, u, u.poison * mult * dt, 'poison');
         if (e.flags.plague) this.heal(e, d * 0.2, 'Plague Lord');
-        // Poison wears off slowly, so it levels off instead of growing forever.
-        u.poison = Math.max(0, u.poison - u.poison * 0.02 * dt);
       }
       if (u.bleed > 0.05 && !u.dead) {
         const d = this.damage(e, u, u.bleed * 0.0025 * u.baseHp * e.m.bleedDmg * dt, 'bleed');
         if (e.m.bleedLeech) this.heal(e, d * e.m.bleedLeech, 'Bleed lifesteal');
-        u.bleed = Math.max(0, u.bleed - u.bleed * 0.08 * e.m.bleedDecay * dt);
+      }
+      // Toxin and Bleed lose a third of their stacks every 2 seconds.
+      u.dotTimer += dt;
+      if (u.dotTimer >= DOT_EVERY - 1e-9) {
+        u.dotTimer -= DOT_EVERY;
+        u.poison *= 1 - DOT_DECAY;
+        u.bleed *= 1 - DOT_DECAY * Math.max(0, e.m.bleedDecay);
+        if (u.poison < 1) u.poison = 0;
+        if (u.bleed < 1) u.bleed = 0;
       }
       if (u.dead) continue;
       u.frost = Math.max(0, u.frost - 0.6 * e.m.frostDecay * dt);
@@ -471,6 +528,7 @@ export class Fight {
         let guard = 0;
         while (u.attackTimer >= 1 && guard++ < 4 && !u.dead && !e.dead) {
           u.attackTimer -= 1;
+          u.swingDelay = 0;
           this.attack(u);
         }
         while (u.pendingAttacks > 0 && !u.dead && !e.dead) {
