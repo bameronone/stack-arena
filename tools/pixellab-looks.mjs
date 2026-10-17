@@ -106,9 +106,9 @@ export const LOOKS = {
     // PixMiniMax clips on his Braced Stance state, animated from the 176px pose.
     animations: {
       idle: '7e7029ad-45b5-4f8b-b128-4a959c90fbb1',
-      attack: 'cf50d732-7e10-4284-90a2-a33276c29455', // leaning mace swing (came out as a mace blow, not a bash)
+      attack: '3bd5214d-f362-4fab-acba-88df1271456f', // shield bash
       attack2: '76b64f1e-c6fb-4dd6-bb2b-998066e6a172', // mace over the shield
-      death: '404444dc-a32e-4f9e-b7f3-7a6efda10c88', // topples onto his shield
+      death: '01d601fe-6e28-405d-a3fb-adf3a6421e98', // topples onto his shield
       cast: 'b18f56d4-2339-47c3-88a8-9f1c97f14e0e', // Martyrdom: golden dome
     },
   },
