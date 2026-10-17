@@ -80,8 +80,17 @@ export const LOOKS = {
     attack: "lunging far forward to the right with a long straight rapier thrust, front knee bent deep, leaving a streak of heat and sparks, then recovering back en garde",
   },
   snowthorn: {
+    // Sigrun: v3 character in its Archer's Stance state, clips animated with
+    // PixMiniMax from the 176px pose (docs/sprites.md).
     description: "lean female huntress wrapped in white wolf pelts with a wolf-head hood, pale braided hair, holding a white bone longbow in her left hand with an ice-blue arrow nocked",
     attack: "drawing the bow string back to her cheek and loosing an ice-blue arrow to the right that leaves a frosty trail, then nocking a new arrow",
+    animations: {
+      idle: '8b7aefc9-bde5-4806-b903-8326b975f7f6',
+      attack: '0001a736-b43c-46c1-8f7d-2197a6da9fc4', // one ice arrow
+      attack2: 'e27a9113-703e-4b73-8ee0-2b878a8cf700', // two quick shots
+      cast: '6c4c0e96-ebd9-4b04-ad0d-91e95a164d6b', // Winter's Kiss
+      death: 'ae72fead-84c0-4f2c-87fe-d33c253704d8', // freezes, kneels, blows away as snow
+    },
   },
   runevolt: {
     description: "young male swordsman, lean man in a dark sleeveless tunic, glowing violet runes along his bare right arm, short spiky hair, a straight longsword etched with glowing glyphs in his right hand",
