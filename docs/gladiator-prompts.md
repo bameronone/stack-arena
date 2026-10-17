@@ -2,7 +2,7 @@
 
 PixelLab prompts for every gladiator, written for the process in [sprites.md](sprites.md). Each block fills in that doc's steps:
 
-- **Character** is the description for step 1 (the web app). It names the weapon and the hands holding it.
+- **Character** is the description for step 1 (`create_character` in v3 mode). It names the weapon and the hands holding it.
 - **Pose state** is `edit_description` for step 2 (`create_character_state`).
 - **Subject** and **Initial pose** are `subject_description` and `initial_pose` for step 4.
 - **idle / attack / attack2 / death** are each clip's `action_description`. Idle, both attacks and cast end back in the pose (`end_frame_base64`); death has no end frame.
@@ -16,11 +16,13 @@ Pronouns: Cinder, Glacia, Morwen, Wardweaver, Forgeblade, Sigrun, Haze, Nightsha
 
 ### Cinder, *the Kindled*  (`cinder`)
 
-Done except for the ability. Its other prompts are in [sprites.md](sprites.md).
+Done, including the cast. Its other prompts are in [sprites.md](sprites.md).
 
 - **cast** (Blaze Rush): rearing back and dashing forward to the right in a blazing charge, the sword held low then ripped upward in a rising slash that bursts into a wave of fire, then skidding back into her two-handed guard
 
 ### Kael, *the Red Harvest*  (`reaver`)
+
+Done. Character `8afd2730-d671-4c26-914a-22a00cb89dbe`, Low Reaping Stance state `eba1435b-2d86-4869-9b09-8cd288a1a4cf`; every clip below was animated with these prompts.
 
 - **Character:** gaunt male gladiator, pale lean man with a long hooked scythe held in both hands, crimson sash and dark leather wraps, green vine tattoos on his bare arms, shaggy black hair
 - **Pose state:** low reaping stance: both hands on the scythe shaft, the curved blade held low behind him near the ground, body leaning forward, knees bent, ready to sweep
