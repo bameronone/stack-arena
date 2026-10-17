@@ -48,6 +48,16 @@ export const LOOKS = {
     attack: "whipping the chain overhead and lashing it forward to the right in a long crack, yellow lightning arcing along the links, then reeling it back into his fist",
   },
   oathcleaver: {
+    // PixelLab character made through the API in v3 mode, in its
+    // Executioner's Stance state; clips were animated from that pose padded
+    // to 176x176, and all but death end back in it.
+    animations: {
+      idle: 'b84f917f-2188-4d53-a6df-f53d62b72f47',
+      attack: '01edafad-1f4b-4176-a808-8cd696003cd1', // overhead chop
+      attack2: 'dc3cad4f-6a8e-43a3-89b6-a487468cfe6f', // flat cleave (prompt adds "staying side-on facing right the whole time")
+      cast: '2b3c3938-b8dc-4a1a-9af7-267b370454a1', // Rusted Verdict
+      death: 'e4bd8bbf-e8cd-4c3a-8bc5-a417901c9e95', // crumbles into rust
+    },
     description: "tall male knight in rust-red plate armor and a tattered grey tabard, closed great helm, a huge executioner's axe held in both hands",
     attack: "heaving the axe off his shoulder and chopping it straight down in front of him to the right with both hands, then hauling it back up onto his shoulder",
   },
@@ -66,14 +76,31 @@ export const LOOKS = {
   viper: {
     description: "wiry male assassin in tight green and black scaled leather, hood shaped like a snake's head, lower face masked, a curved dagger in each hand, the left blade dripping green and the right dripping red",
     attack: "lunging forward to the right with a quick stab of the left dagger followed by a slash of the right dagger, leaving green and red streaks, then springing back into his crouch",
+    // PixMiniMax clips on the Low Crouched Stance state; idle, swings and cast end back in the crouch.
+    animations: {
+      idle: 'dbe46be9-8565-4432-945d-923e7adbc592',
+      attack: '377eceb9-8ecb-467e-b973-a1ba619ce3e1', // stab then slash
+      attack2: '8ccaf899-a181-4ad7-b258-0f11ca7949c0', // spinning X slash
+      cast: '0e66a96c-2e09-4636-87ca-e950cfe64f5a', // Fang Flurry
+      death: '72a2918e-fd19-47da-a6d5-d9a0e7b7250a', // melts into venom
+    },
   },
   duelist: {
     description: "proud female fencer, lean woman in a dark steel half-cuirass over a white shirt, short cropped hair, a thin rapier in her right hand with a glowing white-hot tip",
     attack: "lunging far forward to the right with a long straight rapier thrust, front knee bent deep, leaving a streak of heat and sparks, then recovering back en garde",
   },
   snowthorn: {
+    // Sigrun: v3 character in its Archer's Stance state, clips animated with
+    // PixMiniMax from the 176px pose (docs/sprites.md).
     description: "lean female huntress wrapped in white wolf pelts with a wolf-head hood, pale braided hair, holding a white bone longbow in her left hand with an ice-blue arrow nocked",
     attack: "drawing the bow string back to her cheek and loosing an ice-blue arrow to the right that leaves a frosty trail, then nocking a new arrow",
+    animations: {
+      idle: '8b7aefc9-bde5-4806-b903-8326b975f7f6',
+      attack: '0001a736-b43c-46c1-8f7d-2197a6da9fc4', // one ice arrow
+      attack2: 'e27a9113-703e-4b73-8ee0-2b878a8cf700', // two quick shots
+      cast: '6c4c0e96-ebd9-4b04-ad0d-91e95a164d6b', // Winter's Kiss
+      death: 'ae72fead-84c0-4f2c-87fe-d33c253704d8', // freezes, kneels, blows away as snow
+    },
   },
   runevolt: {
     description: "young male swordsman, lean man in a dark sleeveless tunic, glowing violet runes along his bare right arm, short spiky hair, a straight longsword etched with glowing glyphs in his right hand",
