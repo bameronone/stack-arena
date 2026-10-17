@@ -50,6 +50,14 @@ export const LOOKS = {
   duelist: {
     description: "proud female fencer, lean woman in a dark steel half-cuirass over a white shirt, short cropped hair, a thin rapier in her right hand with a glowing white-hot tip",
     attack: "lunging far forward to the right with a long straight rapier thrust, front knee bent deep, leaving a streak of heat and sparks, then recovering back en garde",
+    // PixMiniMax clips on the En Garde state, animated from and back to its pose.
+    animations: {
+      idle: '165a112a-e9a7-46a7-ac70-968ce7325b9d',
+      attack: 'e5c9974f-c236-4cf6-9053-a87b8cd95eaf', // long lunge
+      attack2: '1d7ba908-f885-41bb-a490-0e027e7feebe', // two diagonal slashes
+      cast: '937c8fe3-e0a7-4d91-8d72-eab024c5ca65', // Lunge
+      death: 'e8368b9c-ea34-46d8-a795-53480fe51a04', // rapier snaps, falls sideways
+    },
   },
   snowthorn: {
     description: "lean female huntress wrapped in white wolf pelts with a wolf-head hood, pale braided hair, holding a white bone longbow in her left hand with an ice-blue arrow nocked",
