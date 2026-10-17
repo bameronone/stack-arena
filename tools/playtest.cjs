@@ -45,17 +45,23 @@ const PLAYERS = Number(process.argv[5] || 2);
     await page.waitForTimeout(rounds === 5 ? 2500 : 200);
     if (rounds === 5) await page.screenshot({ path: `${out}/${tag}-6-fighting.png` });
     if (await page.$('#skip')) await page.click('#skip').catch(() => {});
-    await page.waitForSelector('#cont', { timeout: 15000 });
-    if (rounds === 5) await page.screenshot({ path: `${out}/${tag}-7-result.png` });
-    const label = await page.textContent('#cont');
-    await page.click('#cont');
-    if (label.includes('See the result') || label.includes('Finish the match')) break;
+    // No results popup: the next round starts by itself once every fight
+    // of this one has played out.
+    await page.waitForTimeout(300);
+    if (rounds === 5) await page.screenshot({ path: `${out}/${tag}-7-after-fight.png` });
+    if (await page.$('#cont')) errors.push('a results popup with a button still shows');
+    await page.waitForSelector('.final, #fight:not([disabled])', { timeout: 90000 });
+    if (await page.$('.final')) break;
   }
   await page.waitForTimeout(200);
   await page.screenshot({ path: `${out}/${tag}-8-over.png` });
   const heading = await page.textContent('h1');
   const placesOk = PLAYERS === 2 || (await page.$$('.final tbody tr')).length === PLAYERS;
   if (!placesOk) errors.push('final standings table has the wrong number of rows');
+  // Replay starts the same lobby again; Back to lobby returns to the setup.
+  await page.click('#again');
+  await page.waitForTimeout(200);
+  if (!(await page.$('[data-res]'))) errors.push('Replay did not start a new match');
   console.log(JSON.stringify({ rounds: rounds + 1, result: heading, errors }, null, 1));
   await browser.close();
 })().catch((e) => { console.error(e); process.exit(1); });

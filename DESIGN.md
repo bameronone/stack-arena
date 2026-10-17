@@ -4,14 +4,15 @@
 
 0. **Lobby:** 2 to 8 players (you plus 1 to 7 bots). Two players is a duel; more is a free-for-all. The last gladiator standing wins; everyone else gets a placement in the order they're knocked out.
 1. **Ban:** each player secretly votes to ban one resource. The two most-voted resources are banned, with ties broken at random (in a duel that's simply both picks). Banned resources leave the card pool, along with every hybrid and counter card that uses them.
-2. **Pick:** gladiators whose resources are *all* banned are hidden. Two-resource gladiators with one banned stay pickable, with a warning.
+2. **Pick:** a gladiator sits the match out if *any* of its resources is banned. Online, a player whose page is a different build from the host's is refused at the door, so an old tab can't show old ban rules.
 3. **Timers** (online always, solo optional): ban 20s, pick 30s, signature 20s, shop 20/30/45s. Running out picks at random or starts the fight. In multiplayer the fight starts early once every living player has pressed Ready.
 4. **Rounds:**
    - Gold arrives: `min(10, 4 + round)` plus interest of 1 per 5 banked (max 3, at 15 gold). It was 1 per 10 (max 2), which made saving feel pointless.
    - The shop shows 5 cards. Reroll costs 1 gold and you can lock the shop. There is no selling: every purchase is permanent.
    - Then the auto fights. Pairings are random each round, avoiding last round's opponent where possible. With an odd number alive, one player fights a **ghost**: a copy of another living player's build. Losing to a ghost costs HP; beating one doesn't hurt the player it copies.
-   - In the browser, your fight is animated and the others resolve instantly. In a free-for-all you can watch any other fight of the round from the results banner (it replays from the shared seed). Once you're knocked out, the bots finish the match instantly and you see the final standings.
+   - In the browser, your fight is animated. Every other fight of the round plays out on a shared clock at 2x, and you can watch any of them from the standings wall (it replays from the shared seed). There is no results popup: the next round starts by itself once every fight has played out and every player has finished watching their own. Once no human is left alive, the bots finish the match instantly and you see the final standings.
    - The loser takes `1 + ceil(0.8 × round) + 4 × winner's HP%` damage. Each player starts with 60 HP.
+   - Every gladiator's base HP was tripled in round 5 of the design (fights run about twice as long; median ~16s, about a quarter reach overtime in bot play).
    - Gladiators' fight HP grows each round: max HP × `1 + 0.015 × (round − 1)²` (1.24x in round 5, 2.5x in round 11, 3.5x in round 14). Without it, late fights ended in about 4s, often in one cast. Effects worth a percent of max HP (bleed, regen, Juggernaut, shields...) use the HP before scaling, so they don't outgrow everything else.
    - The shop shows next round's gold: income plus interest, and how much more to keep for the next interest step.
 5. **Round 7:** each player picks one of two signature upgrades for their gladiator.
@@ -25,10 +26,12 @@
   - Health (internally `pain`, formerly Wounded): +5 max HP per card, and "When hurt" fires every 12% of max HP lost, 0.5% sooner per card (min 4%). The max-HP cards (Hearty, Juggernaut, Titan) are Health cards.
   - Spell: +0.5 mana per attack per card
 - **Resources** (Fire, Frost, Toxin, Bleed, Shield, Regen, Arcane, Lightning, Armor) decide what stacks do. Arcane was called Mana; it was renamed so it isn't confused with the mana bar every gladiator fills to cast.
-  - Lightning stacks on you; every 10 call a bolt (40 damage, +4 per earlier bolt this fight, up to +80) that ignores Armor and resets the enemy's attack swing.
+  - Lightning stacks on you (so cards say *gain* Lightning); every 10 call a bolt down on the enemy (40 damage, +5 per earlier bolt this fight, up to +100) that ignores Armor and stutters the enemy's attack: their swing is pushed back a quarter of a swing, at most half a swing behind. The swing timer under each fighter's mana bar shows attacks per second, and in red the seconds a bolt added to the current swing.
   - Toxin (internally `poison`, formerly Poison) goes through Armor but Shield blocks it. It no longer cuts healing.
   - Regen heals 0.2% of base max HP per second per stack. Every 5% of base max HP healed, from any source, fires "On heal" (Sap Ward, Bloom Burst, Evergreen).
   - Gaining Fire melts the same number of Frost stacks on you.
+  - Fire: +1% attack speed per stack, up to 40 (your Fire cap). Reaching the cap sets off **Afterburner**: all your Fire burns out in a blast of 5 ability damage per stack, and you attack 50% faster for 3s. Stoke and Wildheart raise the cap (later, bigger Afterburner); Cooling Draught cuts Afterburner damage taken.
+  - Toxin and Bleed lose a third of their stacks every 2 seconds (Deep Cuts and Arterial Strike slow or stop it for Bleed).
 - **Generator cards** pair a trigger with a resource and always fire. There's one for every one of the 40 trigger-resource pairs. Cards with only a resource tag that make stacks fire 30% of the time, or run on a slow timer.
 
 ## Tiers
@@ -86,7 +89,7 @@ Hand-written card scoring did no better than random buying. Measuring each card'
 These are 1500-match results between Gladiator-level bots:
 
 - **Characters:** every gladiator wins 47–54% (base HP tuned with `tools/autotune.mjs`, which is why base HP now ranges from 260 to 1065).
-- **Resources:** 48–53%. Toxin decays 2% of its stacks per second so it levels off instead of snowballing.
+- **Resources:** 48–53%. Toxin loses a third of its stacks every 2s so it levels off instead of snowballing.
 - **Average match:** about 11 rounds, with fights of about 15s that stay that long into the late game.
 
 After changing cards, re-run `tools/cardvalue.mjs` (so the AI's card values stay accurate), then `npm run sim`.
@@ -103,7 +106,8 @@ After changing cards, re-run `tools/cardvalue.mjs` (so the AI's card values stay
 
 - Everyone starts with 6 gold on top of round 1's income.
 - Your own fight replays in the host's pair order (it sets the seed and who acts first), drawn mirrored when you are the second fighter, so it always matches the result the host applied.
-- The fight phase ends by itself 8 seconds after the longest fight would finish at 1x. Watching another fight stops when the round ends.
+- The fight phase ends once every fight has played out at 2x and every human has finished watching their own (sent automatically when their fight ends). If someone holds it up, it is forced on 8 seconds after the longest fight would finish at 1x (at most 120s). Watching another fight stops when the round ends.
+- After a match: **Replay** starts the same lobby (solo) or room (host) again straight away; **Back to lobby** returns to the setup or the room to change it.
 - A player who leaves is replaced by a bot; joining the same room code again (same browser, or same name) hands the gladiator back.
 - In a free-for-all your next opponent stays hidden (top bar, side panel and arena preview) until the fight starts.
 - Standings hang on the arena's back wall, best on the left, sliding when places change. Crossed swords mark fights still going; click one to watch it. Knocked-out players watch a live fight automatically.

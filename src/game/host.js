@@ -17,7 +17,11 @@ import { botBan, botPick, botShop, botSignature } from '../ai/bot.js';
 
 export const PHASE_TIME = { ban: 20, pick: 30, signature: 20, watch: 120 };
 export const SHOP_TIMES = [0, 20, 30, 45];
-export const RESULTS_TIME = 8; // seconds after the longest fight before the next round
+export const RESULTS_TIME = 8; // grace after the longest fight (at 1x) before the round is forced on
+// Every fight of a round plays out on a shared clock at this speed (the
+// default playback speed). The next round starts once all of them have
+// finished, and every player has finished watching their own.
+export const ROUND_PACE = 2;
 
 export class HostGame {
   // players: [{ name, isBot, level }]; player 0 is the host.
@@ -137,6 +141,15 @@ export class HostGame {
     this.changed();
   }
 
+  // Called every tick: the fight phase ends by itself once every fight has
+  // played out, without waiting for the phase clock.
+  poll() {
+    const m = this.M;
+    if (m.phase !== 'fight') return;
+    this.advance();
+    if (m.phase !== 'fight') this.changed();
+  }
+
   // Moves on whenever the current phase's requirements are met. Phase changes
   // made inside the engine (bans resolved, round started) are picked up here.
   advance() {
@@ -170,7 +183,9 @@ export class HostGame {
       }
       if (phase === 'fight') {
         const waiting = this.watchers().filter((id) => !m.watched[id]);
-        if (waiting.length === 0) { this.endRound(); continue; }
+        // With no human left in the match there is nothing to watch.
+        const played = this.humans(true).length === 0 || this.now() >= (m.fightsEndAt ?? 0);
+        if (waiting.length === 0 && played) { this.endRound(); continue; }
       }
       break;
     }
@@ -197,9 +212,13 @@ export class HostGame {
     m.phase = 'fight';
     m.watched = {};
     m.fightRound = m.round;
-    // The round moves on by itself once every fight has played out at 1x,
-    // plus a few seconds to read the results; nobody can hold it up.
+    // Every fight plays out on the shared round clock; the round moves on
+    // once they all have (and every player has seen their own fight). The
+    // phase clock is only a safety net, so nobody can hold the round up.
     const longest = Math.max(0, ...m.lastResults.map((r) => r.time));
+    m.fightsStartAt = this.now();
+    m.roundPace = ROUND_PACE;
+    m.fightsEndAt = m.fightsStartAt + (longest / ROUND_PACE) * 1000 + 600;
     this.setDeadline(Math.min(PHASE_TIME.watch, longest + RESULTS_TIME));
   }
 

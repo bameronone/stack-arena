@@ -10,18 +10,18 @@ const fangs = (u) => Math.min(8, 3 + Math.floor(((u?.enemy?.poison ?? 0) + (u?.e
 export const CHARACTERS = [
   {
     id: 'cinder', name: 'Cinder', epithet: 'the Kindled', trigger: 'strike', resources: ['fire'],
-    stats: { hp: 685, ad: 30, as: 1.1 },
+    stats: { hp: 2055, ad: 30, as: 1.1 },
     innate: { desc: 'On attack, gain 1 Fire.', onAttack: (f, u) => f.gain(u, 'fire', 1) },
     ability: { name: 'Blaze Rush', desc: (u) => `Deal 50 + 5 per Fire (${Math.round(50 + 5 * (u?.fire ?? 0))}).`,
       cast: (f, u, p) => { const d = (50 + 5 * u.fire) * p; hit(f, u, d); if (u.sig === 'cinder_twin') hit(f, u, d * 0.6); } },
     signatures: [
-      { id: 'cinder_wild', name: 'Wildheart', desc: 'Fire cap +12.', setup: (u) => { u.fireCap += 12; } },
+      { id: 'cinder_wild', name: 'Wildheart', desc: 'Fire cap +12, so Afterburner waits longer and burns more.', setup: (u) => { u.fireCap += 12; } },
       { id: 'cinder_twin', name: 'Twin Blaze', desc: 'Blaze Rush hits a second time for 60%.' },
     ],
   },
   {
     id: 'glacia', name: 'Glacia', epithet: 'of the Long Winter', trigger: 'spell', resources: ['frost'],
-    stats: { hp: 650, ad: 26, manaMax: 85 },
+    stats: { hp: 1950, ad: 26, manaMax: 85 },
     innate: { desc: 'Your casts apply 4 extra Frost.', onCast: (f, u) => f.apply(u, 'frost', 4) },
     ability: { name: 'Hailstorm', desc: () => 'Deal 55 and apply 8 Frost, plus 1 per 3 Frost already on the enemy.',
       cast: (f, u, p) => {
@@ -36,7 +36,7 @@ export const CHARACTERS = [
   },
   {
     id: 'viper', name: 'Viper Saint', epithet: 'Twice-Fanged', trigger: 'precision', resources: ['poison', 'bleed'],
-    stats: { hp: 855, ad: 27, crit: 0.15 },
+    stats: { hp: 2565, ad: 27, crit: 0.15 },
     innate: { desc: 'Crits apply 2 Toxin and 2 Bleed.', onCrit: (f, u) => { f.apply(u, 'poison', 2); f.apply(u, 'bleed', 2); } },
     ability: { name: 'Fang Flurry', desc: (u) => `Make 3 quick attacks, plus 1 per 12 Toxin and Bleed on the enemy, up to 8 (${fangs(u)}).`,
       cast: (f, u) => { const k = fangs(u); for (let i = 0; i < k; i++) { if (u.sig === 'viper_lacerate') u.forceCrit += 1; f.queueExtraAttack(u); } } },
@@ -47,7 +47,7 @@ export const CHARACTERS = [
   },
   {
     id: 'wisp', name: 'Wisp Dancer', epithet: 'Never Where You Strike', trigger: 'evasion', resources: ['frost', 'fire'],
-    stats: { hp: 525, ad: 28, as: 1.15, focusGain: 0.1 },
+    stats: { hp: 1575, ad: 28, as: 1.15, focusGain: 0.1 },
     innate: { desc: 'Gains 10% Focus each time she is hit. Each dodge shakes off 4 Toxin and 4 Bleed.',
       onEvade: (f, u) => { u.poison = Math.max(0, u.poison - 4); u.bleed = Math.max(0, u.bleed - 4); } },
     ability: { name: 'Mirage', desc: (u) => `Deal 40 + 4 per Fire (${Math.round(40 + 4 * (u?.fire ?? 0))}) and apply 4 Frost. Gain 40% Focus; your next 2 attacks crit.`,
@@ -60,7 +60,7 @@ export const CHARACTERS = [
   },
   {
     id: 'martyr', name: 'Iron Martyr', epithet: 'Who Bleeds for Steel', trigger: 'pain', resources: ['armor', 'shield'],
-    stats: { hp: 260, ad: 27, as: 0.85 },
+    stats: { hp: 780, ad: 27, as: 0.85 },
     innate: { desc: 'When hurt: gain 1 Armor.', onPain: (f, u) => f.gain(u, 'armor', 1) },
     ability: { name: 'Martyrdom', desc: (u) => `Gain 50 Shield + 10 per Armor (${Math.round(50 + 10 * (u?.armor ?? 0))}).`,
       cast: (f, u, p) => { const s = (50 + 10 * u.armor) * p; f.gain(u, 'shield', s); if (u.sig === 'martyr_penance') hit(f, u, s * 0.4); } },
@@ -71,7 +71,7 @@ export const CHARACTERS = [
   },
   {
     id: 'stormseer', name: 'Stormseer', epithet: 'Speaker of Squalls', trigger: 'spell', resources: ['arcane', 'lightning'],
-    stats: { hp: 610, ad: 24, manaMax: 85 },
+    stats: { hp: 1830, ad: 24, manaMax: 85 },
     innate: { desc: 'On cast, gain 3 Arcane and 5 Lightning.', onCast: (f, u) => { f.gain(u, 'arcane', 3); f.gain(u, 'lightning', 5); } },
     ability: { name: 'Thunderclap', desc: (u) => `Deal 50 + 10 per bolt called this fight (${Math.round(50 + 10 * (u?.bolts ?? 0))}).`,
       cast: (f, u, p) => { hit(f, u, (50 + 10 * u.bolts) * p); } },
@@ -82,7 +82,7 @@ export const CHARACTERS = [
   },
   {
     id: 'grove', name: 'Grove Keeper', epithet: 'Rooted', trigger: 'pain', resources: ['regen'],
-    stats: { hp: 380, ad: 24, as: 0.9 },
+    stats: { hp: 1140, ad: 24, as: 0.9 },
     innate: { desc: 'Start each fight with 1 Regen.', onStart: (f, u) => f.gain(u, 'regen', 1) },
     ability: { name: 'Overgrowth', desc: () => 'Heal 3% of max HP plus 0.5% per Regen.',
       cast: (f, u, p) => {
@@ -97,7 +97,7 @@ export const CHARACTERS = [
   },
   {
     id: 'ashen', name: 'Ashen Witch', epithet: 'Mother of Smoke', trigger: 'spell', resources: ['fire', 'poison'],
-    stats: { hp: 865, ad: 25, manaMax: 90 },
+    stats: { hp: 2595, ad: 25, manaMax: 90 },
     innate: { desc: 'On cast, gain 5 Fire.', onCast: (f, u) => f.gain(u, 'fire', 5) },
     ability: { name: 'Cinderplague', desc: (u) => `Deal 40 + 1 per Toxin on the enemy (${Math.round(40 + (u?.enemy?.poison ?? 0))}) and apply 12 Toxin plus 1 per 2 Fire.`,
       cast: (f, u, p) => { hit(f, u, (40 + u.enemy.poison) * p); f.apply(u, 'poison', Math.round((12 + u.fire / 2) * p)); } },
@@ -108,7 +108,7 @@ export const CHARACTERS = [
   },
   {
     id: 'reaver', name: 'Bloodreaver', epithet: 'the Red Harvest', trigger: 'strike', resources: ['bleed', 'regen'],
-    stats: { hp: 520, ad: 31 },
+    stats: { hp: 1560, ad: 31 },
     innate: { desc: 'Heal for 10% of your Bleed damage.', setup: (u) => { u.m.bleedLeech += 0.1; } },
     ability: { name: 'Rupture', desc: (u) => `Deal 20 + 4 per Bleed on the enemy (${Math.round(20 + 4 * (u?.enemy?.bleed ?? 0))}) and heal half of it.`,
       cast: (f, u, p) => {
@@ -122,7 +122,7 @@ export const CHARACTERS = [
   },
   {
     id: 'sage', name: 'Bulwark Sage', epithet: 'Keeper of Wards', trigger: 'spell', resources: ['shield', 'arcane'],
-    stats: { hp: 485, ad: 24, manaMax: 85 },
+    stats: { hp: 1455, ad: 24, manaMax: 85 },
     innate: { desc: 'All Shield you gain is increased by 15%.', setup: (u) => { u.m.shieldGain += 0.15; } },
     ability: { name: 'Arcane Barrier', desc: () => 'Gain 45 Shield, then deal 30 plus 30% of your Shield as damage.',
       cast: (f, u, p) => { f.gain(u, 'shield', 45 * p * (u.sig === 'sage_overflow' ? 1.5 : 1)); hit(f, u, 30 * p + u.shield * 0.3 * Math.min(p, 1.6)); } },
@@ -133,7 +133,7 @@ export const CHARACTERS = [
   },
   {
     id: 'duelist', name: 'Brass Duelist', epithet: 'First Blade of the Pit', trigger: 'precision', resources: ['fire', 'armor'],
-    stats: { hp: 430, ad: 33, crit: 0.14 },
+    stats: { hp: 1290, ad: 33, crit: 0.14 },
     innate: { desc: 'Crits grant 1 Armor and 3 Fire.', onCrit: (f, u) => { f.gain(u, 'armor', 1); f.gain(u, 'fire', 3); } },
     ability: { name: 'Lunge', desc: (u) => `Deal 70 + 5 per Armor and Fire (${Math.round(70 + 5 * ((u?.armor ?? 0) + (u?.fire ?? 0)))}). Your next attack crits.`,
       cast: (f, u, p) => { hit(f, u, (70 + 5 * (u.armor + u.fire)) * p); u.forceCrit += 1; } },
@@ -144,7 +144,7 @@ export const CHARACTERS = [
   },
   {
     id: 'nightshade', name: 'Nightshade', epithet: 'Smoke and Needles', trigger: 'evasion', resources: ['poison', 'shield'],
-    stats: { hp: 1065, ad: 25, as: 1.1, focusGain: 0.045 },
+    stats: { hp: 3195, ad: 25, as: 1.1, focusGain: 0.045 },
     innate: { desc: 'Gains 4.5% Focus each time she is hit. Dodges apply 4 Toxin.', onEvade: (f, u) => f.apply(u, 'poison', 4) },
     ability: { name: 'Smoke Veil', desc: (u) => `Gain 25% Focus and 30 Shield + 1 per Toxin on the enemy (${Math.round(30 + (u?.enemy?.poison ?? 0))}), and apply 6 Toxin plus 1 per 5 already on them.`,
       cast: (f, u, p) => { f.gain(u, 'focus', 0.25); f.gain(u, 'shield', (30 + u.enemy.poison) * p); f.apply(u, 'poison', Math.round((6 + u.enemy.poison / 5) * p)); } },
@@ -155,7 +155,7 @@ export const CHARACTERS = [
   },
   {
     id: 'chainbreaker', name: 'Chainbreaker', epithet: 'the Living Conduit', trigger: 'strike', resources: ['lightning'],
-    stats: { hp: 670, ad: 28, as: 1.05 },
+    stats: { hp: 2010, ad: 28, as: 1.05 },
     innate: { desc: 'On attack, gain 3 Lightning.', onAttack: (f, u) => f.gain(u, 'lightning', u.sig === 'chain_voltage' ? 4 : 3) },
     ability: { name: 'Thunderfall', desc: (u) => `Deal 45 + ${u?.sig === 'chain_aftershock' ? 22 : 14} per bolt called this fight (${Math.round(45 + (u?.sig === 'chain_aftershock' ? 22 : 14) * (u?.bolts ?? 0))}).`,
       cast: (f, u, p) => { hit(f, u, (45 + (u.sig === 'chain_aftershock' ? 22 : 14) * u.bolts) * p); } },
@@ -166,7 +166,7 @@ export const CHARACTERS = [
   },
   {
     id: 'oathcleaver', name: 'Oathcleaver', epithet: 'the Rusted Judge', trigger: 'strike', resources: ['bleed', 'armor'],
-    stats: { hp: 915, ad: 29 },
+    stats: { hp: 2745, ad: 29 },
     innate: { desc: 'On attack, apply 1 Bleed. Every 3rd attack, gain 1 Armor.',
       onAttack: (f, u) => {
         f.apply(u, 'bleed', u.sig === 'oath_jagged' ? 2 : 1);
@@ -182,7 +182,7 @@ export const CHARACTERS = [
   },
   {
     id: 'snowthorn', name: 'Snowthorn', epithet: 'the Last Huntress', trigger: 'precision', resources: ['frost'],
-    stats: { hp: 1370, ad: 30, crit: 0.18 },
+    stats: { hp: 4110, ad: 30, crit: 0.18 },
     innate: { desc: 'On crit, apply 5 Frost.', onCrit: (f, u) => f.apply(u, 'frost', u.sig === 'snow_pierce' ? 7 : 5) },
     ability: { name: "Winter's Kiss", desc: (u) => `Deal 60 + 5 per Frost on the enemy + 30 per freeze this fight (${Math.round(60 + 5 * (u?.enemy?.frost ?? 0) + 30 * (u?.freezesDone ?? 0))}).`,
       cast: (f, u, p) => {
@@ -196,7 +196,7 @@ export const CHARACTERS = [
   },
   {
     id: 'runevolt', name: 'Runevolt', epithet: 'the Thunderbrand', trigger: 'precision', resources: ['arcane', 'lightning'],
-    stats: { hp: 455, ad: 28, crit: 0.15 },
+    stats: { hp: 1365, ad: 28, crit: 0.15 },
     innate: { desc: 'On crit, gain 3 Arcane and 5 Lightning.', onCrit: (f, u) => { f.gain(u, 'arcane', 3); f.gain(u, 'lightning', u.sig === 'rune_charged' ? 7 : 5); } },
     ability: { name: 'Runic Discharge', desc: (u) => `Deal 40 + 3 per Arcane + ${u?.sig === 'rune_storm' ? 20 : 12} per bolt called this fight (${Math.round(40 + 3 * (u?.arcane ?? 0) + (u?.sig === 'rune_storm' ? 20 : 12) * (u?.bolts ?? 0))}).`,
       cast: (f, u, p) => { hit(f, u, (40 + 3 * u.arcane + (u.sig === 'rune_storm' ? 20 : 12) * u.bolts) * p); } },
@@ -207,7 +207,7 @@ export const CHARACTERS = [
   },
   {
     id: 'dawnfeather', name: 'Dawnfeather', epithet: 'the Reborn Flame', trigger: 'evasion', resources: ['fire', 'regen'],
-    stats: { hp: 740, ad: 27, as: 1.1, focusGain: 0.07 },
+    stats: { hp: 2220, ad: 27, as: 1.1, focusGain: 0.07 },
     innate: { desc: 'Gains 7% Focus each time she is hit. Dodges grant 4 Fire and 1 Regen.',
       onEvade: (f, u) => { f.gain(u, 'fire', u.sig === 'dawn_wings' ? 6 : 4); f.gain(u, 'regen', u.sig === 'dawn_spring' ? 2 : 1); } },
     ability: { name: 'Phoenix Waltz', desc: (u) => `Deal 40 + 3 per Fire (${Math.round(40 + 3 * (u?.fire ?? 0))}) and heal 0.5% of max HP per Regen (${((u?.regen ?? 0) * 0.5).toFixed(1)}%).`,
@@ -219,7 +219,7 @@ export const CHARACTERS = [
   },
   {
     id: 'gravespike', name: 'Gravespike', epithet: 'the Unyielding', trigger: 'pain', resources: ['bleed', 'armor'],
-    stats: { hp: 255, ad: 27, as: 0.9 },
+    stats: { hp: 765, ad: 27, as: 0.9 },
     innate: { desc: 'When hurt: apply 2 Bleed and gain 1 Armor.',
       onPain: (f, u) => { f.apply(u, 'bleed', u.sig === 'grave_debt' ? 3 : 2); f.gain(u, 'armor', u.sig === 'grave_bones' ? 2 : 1); } },
     ability: { name: 'Grave Sentence', desc: (u) => `Deal 40 + 1 per Bleed on the enemy and Armor (${Math.round(40 + (u?.enemy?.bleed ?? 0) + (u?.armor ?? 0))}).`,
