@@ -130,6 +130,14 @@ export const LOOKS = {
   martyr: {
     description: "massive male gladiator in dented, patched plate armor with no helmet, scarred bald head, thick beard, a huge tower shield of riveted scrap metal on his left arm and a short iron mace in his right hand",
     attack: "slamming the tower shield forward to the right in a heavy bash with his whole body, then pulling it back and planting it again",
+    // PixMiniMax clips on his Braced Stance state, animated from the 176px pose.
+    animations: {
+      idle: '7e7029ad-45b5-4f8b-b128-4a959c90fbb1',
+      attack: '3bd5214d-f362-4fab-acba-88df1271456f', // shield bash
+      attack2: '76b64f1e-c6fb-4dd6-bb2b-998066e6a172', // mace over the shield
+      death: '01d601fe-6e28-405d-a3fb-adf3a6421e98', // topples onto his shield
+      cast: 'b18f56d4-2339-47c3-88a8-9f1c97f14e0e', // Martyrdom: golden dome
+    },
   },
   grove: {
     description: "towering half-man half-tree warden, body of rough brown bark with mossy green patches, thick moss beard, leafy branches on his shoulders, a gnarled wooden club held in both hands",
