@@ -581,6 +581,23 @@ export function createArena(canvas) {
     return { size: r * 3.4, feet: y + r * 1.05 };
   }
 
+  // Canvas sizes differ between characters, so sprites are scaled by the
+  // figure in the base image: its height is 88% of the box, its feet on the
+  // ground line. Measured once per character from the base image's pixels.
+  function spriteFit(set) {
+    if (set.fit) return set.fit;
+    const base = set.base[0], w = base.naturalWidth, h = base.naturalHeight;
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const g = c.getContext('2d');
+    g.drawImage(base, 0, 0);
+    const px = g.getImageData(0, 0, w, h).data;
+    let top = h, bottom = 0;
+    for (let i = 3; i < px.length; i += 4) if (px[i] > 20) { const row = (i >> 2) / w | 0; top = Math.min(top, row); bottom = row + 1; }
+    if (bottom <= top) { top = 0; bottom = h; }
+    return (set.fit = { height: bottom - top, feet: bottom - h / 2 });
+  }
+
   function spriteFrame(set, a) {
     const frames = set[a.clip] || set.idle || set.base;
     const n = frames.length;
@@ -600,9 +617,9 @@ export function createArena(canvas) {
     // needs room), with the figure centred at the same pixel scale. So every
     // frame is drawn at the base image's scale around the same centre point.
     const { size, feet } = spriteBox(y, r);
-    const base = set.base[0];
-    const scale = size / base.naturalWidth;
-    const cy = feet - base.naturalHeight * 0.48 * scale;
+    const fit = spriteFit(set);
+    const scale = (size * 0.88) / fit.height;
+    const cy = feet - fit.feet * scale;
     const dw = img.naturalWidth * scale, dh = img.naturalHeight * scale;
     ctx.save();
     ctx.imageSmoothingEnabled = false;

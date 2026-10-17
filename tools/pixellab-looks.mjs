@@ -1,21 +1,17 @@
 // How each gladiator looks and swings, for PixelLab sprite generation.
 export const LOOKS = {
   cinder: {
-    // Cameron's hand-made PixelLab character (Fighting Pose state); `fetch`
-    // pulls these PixMiniMax clips by animation id instead of by clip name.
-    description: 'fierce female gladiator, athletic woman with a long flaming sword held in her right hand, ember-red leather armor, long wild orange hair in a high ponytail',
-    attack: 'grab the sword with both hands and swing it in a full arc, then return to the fighting stance',
+    // Cameron's hand-made PixelLab character in its Two-Handed Guard state;
+    // `fetch` pulls these PixMiniMax clips by animation id instead of by name.
+    // Idle and both swings were animated back to the guard pose, so they loop
+    // and hand off to each other cleanly.
+    description: 'fierce female gladiator, athletic woman with a long flaming sword held in both hands, ember-red armor, long wild orange hair in a high ponytail',
+    attack: 'swinging the flaming sword with both hands in a horizontal arc, then returning to the two-handed guard',
     animations: {
-      idle: 'b6883ead-b285-4fd5-aee3-58ccb327e603',
-      attack: 'a896e7b9-54bb-4717-9b8e-7049cb6b78b5',
-      death: 'aed68eb9-0024-48d3-a899-c610f25b8fc8',
-    },
-    // Generated frames to keep per clip: the attack skips its slow wind-up and
-    // plays every other frame so the whole swing fits one attack; death skips
-    // two frames that jump out of the stance.
-    frames: {
-      attack: [6, 8, 10, 12, 14, 15, 16, 17, 18, 20, 22, 24, 26, 28, 30, 32],
-      death: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+      idle: '74649177-8e35-4677-8247-a2043e07918b',
+      attack: '9191b741-7c1c-43b7-9d4b-663e64f846fe', // left to right
+      attack2: '024d0654-3fb7-4e4d-9e76-4057e3853ece', // right to left
+      death: '28631e29-c464-41c1-b3d0-0062372a3583', // bursts into glowing dust
     },
   },
   glacia: { description: 'ice sorceress in pale blue robes with a frost crown and a crystal staff', attack: 'thrusting a staff forward in a quick strike' },
