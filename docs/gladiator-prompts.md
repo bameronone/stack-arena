@@ -2,7 +2,7 @@
 
 PixelLab prompts for every gladiator, written for the process in [sprites.md](sprites.md). Each block fills in that doc's steps:
 
-- **Character** is the description for step 1 (the web app). It names the weapon and the hands holding it.
+- **Character** is the description for step 1 (`create_character` in v3 mode). It names the weapon and the hands holding it.
 - **Pose state** is `edit_description` for step 2 (`create_character_state`).
 - **Subject** and **Initial pose** are `subject_description` and `initial_pose` for step 4.
 - **idle / attack / attack2 / death** are each clip's `action_description`. Idle, both attacks and cast end back in the pose (`end_frame_base64`); death has no end frame.
