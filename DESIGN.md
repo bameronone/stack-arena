@@ -24,7 +24,7 @@
   - Evasion: +3% Focus per hit taken per card
   - Health (internally `pain`, formerly Wounded): +5 max HP per card, and "When hurt" fires every 12% of max HP lost, 0.5% sooner per card (min 4%). The max-HP cards (Hearty, Juggernaut, Titan) are Health cards.
   - Spell: +0.5 mana per attack per card
-- **Resources** (Fire, Frost, Toxin, Bleed, Shield, Regen, Mana, Lightning, Armor) decide what stacks do.
+- **Resources** (Fire, Frost, Toxin, Bleed, Shield, Regen, Arcane, Lightning, Armor) decide what stacks do. Arcane was called Mana; it was renamed so it isn't confused with the mana bar every gladiator fills to cast.
   - Lightning stacks on you; every 10 call a bolt (40 damage, +4 per earlier bolt this fight, up to +80) that ignores Armor and resets the enemy's attack swing.
   - Toxin (internally `poison`, formerly Poison) goes through Armor but Shield blocks it. It no longer cuts healing.
   - Regen heals 0.2% of base max HP per second per stack. Every 5% of base max HP healed, from any source, fires "On heal" (Sap Ward, Bloom Burst, Evergreen).
@@ -98,3 +98,12 @@ After changing cards, re-run `tools/cardvalue.mjs` (so the AI's card values stay
 - Item and artifact slots (Auto Gladiators' equipment layer).
 - Online play has been tested between browser pages on one machine (`tools/mptest.cjs`), not yet between two real networks.
 - Rejoining after a disconnect (today a bot takes over permanently).
+
+## Multiplayer flow
+
+- Everyone starts with 6 gold on top of round 1's income.
+- Your own fight replays in the host's pair order (it sets the seed and who acts first), drawn mirrored when you are the second fighter, so it always matches the result the host applied.
+- The fight phase ends by itself 8 seconds after the longest fight would finish at 1x. Watching another fight stops when the round ends.
+- A player who leaves is replaced by a bot; joining the same room code again (same browser, or same name) hands the gladiator back.
+- In a free-for-all your next opponent stays hidden (top bar, side panel and arena preview) until the fight starts.
+- Standings hang on the arena's back wall, best on the left, sliding when places change. Crossed swords mark fights still going; click one to watch it. Knocked-out players watch a live fight automatically.

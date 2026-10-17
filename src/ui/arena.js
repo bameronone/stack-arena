@@ -57,6 +57,10 @@ export function createArena(canvas) {
   let fx = [];
   let strikes = []; // lightning bolts on screen
   let names = ['', '']; // player names shown over each fighter
+  let flip = false; // draw unit 1 on the left
+  let mystery = false; // the right fighter is an unrevealed opponent
+  // Standings on the back wall: one plaque per player, best on the left.
+  let board = [], plaqueX = {}, plaqueRects = [], onPick = null;
   const anim = [0, 1].map(() => ({ lunge: 0, flash: 0, cast: 0, dodge: 0, dodgeDir: 1, clip: 'idle', clipT: 0, spawn: {} }));
   let clock = 0;
   const startClip = (a, clip) => { if (a.clip !== 'death') { a.clip = clip; a.clipT = 0; } };
@@ -79,13 +83,13 @@ export function createArena(canvas) {
   // line, near the front, as large as the arena allows.
   function stage() {
     const narrow = w < 640;
-    const floorTop = h * (narrow ? 0.36 : 0.3);
-    const feet = h * (narrow ? 0.76 : 0.9);
+    const floorTop = h * (narrow ? 0.4 : 0.3);
+    const feet = h * (narrow ? 0.8 : 0.9);
     return { floorTop, feet, narrow };
   }
   function pos(side) {
     const st = stage();
-    const x = w * (side === 0 ? (st.narrow ? 0.27 : 0.32) : (st.narrow ? 0.73 : 0.68));
+    const x = w * ((flip ? 1 - side : side) === 0 ? (st.narrow ? 0.27 : 0.32) : (st.narrow ? 0.73 : 0.68));
     return { x, y: st.feet - baseRadius() * 1.05, k: 1 };
   }
   function baseRadius() {
@@ -129,8 +133,10 @@ export function createArena(canvas) {
     }
   }
 
-  function setPreview(loadA, loadB, labels = ['', '']) {
+  function setPreview(loadA, loadB, labels = ['', ''], opts = {}) {
     names = labels;
+    flip = false;
+    mystery = !!opts.mystery;
     fight = null;
     onDone = null;
     floaters = [];
@@ -143,8 +149,12 @@ export function createArena(canvas) {
     start();
   }
 
-  function play(f, done, labels = names) {
+  // flip draws unit 1 on the left, for when you are the second fighter of
+  // your pairing (the fight must keep the host's order to replay the same).
+  function play(f, done, labels = names, opts = {}) {
     names = labels;
+    flip = !!opts.flip;
+    mystery = false;
     fight = f;
     fight.onEvent = onEvent;
     units = fight.units;
@@ -295,6 +305,115 @@ export function createArena(canvas) {
     }
     strikes = strikes.filter((st) => st.life > 0);
   }
+  // An opponent you haven't been shown yet: a dark, hooded silhouette.
+  function drawMystery(p, r) {
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.beginPath(); ctx.ellipse(p.x, p.y + r * 1.05, r * 0.9, r * 0.24, 0, 0, Math.PI * 2); ctx.fill();
+    const g = ctx.createRadialGradient(p.x, p.y - r * 0.2, 2, p.x, p.y, r * 1.2);
+    g.addColorStop(0, 'rgba(60,52,70,0.9)'); g.addColorStop(1, 'rgba(15,13,18,0.95)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(214,162,78,0.35)'; ctx.lineWidth = 2; ctx.setLineDash([6, 6]); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = `rgba(233,220,192,${0.55 + 0.15 * Math.sin(clock * 2)})`;
+    ctx.font = `${Math.round(r * 1.1)}px "Grenze Gotisch", Georgia, serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('?', p.x, p.y + 4);
+    ctx.font = '700 13px "Barlow Semi Condensed", system-ui, sans-serif';
+    ctx.fillStyle = '#e9dcc0';
+    ctx.fillText('Next opponent', p.x, p.y - r - 26);
+    ctx.font = '600 11px "Barlow Semi Condensed", system-ui, sans-serif';
+    ctx.fillStyle = '#a99c87';
+    ctx.fillText('Revealed when the fight starts', p.x, p.y - r - 11);
+  }
+
+  // The standings, hung on the back wall. Plaques slide to their new place
+  // when the order changes. Swords mark players whose fight is still going;
+  // clicking those watches it.
+  function drawBoard(dt) {
+    plaqueRects = [];
+    if (!board.length) return;
+    const { floorTop, narrow } = stage();
+    const n = board.length;
+    const margin = narrow ? 8 : 24;
+    const slot = (w - margin * 2) / n;
+    const pw = Math.min(160, slot - 6), ph = narrow ? 26 : 40;
+    const compact = pw < 92;
+    const y = narrow ? 92 : Math.max(58, floorTop - ph - 26);
+    const now = performance.now();
+    board.forEach((b, i) => {
+      const target = margin + slot * i + slot / 2;
+      const cur = plaqueX[b.id] ?? target;
+      plaqueX[b.id] = cur + (target - cur) * Math.min(1, dt * 6);
+      const x = plaqueX[b.id] - pw / 2;
+      const fighting = b.until > now;
+      ctx.save();
+      ctx.globalAlpha = b.out ? 0.45 : 1;
+      ctx.fillStyle = 'rgba(20,17,24,0.82)';
+      roundRect(x, y, pw, ph, 5); ctx.fill();
+      ctx.lineWidth = b.me || b.foe ? 2 : 1;
+      ctx.strokeStyle = b.me ? '#d6a24e' : b.foe ? '#d9505e' : 'rgba(214,162,78,0.25)';
+      ctx.stroke();
+      ctx.textBaseline = 'alphabetic';
+      const hpw = pw - 12, hpy = y + ph - 9;
+      ctx.fillStyle = '#2a2530'; ctx.fillRect(x + 6, hpy, hpw, 4);
+      ctx.fillStyle = b.me ? '#7fca6e' : '#c9b79c';
+      ctx.fillRect(x + 6, hpy, hpw * Math.max(0, Math.min(1, b.hp / b.max)), 4);
+      ctx.fillStyle = '#e9dcc0';
+      if (compact) {
+        ctx.textAlign = 'center';
+        ctx.font = '700 11px "Barlow Semi Condensed", system-ui, sans-serif';
+        ctx.fillText(`${b.glyph} ${b.hp}`, x + pw / 2 - (fighting && narrow ? 5 : 0), y + 15);
+      } else {
+        ctx.textAlign = 'left';
+        ctx.font = '700 12px "Barlow Semi Condensed", system-ui, sans-serif';
+        let name = (b.place ? `${b.place}. ` : `${i + 1}. `) + b.name;
+        while (ctx.measureText(name).width > pw - 34 && name.length > 3) name = name.slice(0, -2) + '…';
+        ctx.fillText(name, x + 6, y + 14);
+        ctx.font = '600 10px "Barlow Semi Condensed", system-ui, sans-serif';
+        ctx.fillStyle = '#a99c87';
+        ctx.fillText(b.char, x + 6, y + 26);
+        ctx.textAlign = 'right';
+        ctx.font = '700 12px "Barlow Semi Condensed", system-ui, sans-serif';
+        ctx.fillStyle = '#e9dcc0';
+        ctx.fillText(String(b.hp), x + pw - 6, y + 14);
+        if (b.ready) { ctx.fillStyle = '#7fca6e'; ctx.fillText('✓', x + pw - 6, y + 26); }
+      }
+      if (fighting) {
+        // Under the plaque; inside its right edge on narrow screens, where
+        // the fighters' names sit just below.
+        const sx = narrow ? x + pw - 8 : x + pw / 2, sy = narrow ? y + 9 : y + ph + 13, k = narrow ? 4 : 11;
+        const swing = Math.sin(now / 160) * 0.25;
+        ctx.strokeStyle = '#e9dcc0'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+        // Two crossed swords: blade, crossguard and grip, clashing gently.
+        for (const dir of [-1, 1]) {
+          const a = dir * (0.8 + swing);
+          const ux = Math.sin(a), uy = -Math.cos(a); // hilt to tip
+          const hx = sx - ux * k, hy = sy - uy * k;
+          ctx.strokeStyle = '#e9dcc0'; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.moveTo(hx + ux * k * 0.35, hy + uy * k * 0.35); ctx.lineTo(sx + ux * k, sy + uy * k); ctx.stroke();
+          ctx.strokeStyle = '#d6a24e';
+          const gx = hx + ux * k * 0.35, gy = hy + uy * k * 0.35;
+          ctx.beginPath(); ctx.moveTo(gx - uy * k * 0.35, gy + ux * k * 0.35); ctx.lineTo(gx + uy * k * 0.35, gy - ux * k * 0.35); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(gx, gy); ctx.stroke();
+        }
+        if (b.watchable) plaqueRects.push({ id: b.id, x, y, w: pw, h: ph + (narrow ? 0 : 20) });
+      }
+      ctx.restore();
+    });
+  }
+  function boardHit(ev) {
+    const rc = canvas.getBoundingClientRect();
+    const x = ev.clientX - rc.left, y = ev.clientY - rc.top;
+    return plaqueRects.find((p) => x >= p.x && x <= p.x + p.w && y >= p.y && y <= p.y + p.h);
+  }
+  canvas.addEventListener('click', (ev) => { const hit = boardHit(ev); if (hit && onPick) onPick(hit.id); });
+  canvas.addEventListener('mousemove', (ev) => { canvas.style.cursor = boardHit(ev) ? 'pointer' : ''; });
+  function setStandings(list, pick) {
+    board = list;
+    onPick = pick;
+    start();
+  }
+
   function drawFx(front) {
     for (const p of fx) {
       if ((p.kind === 'splat') === front) continue;
@@ -472,7 +591,7 @@ export function createArena(canvas) {
     ctx.imageSmoothingEnabled = false;
     ctx.globalAlpha = alpha * (u.dead && a.clip === 'death' && a.clipT > CLIP.death ? 0.55 : 1);
     ctx.translate(x, 0);
-    if (u.side === 1) ctx.scale(-1, 1);
+    if ((flip ? 1 - u.side : u.side) === 1) ctx.scale(-1, 1);
     ctx.drawImage(src, -dw / 2, cy - dh / 2, dw, dh);
     ctx.restore();
   }
@@ -538,6 +657,7 @@ export function createArena(canvas) {
     const r = radius(u.side);
     const a = anim[u.side];
     const dir = toward(u.side);
+    if (mystery && u.side === 1) { drawMystery(p, r); return; }
     // Dodging hops back, away from the attacker.
     const hop = a.dodge > 0 ? Math.sin(Math.min(1, a.dodge) * Math.PI) : 0;
     const x = p.x + dir.x * (a.lunge * r * 0.5 - hop * r * 0.7);
@@ -598,7 +718,7 @@ export function createArena(canvas) {
     const box = spriteBox(p.y, r);
     const bw = Math.min(220, Math.max(110, baseRadius() * 2.4)), bx = p.x - bw / 2, by = sprites ? box.feet - box.size * 0.86 - 18 : p.y - r - 34;
     const bh = 10;
-    bar(bx, by, bw, bh, u.hp / u.maxHp, u.side === 0 ? '#7fca6e' : '#d9505e');
+    bar(bx, by, bw, bh, u.hp / u.maxHp, (flip ? 1 - u.side : u.side) === 0 ? '#7fca6e' : '#d9505e');
     if (u.shield > 0) {
       ctx.fillStyle = 'rgba(233,238,245,0.9)';
       const sx = bx + bw * Math.min(1, u.hp / u.maxHp);
@@ -715,6 +835,7 @@ export function createArena(canvas) {
   function draw(dt) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     drawFloor(dt);
+    drawBoard(dt);
     if (!units) return;
     drawFx(true);
     for (const u of units) drawUnit(u);
@@ -745,5 +866,5 @@ export function createArena(canvas) {
     if (fight) fight.onEvent = null;
   }
 
-  return { setPreview, play, skip, setSpeed, destroy, get playing() { return !!(fight && onDone); } };
+  return { setPreview, play, skip, setSpeed, setStandings, destroy, get playing() { return !!(fight && onDone); } };
 }

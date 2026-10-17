@@ -400,3 +400,6 @@ input:focus-visible { outline: 2px solid var(--bronze); outline-offset: 1px; }
 @media (prefers-reduced-motion: reduce) {
   .card, .life .bar i { transition: none; }
 }
+.shroud-name { color: var(--dust); letter-spacing: 6px; }
+.progress.shroud .prog { opacity: 0.35; }
+.life.shrouded { opacity: 0.6; }
