@@ -132,7 +132,7 @@ test('freezing at the threshold stops attacks', () => {
 
 test('pure characters are hidden when their resource is banned', () => {
   assert.equal(characterStatus(CHAR_BY_ID.cinder, ['fire']), 'hidden');
-  assert.equal(characterStatus(CHAR_BY_ID.ashen, ['fire']), 'weakened');
+  assert.equal(characterStatus(CHAR_BY_ID.ashen, ['fire']), 'hidden');
   assert.equal(characterStatus(CHAR_BY_ID.ashen, ['fire', 'poison']), 'hidden');
   assert.equal(characterStatus(CHAR_BY_ID.ashen, ['frost', 'bleed']), 'ok');
   const vis = visibleCharacters(['fire', 'regen']).map((v) => v.char.id);

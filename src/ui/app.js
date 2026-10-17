@@ -549,13 +549,12 @@ function renderPick() {
       mine ? `You chose ${esc(CHAR_BY_ID[mine].name)}` : 'Choose your gladiator',
       mine ? `Waiting for ${plural(waiting, 'more player')}...` : 'Each gladiator has a trigger and one or two resources. The shop offers their cards more often, and their ability grows with those stacks.')}
     <div class="char-grid">
-      ${vis.map(({ char: c, status }) => `
+      ${vis.map(({ char: c }) => `
         <button class="char ${mine === c.id ? 'chosen' : ''}" data-char="${c.id}" ${mine ? 'disabled' : ''}>
           ${charInfo(c)}
-          ${status === 'weakened' ? `<div class="warn">${c.resources.filter((r) => m.bans.includes(r)).map((r) => TAGS[r].name).join(', ')} is banned. This build is weaker.</div>` : ''}
         </button>`).join('')}
     </div>
-    ${hidden.length ? `<p class="hidden-note">Sitting out (all their resources are banned): ${hidden.map((c) => esc(c.name)).join(', ')}.</p>` : ''}
+    ${hidden.length ? `<p class="hidden-note">Sitting out (one of their resources is banned): ${hidden.map((c) => esc(c.name)).join(', ')}.</p>` : ''}
   </div></div>`;
   root.querySelectorAll('[data-char]').forEach((b) => b.onclick = () => S.act('pick', b.dataset.char));
 }
