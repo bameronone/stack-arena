@@ -2,7 +2,7 @@
 // subscription's generations (the older REST API only spends prepaid credits).
 //
 //   node tools/pixellab-mcp.mjs create  <gladiator>   character from LOOKS (1 generation)
-//   node tools/pixellab-mcp.mjs animate <gladiator>   queue idle/attack/cast/hurt/death, east only (~6 generations)
+//   node tools/pixellab-mcp.mjs animate <gladiator>   queue idle/attack/cast/hurt/death, east only (~6 generations; custom clips cost more)
 //   node tools/pixellab-mcp.mjs fetch   <gladiator>   download finished frames into assets/sprites/<gladiator>/
 //   node tools/pixellab-mcp.mjs balance
 //
@@ -64,8 +64,10 @@ async function animate(id) {
   const { characterId } = readMeta(id);
   for (const [clip, how] of Object.entries(CLIPS)) {
     const args = { character_id: characterId, animation_name: clip, directions: ['east'] };
-    if (how.template_animation_id) args.template_animation_id = how.template_animation_id;
-    else Object.assign(args, { mode: 'v3', frame_count: 6, action_description: LOOKS[id].attack });
+    // A gladiator can describe its own clips; templates don't know about held weapons.
+    const custom = clip === 'attack' ? LOOKS[id].attack : LOOKS[id].clips?.[clip];
+    if (custom) Object.assign(args, { mode: 'v3', frame_count: clip === 'idle' || clip === 'attack' ? 8 : 6, action_description: custom });
+    else args.template_animation_id = how.template_animation_id;
     console.log(`${clip}: ${(await tool('animate_character', args)).split('\n').find((l) => l.startsWith('cost')) || 'queued'}`);
   }
 }

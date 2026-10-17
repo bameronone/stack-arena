@@ -1,6 +1,16 @@
 // How each gladiator looks and swings, for PixelLab sprite generation.
 export const LOOKS = {
-  cinder: { description: 'fiery gladiator with a flaming sword, ember-red leather armor, wild orange hair', attack: 'swinging a sword in a fast overhead slash attack' },
+  cinder: {
+    description: 'fierce female gladiator, athletic woman with a long flaming sword held in her right hand, ember-red leather armor, long wild orange hair in a high ponytail',
+    attack: 'stepping forward in a low lunge and swinging the sword in a fast overhead slash, knees bent, body leaning into the swing',
+    // Every clip spells out the sword so templates never draw her unarmed.
+    clips: {
+      idle: 'breathing in a low ready stance, knees bent, both hands gripping the sword held up in front of her',
+      cast: 'raising the sword overhead as flames gather on the blade, then thrusting it forward to throw a fireball',
+      hurt: 'recoiling backward from a hit, still holding the sword, then recovering to a ready stance',
+      death: 'staggering, dropping to her knees and falling back, the sword falling beside her',
+    },
+  },
   glacia: { description: 'ice sorceress in pale blue robes with a frost crown and a crystal staff', attack: 'thrusting a staff forward in a quick strike' },
   viper: { description: 'hooded assassin with two curved daggers, green and black scale cloak', attack: 'lunging forward with two quick dagger stabs' },
   wisp: { description: 'nimble dancer with twin war fans, flowing teal and orange silk', attack: 'spinning and slashing with two fans' },
