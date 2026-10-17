@@ -18,14 +18,30 @@ The game needs four clips per gladiator, all facing east (right):
 `hurt` and `cast` are optional. A gladiator without them keeps playing its
 current clip.
 
-## 1. Make the character (in the PixelLab web app)
+## 1. Make the character (`create_character`, v3)
 
-Make the character on pixellab.ai. Standard mode, which costs 1 generation,
-looks flat. Cinder came from a higher-quality mode, with 8 directions on a
-92px canvas and side view. Use a description that names the weapon and the
-hands holding it.
+Use v3 mode, which costs 3 generations at this size. Standard mode (1
+generation) looks flat. The web app's v3 option with the same settings works
+too; Cinder was made there.
+
+```json
+{
+  "description": "<the gladiator's Character line from gladiator-prompts.md>",
+  "name": "<Gladiator>",
+  "mode": "v3",
+  "view": "side",
+  "size": 92,
+  "detail": "high detail",
+  "body_type": "humanoid"
+}
+```
+
+v3 always draws 8 directions. Use a description that names the weapon and the
+hands holding it. Poll `get_character` until it says `completed`; the
+rotations can be downloaded before its last background job finishes.
 
 Cinder: `45a2bdc4-1747-4ab2-9d78-4c727cdf16e3` ("fierce female gladiator, athletic woman…").
+Glacia: `cba5ffe0-ec6f-4093-98f7-4c7dfae6e139`, made through the API with the call above.
 
 ## 2. Make a fighting-pose state (`create_character_state`)
 
