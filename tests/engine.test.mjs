@@ -76,6 +76,51 @@ test('On heal fires every 5% of base max HP healed', () => {
   assert.equal(Math.round(f.a.shield), 12);
 });
 
+test('each freeze needs 10 more Frost than the last', () => {
+  const f = new Fight({ charId: 'glacia', cards: {} }, { charId: 'cinder', cards: {} }, 1);
+  f.apply(f.a, 'frost', 16);
+  assert.equal(f.a.stats.freezes, 1);
+  f.b.frozen = 0;
+  f.apply(f.a, 'frost', 20);
+  assert.equal(f.a.stats.freezes, 1);
+  f.apply(f.a, 'frost', 6);
+  assert.equal(f.a.stats.freezes, 2);
+});
+
+test('Toxin does not cut healing', () => {
+  const f = new Fight({ charId: 'grove', cards: {} }, { charId: 'ashen', cards: {} }, 1);
+  f.a.hp = 1; f.a.poison = 40;
+  assert.ok(Math.abs(f.heal(f.a, 50) - 50) < 1e-9);
+});
+
+test('Grit halves damage after a burst of 30% max HP in 2s', () => {
+  const f = new Fight({ charId: 'cinder', cards: {} }, { charId: 'martyr', cards: {} }, 1);
+  const hp = f.b.maxHp;
+  f.damage(f.a, f.b, hp * 0.31, 'true');
+  assert.ok(f.b.grit > 0);
+  const before = f.b.hp;
+  f.damage(f.a, f.b, 100, 'true');
+  assert.ok(Math.abs(before - f.b.hp - 50) < 1e-9);
+});
+
+test('10 Lightning calls a bolt that grows each time', () => {
+  const f = new Fight({ charId: 'stormseer', cards: {} }, { charId: 'martyr', cards: {} }, 1);
+  f.b.maxHp = f.b.hp = 1e6;
+  f.b.attackTimer = 0.9;
+  f.gain(f.a, 'lightning', 10);
+  assert.equal(f.a.bolts, 1);
+  assert.equal(f.b.attackTimer, 0);
+  const hp = f.b.hp;
+  f.gain(f.a, 'lightning', 10);
+  assert.ok(Math.abs(hp - f.b.hp - 44) < 1e-9);
+});
+
+test('mana fills smoothly between attacks', () => {
+  const f = new Fight({ charId: 'cinder', cards: {} }, { charId: 'martyr', cards: {} }, 1);
+  f.step(); f.step();
+  assert.ok(f.a.mana > 0 && f.a.attackCount === 0);
+});
+
 test('freezing at the threshold stops attacks', () => {
   const f = new Fight({ charId: 'glacia', cards: {} }, { charId: 'cinder', cards: {} }, 1);
   f.apply(f.a, 'frost', 20);

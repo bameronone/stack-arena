@@ -88,10 +88,12 @@ function chip(tag, withName = false) {
 }
 
 // Keywords in card text get their tag's color and a hover explanation.
-const KEYWORDS = /\b(On attack|On crit|On dodge|On cast|On heal|When hurt|Fire|Frost|Toxin|Bleed|Shield|Regen|Mana stacks?|Armor|Focus)\b/g;
+const KEYWORDS = /\b(On attack|On crit|On dodge|On cast|On heal|When hurt|Fire|Frost|Toxin|Bleed|Shield|Regen|Mana stacks?|Lightning|Armor|Focus|Grit)\b/g;
 const KEYWORD_TAG = { 'On attack': 'strike', 'On crit': 'precision', 'On dodge': 'evasion', 'On cast': 'spell', 'On heal': 'regen', 'When hurt': 'pain', Toxin: 'poison', Focus: 'evasion' };
+const GRIT_TIP = '<b style="color:#d6a24e">Grit</b> <span class="tip-kind">everyone</span><br>Lose 30% of your max HP within 2s and you take 50% less damage for 1.5s. Once every 6s.';
 function richText(text) {
   return esc(text).replace(KEYWORDS, (w) => {
+    if (w === 'Grit') return `<span class="kw" style="--c:#d6a24e" data-tip="${esc(GRIT_TIP)}">${w}</span>`;
     const tag = KEYWORD_TAG[w] || (w.startsWith('Mana') ? 'arcane' : w.toLowerCase());
     return `<span class="kw" style="--c:${TAGS[tag].color}" data-tip="${esc(tagTip(tag))}">${w}</span>`;
   });
@@ -130,6 +132,7 @@ const SOURCE_COLOR = {
   Regen: TAGS.regen.color, 'Bleed lifesteal': TAGS.bleed.color, 'Plague Lord': TAGS.poison.color, 'Phoenix Core': TAGS.fire.color,
   Armor: TAGS.armor.color, Shield: TAGS.shield.color, Dodge: TAGS.evasion.color, Resistances: '#b9b2a6', Immunity: '#e9dcc0',
   'Living Mountain': TAGS.armor.color, 'Mana Shield': TAGS.arcane.color, 'Arena burn': '#d6a24e',
+  Lightning: TAGS.lightning.color, 'Chain Lightning': TAGS.lightning.color, Tempest: TAGS.lightning.color, Grit: '#d6a24e',
 };
 function statGroup(title, table) {
   const rows = Object.entries(table || {}).filter(([, v]) => v >= 1).sort((a, b) => b[1] - a[1]);
@@ -301,9 +304,10 @@ const RULES = () => `
     <div class="rule"><h3>Build up, unlock more</h3><p>Own ${TIER_UNLOCK[2]}, ${TIER_UNLOCK[3]} and ${TIER_UNLOCK[4]} cards of a tag to unlock its Uncommon, Rare and Mythic cards. Own ${HYBRID_REQ} of two resources to unlock their Hybrid card.</p></div>
     <div class="rule"><h3>Bans</h3><p>Every gladiator secretly votes to ban one resource, and the ${BAN_COUNT} with the most votes are banned. Banned cards never appear, and gladiators who only use banned resources sit the match out.</p></div>
     <div class="rule"><h3>Focus, not luck</h3><p>Dodging builds Focus. Every hit you take adds to your dodge chance, and a dodge resets it, so you can never dodge twice in a row. Toxin, Bleed and abilities can't be dodged.</p></div>
+    <div class="rule"><h3>Grit</h3><p>Anyone who loses 30% of their max HP within 2 seconds takes half damage for the next 1.5 seconds, at most once every 6 seconds. Freezes also get harder: each one needs 10 more Frost than the last.</p></div>
   </div>
   <div>
-    <div class="eyebrow" style="margin-bottom:10px">The thirteen tags</div>
+    <div class="eyebrow" style="margin-bottom:10px">The ${Object.keys(TAGS).length} tags</div>
     <div class="tag-legend">${Object.keys(TAGS).map((t) => `<div>${chip(t, true)}<span>${esc(TAGS[t].kind === 'trigger' ? TAGS[t].passive : TAGS[t].stack)}</span></div>`).join('')}</div>
   </div>`;
 

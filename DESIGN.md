@@ -24,8 +24,9 @@
   - Evasion: +3% Focus per hit taken per card
   - Health (internally `pain`, formerly Wounded): +5 max HP per card, and "When hurt" fires every 12% of max HP lost, 0.5% sooner per card (min 4%). The max-HP cards (Hearty, Juggernaut, Titan) are Health cards.
   - Spell: +0.5 mana per attack per card
-- **Resources** (Fire, Frost, Toxin, Bleed, Shield, Regen, Mana, Armor) decide what stacks do.
-  - Toxin (internally `poison`, formerly Poison) goes through Armor but Shield blocks it.
+- **Resources** (Fire, Frost, Toxin, Bleed, Shield, Regen, Mana, Lightning, Armor) decide what stacks do.
+  - Lightning stacks on you; every 10 call a bolt (40 damage, +4 per earlier bolt this fight, up to +80) that ignores Armor and resets the enemy's attack swing.
+  - Toxin (internally `poison`, formerly Poison) goes through Armor but Shield blocks it. It no longer cuts healing.
   - Regen heals 0.2% of base max HP per second per stack. Every 5% of base max HP healed, from any source, fires "On heal" (Sap Ward, Bloom Burst, Evergreen).
   - Gaining Fire melts the same number of Frost stacks on you.
 - **Generator cards** pair a trigger with a resource and always fire. There's one for every one of the 40 trigger-resource pairs. Cards with only a resource tag that make stacks fire 30% of the time, or run on a slow timer.
@@ -53,7 +54,11 @@
 ## Fights
 
 - The simulation runs at 20 ticks per second and is seeded, so replays are deterministic.
-- Frost freezes at 16 stacks. Armor blocks 1.25 damage per stack from each attack.
+- Frost freezes at 16 stacks, and each freeze a gladiator suffers needs 10 more Frost than the last.
+- Grit (everyone): losing 30% of max HP within 2s halves damage taken for 1.5s, at most once every 6s. Steadfast (counter) makes it stronger.
+- Mana fills continuously at mana-per-attack times attack speed, instead of in chunks on each hit.
+- Every ability scales with something that grows during the fight (stacks on either side, bolts called, Armor, Shield).
+- Armor blocks 1.25 damage per stack from each attack.
 - **Overtime** (like TFT), so every fight ends in a death:
   - from 30s: all damage +8% per second, and healing and shield gains -3% per second (gone entirely at about 63s);
   - from 60s: the arena burns both fighters for unblockable damage that grows every second (0.5% of max HP per second, per second past 60).

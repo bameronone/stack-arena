@@ -8,12 +8,13 @@ export const TAGS = {
   spell:     { name: 'Spell',     kind: 'trigger',  color: '#b59cf0', glyph: 'Sp', passive: '+0.5 mana per attack per Spell card' },
 
   fire:   { name: 'Fire',   kind: 'resource', color: '#f07a3a', glyph: 'Fi', stack: '+2.5% attack speed per stack (cap 25). Fades after 3s without gaining any.' },
-  frost:  { name: 'Frost',  kind: 'resource', color: '#6cc4f0', glyph: 'Fr', stack: 'On the enemy: -1.5% attack speed and mana gain per stack. At 16 they freeze for 1.5s. Gaining Fire melts Frost on you, stack for stack.' },
-  poison: { name: 'Toxin',  kind: 'resource', color: '#8fd14f', glyph: 'To', stack: 'On the enemy: 1 damage per second per stack. Goes through Armor, but Shield blocks it. Each stack cuts their healing 1% (max 50%). Loses 2% of its stacks each second.' },
+  frost:  { name: 'Frost',  kind: 'resource', color: '#6cc4f0', glyph: 'Fr', stack: 'On the enemy: -1.5% attack speed and mana gain per stack. At 16 they freeze for 1.5s, and each freeze they suffer needs 10 more Frost than the last. Gaining Fire melts Frost on you, stack for stack.' },
+  poison: { name: 'Toxin',  kind: 'resource', color: '#8fd14f', glyph: 'To', stack: 'On the enemy: 1 damage per second per stack. Goes through Armor, but Shield blocks it. Loses 2% of its stacks each second.' },
   bleed:  { name: 'Bleed',  kind: 'resource', color: '#e0445a', glyph: 'Bl', stack: 'On the enemy: 0.25% of their max HP per second per stack. Loses 8% of its stacks each second.' },
   shield: { name: 'Shield', kind: 'resource', color: '#e9eef5', glyph: 'Sh', stack: 'Absorbs damage before HP, Toxin and Bleed included.' },
   regen:  { name: 'Regen',  kind: 'resource', color: '#5fd69a', glyph: 'Re', stack: 'Heals 0.2% of max HP per second per stack. Every 5% of max HP you heal, from any source, fires "On heal".' },
   arcane: { name: 'Mana',   kind: 'resource', color: '#5b8cff', glyph: 'Ma', stack: '+4% ability power per stack. Abilities ignore armor and cannot be dodged.' },
+  lightning: { name: 'Lightning', kind: 'resource', color: '#f5e45b', glyph: 'Li', stack: 'On you: every 10 stacks call a bolt for 40 damage, +4 for each bolt already called this fight (up to +80). Bolts ignore Armor and reset the enemy\'s attack swing.' },
   armor:  { name: 'Armor',  kind: 'resource', color: '#a8a39a', glyph: 'Ar', stack: '-1.25 damage from every attack per stack (attacks always deal at least 25%).' },
 };
 
