@@ -1,6 +1,7 @@
 # Making a gladiator's sprites
 
 How Cinder was made, step by step, so other gladiators can get the same look.
+Every other gladiator's prompts for these steps are in [gladiator-prompts.md](gladiator-prompts.md).
 Everything goes through PixelLab's MCP endpoint (`https://api.pixellab.ai/mcp`,
 JSON-RPC `tools/call`) with the subscription key as a Bearer token. Costs below
 are subscription generations.
