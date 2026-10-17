@@ -25,6 +25,8 @@ function spriteSet(charId) {
 }
 // One-shot animations: seconds for the whole clip, however many frames it has.
 const CLIP = { attack: 0.45, cast: 0.7, hurt: 0.35, death: 0.9 };
+// Seconds a new clip takes to fade in over the last frame of the old one.
+const BLEND = 0.12;
 let tintCanvas = null;
 function tinted(img, color, alpha) {
   tintCanvas ??= document.createElement('canvas');
@@ -61,9 +63,11 @@ export function createArena(canvas) {
   let mystery = false; // the right fighter is an unrevealed opponent
   // Standings on the back wall: one plaque per player, best on the left.
   let board = [], plaqueX = {}, plaqueRects = [], onPick = null;
-  const anim = [0, 1].map(() => ({ lunge: 0, flash: 0, cast: 0, dodge: 0, dodgeDir: 1, clip: 'idle', clipT: 0, spawn: {} }));
+  const anim = [0, 1].map(() => ({ lunge: 0, flash: 0, cast: 0, dodge: 0, dodgeDir: 1, clip: 'idle', clipT: 0, from: null, spawn: {} }));
   let clock = 0;
-  const startClip = (a, clip) => { if (a.clip !== 'death') { a.clip = clip; a.clipT = 0; } };
+  // Switching clips remembers where the old one was so the two can blend.
+  const setClip = (a, clip) => { a.from = { clip: a.clip, clipT: a.clipT }; a.clip = clip; a.clipT = 0; };
+  const startClip = (a, clip) => { if (a.clip !== 'death') setClip(a, clip); };
   let dotSeen = [{ poison: 0, bleed: 0 }, { poison: 0, bleed: 0 }];
   let dotTimer = 0;
   let embers = Array.from({ length: 40 }, () => ({ x: Math.random(), y: Math.random(), v: 0.02 + Math.random() * 0.04, r: Math.random() * 1.6 + 0.4 }));
@@ -124,7 +128,7 @@ export function createArena(canvas) {
       case 'dodge': a.dodge = 1; a.dodgeDir = -a.dodgeDir; float(ev.side, 'DODGE', TAGS.evasion.color, 15, -10); break;
       case 'freeze': float(ev.side, 'FROZEN', TAGS.frost.color, 18, -18); shards(ev.side); break;
       case 'cast': a.cast = 1; startClip(a, 'cast'); float(ev.side, ev.name, TAGS.spell.color, 16, -32); break;
-      case 'revive': a.clip = 'idle'; float(ev.side, 'REVIVED', TAGS.fire.color, 20, -24); break;
+      case 'revive': setClip(a, 'idle'); float(ev.side, 'REVIVED', TAGS.fire.color, 20, -24); break;
       case 'resist': float(ev.side, 'RESISTED', '#a8a39a', 14, -18); break;
       case 'immune': float(ev.side, 'IMMUNE', '#e9eef5', 14, -18); break;
       case 'burst': float(ev.side, 'PANDEMIC', TAGS.poison.color, 18, -18); break;
@@ -201,10 +205,11 @@ export function createArena(canvas) {
     const pace = fight ? Math.max(1, speed / 2) : 1;
     for (const [side, a] of anim.entries()) {
       const u = units?.[side];
-      if (u?.dead && a.clip !== 'death') { a.clip = 'death'; a.clipT = 0; }
-      if (u && !u.dead && a.clip === 'death') a.clip = 'idle';
+      if (u?.dead && a.clip !== 'death') setClip(a, 'death');
+      if (u && !u.dead && a.clip === 'death') setClip(a, 'idle');
       a.clipT += dt * pace;
-      if (CLIP[a.clip] && a.clip !== 'death' && a.clipT >= CLIP[a.clip]) { a.clip = 'idle'; a.clipT = 0; }
+      if (CLIP[a.clip] && a.clip !== 'death' && a.clipT >= CLIP[a.clip]) setClip(a, 'idle');
+      if (a.from && a.clipT >= BLEND) a.from = null;
       a.lunge = Math.max(0, a.lunge - dt * 6 * pace);
       a.flash = Math.max(0, a.flash - dt * 5);
       a.cast = Math.max(0, a.cast - dt * 2);
@@ -569,7 +574,9 @@ export function createArena(canvas) {
   function spriteFrame(set, a) {
     const frames = set[a.clip] || set.idle || set.base;
     const n = frames.length;
-    const i = a.clip === 'idle' ? Math.floor(clock * 8) % n
+    // Idle loops from its first frame each time it comes back, so it picks up
+    // from the ready pose the other clips start and end on.
+    const i = a.clip === 'idle' ? Math.floor(a.clipT * 8) % n
       : Math.min(n - 1, Math.floor((a.clipT / (CLIP[a.clip] || 0.4)) * n));
     return frames[i]?.complete && frames[i].naturalWidth ? frames[i] : set.base[0];
   }
@@ -593,6 +600,13 @@ export function createArena(canvas) {
     ctx.translate(x, 0);
     if ((flip ? 1 - u.side : u.side) === 1) ctx.scale(-1, 1);
     ctx.drawImage(src, -dw / 2, cy - dh / 2, dw, dh);
+    // The old clip's frame fades out on top while the new clip comes in.
+    if (a.from) {
+      const old = spriteFrame(set, { clip: a.from.clip, clipT: Math.min(a.from.clipT, CLIP[a.from.clip] || Infinity) });
+      const ow = old.naturalWidth * scale, oh = old.naturalHeight * scale;
+      ctx.globalAlpha *= 1 - a.clipT / BLEND;
+      ctx.drawImage(tint ? tinted(old, tint[0], tint[1]) : old, -ow / 2, cy - oh / 2, ow, oh);
+    }
     ctx.restore();
   }
 
