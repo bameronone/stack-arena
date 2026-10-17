@@ -228,3 +228,29 @@ test('pairings: everyone alive fights once; odd counts get one ghost fight', asy
     assert.equal(pairs.filter((p) => p[2]).length, n % 2);
   }
 });
+
+test('a round ends on its own once every fight has played out', async () => {
+  const { HostGame, RESULTS_TIME } = await import('../src/game/host.js');
+  let now = 0;
+  const g = new HostGame({ players: [{ name: 'A' }, { name: 'B' }, { name: 'C', isBot: true }], seed: 4, shopTime: 20, now: () => now });
+  g.act(0, 'ban', 'fire'); g.act(1, 'ban', 'frost');
+  g.act(0, 'pick', 'viper'); g.act(1, 'pick', 'martyr');
+  g.act(0, 'ready', true); g.act(1, 'ready', true);
+  assert.equal(g.M.phase, 'fight');
+  const longest = Math.max(...g.M.lastResults.map((r) => r.time));
+  assert.ok(g.remaining() <= longest + RESULTS_TIME + 1e-9);
+  now += (longest + RESULTS_TIME) * 1000 + 1;
+  g.tick();
+  assert.equal(g.M.phase, 'shop');
+  assert.equal(g.M.round, 2);
+});
+
+test('a player who left gets their gladiator back from the bot', async () => {
+  const { HostGame } = await import('../src/game/host.js');
+  const g = new HostGame({ players: [{ name: 'A' }, { name: 'B' }], seed: 4, shopTime: 20 });
+  g.replaceWithBot(1);
+  assert.ok(g.M.players[1].isBot);
+  g.rejoin(1, 'B');
+  assert.ok(!g.M.players[1].isBot);
+  assert.equal(g.M.players[1].name, 'B');
+});

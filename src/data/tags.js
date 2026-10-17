@@ -13,9 +13,9 @@ export const TAGS = {
   bleed:  { name: 'Bleed',  kind: 'resource', color: '#e0445a', glyph: 'Bl', stack: 'On the enemy: 0.25% of their max HP per second per stack. Loses 8% of its stacks each second.' },
   shield: { name: 'Shield', kind: 'resource', color: '#e9eef5', glyph: 'Sh', stack: 'Absorbs damage before HP, Toxin and Bleed included.' },
   regen:  { name: 'Regen',  kind: 'resource', color: '#5fd69a', glyph: 'Re', stack: 'Heals 0.2% of max HP per second per stack. Every 5% of max HP you heal, from any source, fires "On heal".' },
-  arcane: { name: 'Mana',   kind: 'resource', color: '#5b8cff', glyph: 'Ma', stack: '+4% ability power per stack. Abilities ignore armor and cannot be dodged.' },
+  arcane: { name: 'Arcane', kind: 'resource', color: '#5b8cff', glyph: 'Ar', stack: 'On you: +4% ability power per stack. Not the same as the mana bar every gladiator fills to cast. Abilities ignore armor and cannot be dodged.' },
   lightning: { name: 'Lightning', kind: 'resource', color: '#f5e45b', glyph: 'Li', stack: 'On you: every 10 stacks call a bolt for 40 damage, +4 for each bolt already called this fight (up to +80). Bolts ignore Armor and reset the enemy\'s attack swing.' },
-  armor:  { name: 'Armor',  kind: 'resource', color: '#a8a39a', glyph: 'Ar', stack: '-1.25 damage from every attack per stack (attacks always deal at least 25%).' },
+  armor:  { name: 'Armor',  kind: 'resource', color: '#a8a39a', glyph: 'Am', stack: '-1.25 damage from every attack per stack (attacks always deal at least 25%).' },
 };
 
 export const TRIGGERS = Object.keys(TAGS).filter((t) => TAGS[t].kind === 'trigger');

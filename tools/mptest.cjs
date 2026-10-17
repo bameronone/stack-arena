@@ -1,13 +1,14 @@
 // Two-player online match in headless Chromium using the same-browser
 // transport (?net=local): one page hosts, one joins, plus a bot. Both play to
 // the end; optionally the guest leaves mid-match to check the bot takeover.
-//   NODE_PATH=$(npm root -g) node tools/mptest.cjs <outdir> [leave]
+//   NODE_PATH=$(npm root -g) node tools/mptest.cjs <outdir> [leave|rejoin]
 const { chromium } = require('playwright');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const out = process.argv[2] || '.';
 const LEAVE = process.argv[3] === 'leave';
+const REJOIN = process.argv[3] === 'rejoin';
 const html = fs.readFileSync(path.resolve(__dirname, '../dist/index.html'));
 
 (async () => {
@@ -57,8 +58,21 @@ const html = fs.readFileSync(path.resolve(__dirname, '../dist/index.html'));
     for (const [i, p] of players.entries()) {
       if (done.has(i)) continue;
       if (LEAVE && i === 1 && rounds === 3) { await p.close(); done.add(i); continue; }
+      if (REJOIN && i === 1 && rounds === 3) {
+        // Leave mid-match, then join the same code again and carry on.
+        await p.close();
+        await host.waitForTimeout(500);
+        const back = await open('guest2');
+        await back.goto(`${url}?net=local&room=${code}`);
+        await back.fill('#name', 'Beta');
+        await back.click('#join-form button[type=submit]');
+        await back.waitForSelector('.game, .final', { timeout: 20000 });
+        await back.screenshot({ path: `${out}/mp-rejoined.png` });
+        players[1] = back;
+        continue;
+      }
       // Wait for this page's shop (or the end).
-      await p.waitForSelector('#fight:not([disabled]), .final, .spectate, [data-sig]', { timeout: 60000 });
+      await p.waitForSelector('#fight:not([disabled]), .final, .spectate, [data-sig]', { timeout: 60000 }).catch(async (e) => { await p.screenshot({ path: `${out}/mp-stuck-${i}.png` }); throw e; });
       if (await p.$('[data-sig]')) { await p.click('[data-sig] >> nth=0'); await p.waitForSelector('#fight:not([disabled]), .final, .spectate', { timeout: 60000 }); }
       if (await p.$('.final')) { done.add(i); continue; }
       if (await p.$('.spectate')) continue;
@@ -81,7 +95,7 @@ const html = fs.readFileSync(path.resolve(__dirname, '../dist/index.html'));
   for (const [i, p] of players.entries()) if (!p.isClosed()) await p.waitForSelector('.final', { timeout: 120000 }).catch(() => errors.push(`page ${i} never reached the final standings`));
   await host.screenshot({ path: `${out}/mp-over-host.png` });
   const hostRows = await host.$$eval('.final tbody tr', (rows) => rows.map((r) => r.innerText.replace(/\s+/g, ' ')));
-  const guestRows = guest.isClosed() ? null : await guest.$$eval('.final tbody tr', (rows) => rows.map((r) => r.innerText.replace(/\s+/g, ' ')));
+  const guestRows = players[1].isClosed() ? null : await players[1].$$eval('.final tbody tr', (rows) => rows.map((r) => r.innerText.replace(/\s+/g, ' ')));
   console.log(JSON.stringify({ rounds, hostRows, guestRows, errors }, null, 1));
   await browser.close();
   server.close();

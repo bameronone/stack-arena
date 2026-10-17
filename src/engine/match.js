@@ -5,6 +5,7 @@ import { rollShop, cardCost, REROLL_COST } from './shop.js';
 import { Fight } from './combat.js';
 
 export const START_HP = 60;
+export const START_GOLD = 6; // on top of round 1's income
 export const SIGNATURE_ROUND = 7;
 export const BAN_COUNT = 2; // resources banned per match, by vote
 export const MAX_PLAYERS = 8;
@@ -15,7 +16,7 @@ export function createMatch({ seed = Date.now() % 1e9, players }) {
   return {
     seed, nonce: 0, round: 0, phase: 'ban', bans: [], history: [], pairs: [],
     players: players.map((p, i) => ({
-      id: i, name: p.name, isBot: !!p.isBot, level: p.level || null, charId: null, hp: START_HP, gold: 0,
+      id: i, name: p.name, isBot: !!p.isBot, level: p.level || null, charId: null, hp: START_HP, gold: START_GOLD,
       cards: {}, shop: [], locked: false, sig: null, ban: null, wins: 0, placement: null, lastOpp: null,
     })),
   };

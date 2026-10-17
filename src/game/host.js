@@ -17,6 +17,7 @@ import { botBan, botPick, botShop, botSignature } from '../ai/bot.js';
 
 export const PHASE_TIME = { ban: 20, pick: 30, signature: 20, watch: 120 };
 export const SHOP_TIMES = [0, 20, 30, 45];
+export const RESULTS_TIME = 8; // seconds after the longest fight before the next round
 
 export class HostGame {
   // players: [{ name, isBot, level }]; player 0 is the host.
@@ -105,6 +106,16 @@ export class HostGame {
     this.changed();
   }
 
+  // The human who left comes back and takes their gladiator over again.
+  rejoin(id, name) {
+    const p = this.M.players[id];
+    if (!p) return;
+    p.isBot = false;
+    p.level = null;
+    p.name = name;
+    this.changed();
+  }
+
   // Called every few hundred ms; applies defaults when a clock runs out.
   tick() {
     const m = this.M;
@@ -186,7 +197,10 @@ export class HostGame {
     m.phase = 'fight';
     m.watched = {};
     m.fightRound = m.round;
-    this.setDeadline(PHASE_TIME.watch);
+    // The round moves on by itself once every fight has played out at 1x,
+    // plus a few seconds to read the results; nobody can hold it up.
+    const longest = Math.max(0, ...m.lastResults.map((r) => r.time));
+    this.setDeadline(Math.min(PHASE_TIME.watch, longest + RESULTS_TIME));
   }
 
   endRound() {

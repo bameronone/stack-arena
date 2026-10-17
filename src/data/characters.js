@@ -73,7 +73,7 @@ export const CHARACTERS = [
   {
     id: 'stormseer', name: 'Stormseer', epithet: 'Speaker of Squalls', trigger: 'spell', resources: ['arcane', 'lightning'],
     stats: { hp: 610, ad: 24, manaMax: 85 },
-    innate: { desc: 'On cast, gain 3 Mana stacks and 5 Lightning.', onCast: (f, u) => { f.gain(u, 'arcane', 3); f.gain(u, 'lightning', 5); } },
+    innate: { desc: 'On cast, gain 3 Arcane and 5 Lightning.', onCast: (f, u) => { f.gain(u, 'arcane', 3); f.gain(u, 'lightning', 5); } },
     ability: { name: 'Thunderclap', desc: (u) => `Deal 50 + 10 per bolt called this fight (${Math.round(50 + 10 * (u?.bolts ?? 0))}).`,
       cast: (f, u, p) => { hit(f, u, (50 + 10 * u.bolts) * p); } },
     signatures: [
