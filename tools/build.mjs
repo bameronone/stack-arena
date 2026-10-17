@@ -3,6 +3,7 @@
 //   dist/artifact.html  body-only version for publishing as a Claude artifact
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
 import { dirname, join } from 'node:path';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -47,7 +48,10 @@ if (existsSync(spriteDir)) {
     }
   }
 }
-const js = '(() => {\n"use strict";\n' + `const SPRITES = ${JSON.stringify(sprites)};\n` + order.map((f) => `// ---- ${f}\n${strip(readFileSync(join(root, f), 'utf8'))}`).join('\n') + '\n})();';
+const code = order.map((f) => `// ---- ${f}\n${strip(readFileSync(join(root, f), 'utf8'))}`).join('\n');
+// A hash of the game code: online players are refused unless it matches the host's.
+const build = createHash('sha256').update(code).digest('hex').slice(0, 12);
+const js = '(() => {\n"use strict";\n' + `const SPRITES = ${JSON.stringify(sprites)};\nconst BUILD = '${build}';\n` + code + '\n})();';
 if (/^\s*(import|export)\s/m.test(js)) throw new Error('unstripped import/export left in bundle');
 const css = readFileSync(join(root, 'src/ui/style.css'), 'utf8');
 const icon = `data:image/svg+xml,${encodeURIComponent(readFileSync(join(root, 'assets/icon.svg'), 'utf8').trim())}`;
@@ -58,4 +62,4 @@ const page = readFileSync(join(root, 'src/ui/index.template.html'), 'utf8')
 mkdirSync(join(root, 'dist'), { recursive: true });
 writeFileSync(join(root, 'dist/artifact.html'), page);
 writeFileSync(join(root, 'dist/index.html'), `<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n<style>body{margin:0}[hidden]{display:none!important}</style>\n${page.replace('<div id="app">', '</head><body><div id="app">')}\n</body></html>\n`);
-console.log(`dist/index.html, dist/artifact.html ${(page.length / 1024).toFixed(1)} KB, sprites for ${Object.keys(sprites).length} gladiators`);
+console.log(`dist/index.html, dist/artifact.html ${(page.length / 1024).toFixed(1)} KB, build ${build}, sprites for ${Object.keys(sprites).length} gladiators`);

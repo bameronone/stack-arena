@@ -83,20 +83,27 @@ const html = fs.readFileSync(path.resolve(__dirname, '../dist/index.html'));
     // Each live player watches their fight, then continues.
     for (const [i, p] of players.entries()) {
       if (done.has(i) || p.isClosed()) continue;
-      const el = await p.waitForSelector('#skip, #cont, .final, .spectate, .banner .waiting', { timeout: 60000 }).catch(() => null);
+      const el = await p.waitForSelector('#skip, .final, .spectate', { timeout: 60000 }).catch(() => null);
       if (!el) continue;
       if (await p.$('#skip')) await p.click('#skip').catch(() => {});
-      const cont = await p.waitForSelector('#cont, .final, .spectate', { timeout: 30000 }).catch(() => null);
-      if (await p.$('#cont')) await p.click('#cont').catch(() => {});
+      // No results popup: the round moves on by itself.
+      if (await p.$('#cont')) errors.push('a results popup with a button still shows');
       if (await p.$('.final')) done.add(i);
     }
     if (rounds === 2) await guest.screenshot({ path: `${out}/mp-after-guest.png` });
   }
   for (const [i, p] of players.entries()) if (!p.isClosed()) await p.waitForSelector('.final', { timeout: 120000 }).catch(() => errors.push(`page ${i} never reached the final standings`));
   await host.screenshot({ path: `${out}/mp-over-host.png` });
-  const hostRows = await host.$$eval('.final tbody tr', (rows) => rows.map((r) => r.innerText.replace(/\s+/g, ' ')));
-  const guestRows = players[1].isClosed() ? null : await players[1].$$eval('.final tbody tr', (rows) => rows.map((r) => r.innerText.replace(/\s+/g, ' ')));
-  console.log(JSON.stringify({ rounds, hostRows, guestRows, errors }, null, 1));
+  const rowsBefore = await host.$$eval('.final tbody tr', (rows) => rows.map((r) => r.innerText.replace(/\s+/g, ' ')));
+  // Replay: the host restarts the same room and everyone lands on bans again.
+  if (!players[1].isClosed()) {
+    await players[1].click('#lobby');
+    await players[1].waitForSelector('.room-code', { timeout: 5000 }).catch(() => errors.push('guest Back to lobby did not show the room'));
+    await host.click('#again');
+    for (const p of [host, players[1]]) await p.waitForSelector('[data-res]', { timeout: 10000 }).catch(() => errors.push('Replay did not restart the match for everyone'));
+    await host.screenshot({ path: `${out}/mp-replay-host.png` });
+  }
+  console.log(JSON.stringify({ rounds, hostRows: rowsBefore, errors }, null, 1));
   await browser.close();
   server.close();
 })().catch((e) => { console.error(e); process.exit(1); });

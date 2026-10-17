@@ -109,10 +109,42 @@ test('10 Lightning calls a bolt that grows each time', () => {
   f.b.attackTimer = 0.9;
   f.gain(f.a, 'lightning', 10);
   assert.equal(f.a.bolts, 1);
-  assert.equal(f.b.attackTimer, 0);
   const hp = f.b.hp;
   f.gain(f.a, 'lightning', 10);
-  assert.ok(Math.abs(hp - f.b.hp - 44) < 1e-9);
+  assert.ok(Math.abs(hp - f.b.hp - 45) < 1e-9, '+5 per earlier bolt');
+});
+
+test('bolts stutter the enemy swing instead of resetting it', () => {
+  const f = new Fight({ charId: 'stormseer', cards: {} }, { charId: 'martyr', cards: {} }, 1);
+  f.b.maxHp = f.b.hp = 1e6;
+  f.b.attackTimer = 0.9;
+  f.gain(f.a, 'lightning', 10);
+  assert.ok(Math.abs(f.b.attackTimer - 0.65) < 1e-9);
+  assert.ok(f.b.swingDelay > 0, 'the swing timer knows how long was added');
+  for (let i = 0; i < 6; i++) f.gain(f.a, 'lightning', 10);
+  assert.ok(f.b.attackTimer >= -0.5, 'never more than half a swing behind');
+});
+
+test('Afterburner burns out all Fire at the cap', () => {
+  const f = new Fight({ charId: 'cinder', cards: {} }, { charId: 'martyr', cards: {} }, 1);
+  const hp = f.b.hp;
+  f.gain(f.a, 'fire', 39);
+  assert.equal(f.a.afterburners, 0);
+  f.gain(f.a, 'fire', 1);
+  assert.equal(f.a.afterburners, 1);
+  assert.equal(f.a.fire, 0);
+  assert.ok(f.a.rush > 0);
+  assert.ok(hp - f.b.hp > 100);
+});
+
+test('Toxin and Bleed lose a third of their stacks every 2 seconds', () => {
+  const f = new Fight({ charId: 'martyr', cards: {} }, { charId: 'martyr', cards: {} }, 1);
+  f.a.maxHp = f.a.hp = f.b.maxHp = f.b.hp = 1e9;
+  f.b.poison = 30; f.b.bleed = 30;
+  for (let i = 0; i < 39; i++) f.step();
+  assert.equal(f.b.poison, 30);
+  f.step();
+  assert.ok(Math.abs(f.b.poison - 20) < 1e-9 && Math.abs(f.b.bleed - 20) < 1e-9);
 });
 
 test('mana fills smoothly between attacks', () => {
@@ -130,13 +162,13 @@ test('freezing at the threshold stops attacks', () => {
   assert.equal(f.b.attackCount, before);
 });
 
-test('pure characters are hidden when their resource is banned', () => {
+test('characters are hidden when any of their resources is banned', () => {
   assert.equal(characterStatus(CHAR_BY_ID.cinder, ['fire']), 'hidden');
-  assert.equal(characterStatus(CHAR_BY_ID.ashen, ['fire']), 'weakened');
+  assert.equal(characterStatus(CHAR_BY_ID.ashen, ['fire']), 'hidden');
   assert.equal(characterStatus(CHAR_BY_ID.ashen, ['fire', 'poison']), 'hidden');
   assert.equal(characterStatus(CHAR_BY_ID.ashen, ['frost', 'bleed']), 'ok');
   const vis = visibleCharacters(['fire', 'regen']).map((v) => v.char.id);
-  assert.ok(!vis.includes('cinder') && !vis.includes('grove') && vis.includes('ashen'));
+  assert.ok(!vis.includes('cinder') && !vis.includes('grove') && !vis.includes('ashen') && vis.includes('glacia'));
 });
 
 test('banned resources never appear in shops, including hybrids and counters', () => {

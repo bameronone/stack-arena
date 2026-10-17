@@ -188,17 +188,20 @@ input:focus-visible { outline: 2px solid var(--bronze); outline-offset: 1px; }
 
 /* ---------- Game ---------- */
 .hud {
-  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 16px;
   padding-block: 8px;
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
   border-bottom: 1px solid var(--line); background: var(--pit);
 }
+.hud-l, .hud-r { display: flex; align-items: center; gap: 16px; min-width: 0; }
+.hud-r { justify-content: flex-end; }
 .hud .logo { font-family: var(--display); font-size: 26px; line-height: 1; }
 .hud .logo span { color: var(--bronze); }
 .hud .vs { display: flex; gap: 14px; justify-content: flex-end; min-width: 260px; flex: 0 1 480px; }
-/* Rounds strip: the match's road, centred in the HUD */
-.rounds { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; }
+/* Rounds strip: the match's road, in the HUD's middle column, so it sits at
+   the centre of the screen */
+.rounds { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; }
 .rounds .eyebrow b { color: var(--sand); font-size: 13px; }
 .strip { list-style: none; margin: 0; padding: 0; display: flex; gap: 4px; align-items: center; }
 .node {
@@ -287,6 +290,8 @@ input:focus-visible { outline: 2px solid var(--bronze); outline-offset: 1px; }
 .countdown .timer { font-size: 58px; color: var(--bronze); }
 .countdown .timer.urgent { color: var(--blood); animation: live 0.5s ease-in-out infinite alternate; }
 .hp-note { font-size: 12px; color: var(--dust); }
+/* After your fight, while the rest of the round plays out: a quiet line at the top, no popup */
+.preview.wait { top: 12px; bottom: auto; padding: 6px 16px 8px; max-width: min(440px, calc(100% - 180px)); }
 .banner {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-align: center;
   background: color-mix(in srgb, var(--night) 88%, transparent); border: 1px solid var(--line);
@@ -372,18 +377,21 @@ input:focus-visible { outline: 2px solid var(--bronze); outline-offset: 1px; }
   .side.show { display: flex; }
   .mobile-tabs { display: flex; gap: 6px; padding: 6px 16px 0; }
   .mobile-tabs .btn { padding: 4px 10px; font-size: 13px; }
-  .hud { gap: 10px 14px; }
-  .hud .vs { order: 10; flex-basis: 100%; min-width: 0; justify-content: flex-start; flex-wrap: nowrap; }
+  .hud { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .hud-r { flex-wrap: wrap; gap: 8px; }
+  .hud .vs { flex: 1 1 100%; order: 2; min-width: 0; justify-content: flex-start; flex-wrap: nowrap; }
   .life { min-width: 0; max-width: none; }
   .life .top span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .hud .tools { margin-left: auto; }
+  .hud { position: relative; }
+  .hud-l { padding-right: 140px; flex-wrap: wrap; gap: 4px 12px; }
+  .hud .tools { position: absolute; top: 8px; right: max(16px, env(safe-area-inset-right, 0px)); }
   .tray { flex-wrap: wrap; }
   .purse { flex-direction: row; align-items: center; min-width: 0; flex: 1; gap: 12px; }
   .cards { order: 3; flex-basis: 100%; display: flex; overflow-x: auto; }
   .card { flex: 0 0 150px; }
   .purse { width: auto; }
   .eco { min-width: 130px; flex: 1; }
-  .rounds { order: 9; flex-basis: 100%; overflow-x: auto; align-items: flex-start; }
+  .rounds { overflow-x: auto; align-items: safe center; }
   .preview { left: 8px; top: 8px; bottom: auto; transform: none; max-width: calc(100% - 150px); padding: 4px 10px 6px; align-items: flex-start; text-align: left; }
   .preview .eyebrow { font-size: 9px; }
   .countdown { font-size: 18px; gap: 6px; white-space: nowrap; }
