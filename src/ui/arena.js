@@ -24,7 +24,7 @@ function spriteSet(charId) {
   return set.base?.[0]?.complete && set.base[0].naturalWidth ? set : null;
 }
 // One-shot animations: seconds for the whole clip, however many frames it has.
-const CLIP = { attack: 0.45, cast: 0.7, hurt: 0.35, death: 0.9 };
+const CLIP = { attack: 0.45, attack2: 0.45, cast: 0.7, hurt: 0.35, death: 0.9 };
 // Seconds a new clip takes to fade in over the last frame of the old one.
 const BLEND = 0.12;
 let tintCanvas = null;
@@ -124,7 +124,12 @@ export function createArena(canvas) {
   function onEvent(ev) {
     const a = anim[ev.side];
     switch (ev.type) {
-      case 'attack': a.lunge = 1; startClip(a, 'attack'); break;
+      case 'attack': {
+        // Sprites with a second swing alternate between the two.
+        const set = units?.[ev.side] && spriteSet(units[ev.side].char.id);
+        a.swing = set?.attack2 ? !a.swing : false;
+        a.lunge = 1; startClip(a, a.swing ? 'attack2' : 'attack'); break;
+      }
       case 'dmg':
         anim[ev.side].flash = 1;
         if (anim[ev.side].clip === 'idle') startClip(anim[ev.side], 'hurt');
