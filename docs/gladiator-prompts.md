@@ -5,7 +5,8 @@ PixelLab prompts for every gladiator, written for the process in [sprites.md](sp
 - **Character** is the description for step 1 (the web app). It names the weapon and the hands holding it.
 - **Pose state** is `edit_description` for step 2 (`create_character_state`).
 - **Subject** and **Initial pose** are `subject_description` and `initial_pose` for step 4.
-- **idle / attack / attack2 / death** are each clip's `action_description`. Idle and both attacks end back in the pose (`end_frame_base64`); death has no end frame.
+- **idle / attack / attack2 / death** are each clip's `action_description`. Idle, both attacks and cast end back in the pose (`end_frame_base64`); death has no end frame.
+- **cast** plays when the gladiator uses their ability at full mana. The arena already supports it (0.7s, `CLIP.cast` in `src/ui/arena.js`); without one the gladiator keeps playing its current clip.
 
 All clips face east (right). The descriptions keep to what renders at sprite size: body, outfit, colours and weapon. Effects that change during a fight (growing spikes, blooming flowers) belong in the game, not the sprite.
 
@@ -15,7 +16,9 @@ Pronouns: Cinder, Glacia, Morwen, Wardweaver, Forgeblade, Sigrun, Haze, Nightsha
 
 ### Cinder, *the Kindled*  (`cinder`)
 
-Done. Its prompts are in [sprites.md](sprites.md).
+Done except for the ability. Its other prompts are in [sprites.md](sprites.md).
+
+- **cast** (Blaze Rush): rearing back and dashing forward to the right in a blazing charge, the sword held low then ripped upward in a rising slash that bursts into a wave of fire, then skidding back into her two-handed guard
 
 ### Kael, *the Red Harvest*  (`reaver`)
 
@@ -27,6 +30,7 @@ Done. Its prompts are in [sprites.md](sprites.md).
 - **attack:** sweeping the scythe with both hands in a wide low arc from behind him forward to the right with a red streak, then drawing it back into his reaping stance
 - **attack2:** raising the scythe high and pulling it down toward himself in a hooking overhead reap to the right with a red streak, ending back in his reaping stance
 - **death:** drops to his knees, the scythe clattering beside him, then slumps face down and fades into drifting red mist
+- **cast** (Rupture): planting the scythe and clenching his free fist toward the enemy, red mist pulling out of the air to the right and swirling back into his chest as he straightens up, then returning to his reaping stance
 
 ### Brakka, *the Living Conduit*  (`chainbreaker`)
 
@@ -38,6 +42,7 @@ Done. Its prompts are in [sprites.md](sprites.md).
 - **attack:** whipping the chain overhead and lashing it forward to the right in a long crack, yellow lightning arcing along the links, then reeling it back into his fist
 - **attack2:** swinging the chain in a low horizontal sweep from left to right across his body with crackling yellow sparks, then catching the loop back in his brawler stance
 - **death:** lightning surges through his body, he stiffens as sparks burst off him, then topples backward and the chain goes limp and dark
+- **cast** (Thunderfall): swinging the chain in a fast circle overhead until it crackles with lightning, then slamming it onto the ground in front of him to the right as a bright yellow lightning bolt crashes down there, then reeling it back into his fist
 
 ### Aldric, *the Rusted Judge*  (`oathcleaver`)
 
@@ -49,6 +54,7 @@ Done. Its prompts are in [sprites.md](sprites.md).
 - **attack:** heaving the axe off his shoulder and chopping it straight down in front of him to the right with both hands, then hauling it back up onto his shoulder
 - **attack2:** swinging the axe in a flat horizontal cleave from his shoulder across to the right with a dull red streak, then lifting it back onto his shoulder
 - **death:** drops to one knee and leans on the axe, then crashes forward as his armor crumbles into flakes of rust that blow away
+- **cast** (Rusted Verdict): raising the axe high over his head with both hands and holding it a moment as the blade glows dull red, then bringing it down in a crushing execution strike in front of him to the right, then hauling it back onto his shoulder
 
 ## Spell
 
@@ -62,6 +68,7 @@ Done. Its prompts are in [sprites.md](sprites.md).
 - **attack:** thrusting the crystal staff forward to the right, a burst of jagged ice shards spraying from its tip, then drawing it back upright
 - **attack2:** sweeping her left hand forward to the right in an arc that throws a spray of hail and frost, then raising it back to her casting stance
 - **death:** frost spreads over her until she is frozen solid, then she cracks and shatters into ice shards that scatter and melt away
+- **cast** (Hailstorm): raising the crystal staff high above her head as a swirl of snow gathers around its tip, then sweeping it forward to the right to hurl a storm of hailstones, then lowering it back upright
 
 ### Orrin, *Speaker of Squalls*  (`stormseer`)
 
@@ -73,6 +80,7 @@ Done. Its prompts are in [sprites.md](sprites.md).
 - **attack:** thrusting the forked staff forward to the right, a jagged yellow lightning bolt crackling from the forks, then pulling the staff back
 - **attack2:** raising the staff overhead with both hands and bringing it down forward to the right with a flash of lightning in front of him, then returning to his stance
 - **death:** a bolt strikes him from above, he flashes bright white, then crumples to the ground in a puff of smoke, the staff falling beside him
+- **cast** (Thunderclap): lifting the forked staff high with both hands and striking its butt down on the ground, a booming ring of yellow lightning bursting outward from the impact, then returning to his stance
 
 ### Morwen, *Mother of Smoke*  (`ashen`)
 
@@ -84,6 +92,7 @@ Done. Its prompts are in [sprites.md](sprites.md).
 - **attack:** swinging the censer forward to the right on its chain in an underhand arc, a burst of green smoke and orange embers spilling out, then letting it swing back
 - **attack2:** whirling the censer in a full circle beside her and flinging a cloud of glowing green ash forward to the right, then letting it hang again
 - **death:** collapses into a heap of black rags that crumbles into grey ash and drifts away with a last puff of green smoke
+- **cast** (Cinderplague): raising the censer high and shaking it hard, a thick cloud of green smoke flecked with orange embers billowing out forward to the right, then lowering it to dangle in front of her again
 
 ### Wardweaver, *Keeper of Wards*  (`sage`)
 
@@ -95,6 +104,7 @@ Done. Its prompts are in [sprites.md](sprites.md).
 - **attack:** shoving the gold hex shield forward to the right, a wave of golden light bursting from its face, then pulling it back into guard
 - **attack2:** swinging the rune rod forward to the right over the top of the shield, launching a bolt of violet light, then drawing it back
 - **death:** her shield cracks into glowing gold hexagon shards, she falls to her knees, and she and the shards fade into violet sparks
+- **cast** (Arcane Barrier): raising the gold hex shield as a dome of golden hexagons flickers up around her, then thrusting the shield forward to the right so the dome bursts outward in a wave of gold and violet light, then returning to guard
 
 ## Precision
 
@@ -108,6 +118,7 @@ Done. Its prompts are in [sprites.md](sprites.md).
 - **attack:** lunging forward to the right with a quick stab of the left dagger followed by a slash of the right dagger, leaving green and red streaks, then springing back into his crouch
 - **attack2:** spinning once in place and slashing both daggers in crossing arcs to the right, leaving an X of green and red streaks, ending back in his crouch
 - **death:** staggers, drops both daggers and crumples, his body turning sickly green and melting into a puddle of venom
+- **cast** (Fang Flurry): darting forward to the right in a blur of rapid alternating dagger stabs, green and red streaks crisscrossing in front of him, then flipping back into his crouch
 
 ### Forgeblade, *First Blade of the Pit*  (`duelist`)
 
@@ -119,6 +130,7 @@ Done. Its prompts are in [sprites.md](sprites.md).
 - **attack:** lunging far forward to the right with a long straight rapier thrust, front knee bent deep, leaving a streak of heat and sparks, then recovering back en garde
 - **attack2:** stepping in and flicking the rapier in two fast diagonal slashes to the right with bright sparks, then returning en garde
 - **death:** her rapier snaps, she drops to one knee clutching her chest, then falls sideways as the glow on the broken blade fades to grey
+- **cast** (Lunge): drawing the rapier back as its tip flares white-hot, then exploding forward to the right in a long, low lunge that leaves a bright trail of heat and sparks, then recovering back en garde
 
 ### Sigrun, *the Last Huntress*  (`snowthorn`)
 
@@ -130,6 +142,7 @@ Done. Its prompts are in [sprites.md](sprites.md).
 - **attack:** drawing the bow string back to her cheek and loosing an ice-blue arrow to the right that leaves a frosty trail, then nocking a new arrow
 - **attack2:** quickly drawing and firing two ice arrows in a row to the right, frost puffing from the bow, then returning to her ready stance
 - **death:** frost creeps over her and she sinks to her knees, then crumbles into a drift of snow that blows away
+- **cast** (Winter's Kiss): slowly drawing the bow as a large glowing ice arrow forms on the string and frost swirls around her, then loosing it to the right in a burst of snow, then nocking a new arrow
 
 ### Rook, *the Thunderbrand*  (`runevolt`)
 
@@ -141,6 +154,7 @@ Done. Its prompts are in [sprites.md](sprites.md).
 - **attack:** slashing the sword in a fast diagonal arc from high down to the right, the blade trailing violet and yellow lightning, then returning to guard
 - **attack2:** driving the sword forward in a straight thrust to the right that releases a crackling yellow bolt from its tip, then pulling back to guard
 - **death:** the runes on his arm flare bright and lightning bursts out of him, then he falls backward as the glow fades and the sword clatters down
+- **cast** (Runic Discharge): raising the sword upright in front of his face as the runes on his arm and blade blaze violet, then slashing it down and forward to the right to release a wave of violet runes and yellow lightning, then returning to guard
 
 ## Evasion
 
@@ -154,6 +168,7 @@ Done. Its prompts are in [sprites.md](sprites.md).
 - **attack:** spinning on one foot and slashing both fans forward to the right in a sweeping arc, a trail of frost and embers following, ending back in her dancer's stance
 - **attack2:** snapping both fans open and flinging them forward to the right in a crossing slash with a spray of blue frost and orange sparks, then folding them back
 - **death:** she fades like a mirage, her body thinning into blue mist and orange sparks that drift away until only her scarves fall
+- **cast** (Mirage): spinning so fast she blurs, a frost-blue copy and an ember-orange copy of her splitting off to either side, all three slashing their fans forward to the right before the copies vanish and she settles back into her dancer's stance
 
 ### Nightshade, *Smoke and Needles*  (`nightshade`)
 
@@ -165,6 +180,7 @@ Done. Its prompts are in [sprites.md](sprites.md).
 - **attack:** flicking her right hand forward to the right and throwing a spread of green-tipped needles, then drawing a new set from her bandolier
 - **attack2:** spinning low and throwing needles from both hands to the right as a puff of grey-green smoke bursts around her, ending back crouched
 - **death:** she bursts into a cloud of grey-green smoke that thins and drifts away, leaving only her falling cloak
+- **cast** (Smoke Veil): slamming a smoke pellet onto the ground so a swirling dome of grey-green smoke rises around her, throwing a spread of needles out of it to the right, then the smoke thins back to her crouch
 
 ### Pyrelle, *the Reborn Flame*  (`dawnfeather`)
 
@@ -176,6 +192,7 @@ Done. Its prompts are in [sprites.md](sprites.md).
 - **attack:** spinning forward to the right with both sickles slashing in a circle, the feather cape whirling out in a ring of fire, ending back in her winged stance
 - **attack2:** leaping up and slashing both sickles down to the right in a diving strike with flames streaming from the cape, landing back in her winged stance
 - **death:** she bursts into flame and burns down to a small pile of glowing ash, and a single green sprout rises from it
+- **cast** (Phoenix Waltz): spreading her arms wide as the feather cape blazes up into fiery wings, twirling in a full circle that throws a ring of flame outward while small green leaves swirl up around her feet, then settling back into her winged stance
 
 ## Pain
 
@@ -189,6 +206,7 @@ Done. Its prompts are in [sprites.md](sprites.md).
 - **attack:** slamming the tower shield forward to the right in a heavy bash with his whole body, then pulling it back and planting it again
 - **attack2:** bringing the iron mace down over the top of the shield to the right in a heavy overhead blow, then raising it back behind the shield
 - **death:** the tower shield falls flat in front of him, he drops to his knees and topples forward onto it with a heavy crash
+- **cast** (Martyrdom): raising the tower shield high and slamming its bottom edge into the ground as a golden dome of light shimmers up around him, then lifting the shield back into his braced stance
 
 ### Bram, *Rooted*  (`grove`)
 
@@ -200,6 +218,7 @@ Done. Its prompts are in [sprites.md](sprites.md).
 - **attack:** lifting the club high with both hands and slamming it down in front of him to the right, leaves and bark chips flying, then raising it back across his body
 - **attack2:** swinging the club in a wide horizontal sweep from left to right with leaves scattering, then returning it across his body
 - **death:** he stiffens and slowly hardens into a still, leafless tree stump as his last leaves fall around him
+- **cast** (Overgrowth): planting the club in the ground and spreading his arms as vines and flowers bloom across his bark body and green light rises around him, then gripping the club again
 
 ### Mordrek, *the Unyielding*  (`gravespike`)
 
@@ -211,3 +230,4 @@ Done. Its prompts are in [sprites.md](sprites.md).
 - **attack:** driving the shovel-spear forward to the right in a hard two-handed thrust, then yanking it back into his guard
 - **attack2:** swinging the spade blade upward in a scooping diagonal arc to the right like digging, then pulling it back into his guard
 - **death:** falls backward as his black armor and bone spikes crumble into a mound of dark earth
+- **cast** (Grave Sentence): stabbing the shovel-spear down into the ground in front of him so a row of bone spikes bursts up from the earth to the right, then wrenching the spade free back into his guard
