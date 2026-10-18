@@ -174,15 +174,17 @@ Done. Character `8afd2730-d671-4c26-914a-22a00cb89dbe`, Low Reaping Stance state
 
 ### Nightshade, *Smoke and Needles*  (`nightshade`)
 
-- **Character:** masked female assassin in a dark purple bodysuit and a hooded smoke-grey cloak, a needle bandolier across her chest, a fan of long green-tipped needles held between the fingers of her right hand
-- **Pose state:** crouched throwing stance: right hand drawn back by her ear holding the needles, left arm pointing forward, cloak draped, knees bent
-- **Subject:** a masked assassin in purple and grey with a fan of poison needles
-- **Initial pose:** crouched, right hand drawn back holding needles, left arm pointing forward
-- **idle:** crouched and still, cloak edges curling like smoke, the green-tipped needles glinting in her hand
-- **attack:** flicking her right hand forward to the right and throwing a spread of green-tipped needles, then drawing a new set from her bandolier
-- **attack2:** spinning low and throwing needles from both hands to the right as a puff of grey-green smoke bursts around her, ending back crouched
-- **death:** she bursts into a cloud of grey-green smoke that thins and drifts away, leaving only her falling cloak
-- **cast** (Smoke Veil): slamming a smoke pellet onto the ground so a swirling dome of grey-green smoke rises around her, throwing a spread of needles out of it to the right, then the smoke thins back to her crouch
+Done. Character `05a00b1f-9acb-450b-b78e-a5b4be668742`, Kunai Stance state `59c88de7-3a46-440e-ad7e-870a9bd023a2`; every clip below was animated with these prompts. The death clip's last nine frames had her one glowing eye brightened by hand after fetching (a 2px pale-green core with a dim green ring), so a refetch needs that redone.
+
+- **Character:** agile female assassin with her face uncovered, no mask and no hood, sharp features, long black hair tied back in a high ponytail, dark purple fitted bodysuit with a smoke-grey sash and short grey cloak over her shoulders, a bandolier of poison kunai across her chest, a green-tipped kunai in each hand
+- **Pose state:** upright ready stance, standing tall and not crouched: side-on to the right, feet apart, knees only slightly bent, both hands empty and raised in front of her chest like a fighter ready to draw, no sword, a row of small green-tipped kunai sheathed in the bandolier across her chest and on her belt behind her hips, face uncovered, no hood, ponytail hanging behind her
+- **Subject:** a female assassin with a black ponytail in a dark purple bodysuit and grey cloak, with poison kunai in a bandolier
+- **Initial pose:** upright ready stance side-on to the right, both hands raised empty in front of her chest
+- **idle:** breathing steadily in an upright ready stance, both hands staying raised in front of her chest, shoulders gently rising and falling, ponytail and cloak swaying slightly
+- **attack:** reaching back over her shoulder with her left hand to grab a green-tipped kunai from her bandolier, then whipping her left arm forward and throwing the poison kunai to the right so it flies away trailing green, then returning to her upright ready stance with empty hands
+- **attack2:** reaching back to her hip with her right hand to grab a green-tipped kunai from her belt, then whipping her right arm forward and throwing the poison kunai to the right so it flies away trailing green, then returning to her upright ready stance with empty hands
+- **death** (no end frame): staggering as the colour drains out of her, her whole body darkening into shadow until she is a solid pure black silhouette with only two small glowing eyes visible, standing still in the darkness
+- **cast** (Smoke Veil): pulling a round black smoke bomb from her belt and slamming it onto the floor at her feet, a thick cloud of dark grey-purple smoke bursts up and billows around her, then the smoke thins away leaving her back in her upright ready stance
 
 ### Pyrelle, *the Reborn Flame*  (`dawnfeather`)
 

@@ -179,15 +179,15 @@ export const LOOKS = {
     frames: { cast: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] },
   },
   nightshade: {
-    description: "masked female assassin in a dark purple bodysuit and a hooded smoke-grey cloak, a needle bandolier across her chest, a fan of long green-tipped needles held between the fingers of her right hand",
-    attack: "flicking her right hand forward to the right and throwing a spread of green-tipped needles, then drawing a new set from her bandolier",
-    // v3 character in its Crouched Throw state, clips animated back to that pose.
+    description: "agile female assassin with her face uncovered, no mask and no hood, sharp features, long black hair tied back in a high ponytail, dark purple fitted bodysuit with a smoke-grey sash and short grey cloak over her shoulders, a bandolier of poison kunai across her chest, a green-tipped kunai in each hand",
+    attack: "reaching back over her shoulder with her left hand to grab a green-tipped kunai from her bandolier, then whipping her left arm forward and throwing the poison kunai to the right so it flies away trailing green, then returning to her upright ready stance with empty hands",
+    // v3 character in its Kunai Stance state; PixMiniMax clips from the 176px pose.
     animations: {
-      idle: '5ba01edd-1eac-4874-9760-7aba5f918e52',
-      attack: 'b31a00fa-5f29-4a5f-ba8c-bed9882ad0ce', // right-hand needle flick
-      attack2: 'b298056f-6dc3-4895-a553-fbfe657180c2', // low spin, both hands, smoke puff
-      cast: '8ac92f59-a0c2-4505-b542-fcce20dd5f81', // Smoke Veil
-      death: '1a4fd62a-6f5b-4460-9de5-5b4135113c47', // bursts into smoke, cloak falls
+      idle: '8121f26c-454d-440e-b634-a9a91a9dfe49',
+      attack: '3252489a-6a5e-41f4-9e63-2ee9e9e93f05', // left-hand kunai throw
+      attack2: 'db46ef9d-b6db-4f1d-94bb-8b54cb4a589d', // right-hand kunai throw
+      cast: '1e473de5-9fb0-4ca5-a77d-61839bcbe2c2', // Smoke Veil: smoke bomb on the floor
+      death: '25455383-6d32-45cf-aa19-f519420f61f8', // fades into a black silhouette with glowing eyes
     },
   },
   dawnfeather: {
