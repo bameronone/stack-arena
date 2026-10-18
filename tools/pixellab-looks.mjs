@@ -45,11 +45,11 @@ export const LOOKS = {
   },
   chainbreaker: {
     description: "huge bare-chested male gladiator, muscular ex-prisoner with broken iron shackles on both wrists, a heavy iron chain wrapped around his right fist with a long loop hanging down, ragged brown trousers, shaved head",
-    attack: "stepping in and throwing a hard straight punch forward to the right with his raised left fist, yellow sparks crackling off the shackle on his wrist, then pulling the fist back into his brawler stance",
+    attack: "raising both fists high over his head clasped together, then slamming them down hard in front of him to the right with a burst of yellow sparks, then rising back into his brawler stance",
     // PixMiniMax clips on the Brawler Stance state; idle, swings and cast end back in the stance.
     animations: {
       idle: '102537f2-27a2-4bdb-9a08-e000b0f2a0b5',
-      attack: '80ca5461-3d00-4dd5-a645-d2c696222144', // left-hand punch
+      attack: 'cbbf67f8-701b-4c9c-99a7-6985b7d91492', // two-handed overhead slam
       attack2: 'bbb147cd-0668-408b-8b76-2bf96d6ee565', // low sweep
       cast: 'e4498949-28ff-44c3-8209-c1d4410a0b2a', // Thunderfall: overhead chain lash on a 256px canvas
       death: '1eb029d7-84f0-487e-927b-b8caa16a09c0', // lightning surge, topples onto his back

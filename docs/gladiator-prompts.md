@@ -41,7 +41,7 @@ Done. Character `8afd2730-d671-4c26-914a-22a00cb89dbe`, Low Reaping Stance state
 - **Subject:** a huge bare-chested prisoner with broken shackles swinging an iron chain
 - **Initial pose:** wide brawler stance, chain wrapped around his right fist with a loop hanging, left fist raised
 - **idle:** breathing heavily in a wide brawler stance, the chain loop swinging gently, small yellow sparks crackling along the links
-- **attack:** stepping in and throwing a hard straight punch forward to the right with his raised left fist, yellow sparks crackling off the shackle on his wrist, then pulling the fist back into his brawler stance
+- **attack:** raising both fists high over his head clasped together, then slamming them down hard in front of him to the right with a burst of yellow sparks, then rising back into his brawler stance. Animated from the pose padded to 256×256 for headroom.
 - **attack2:** swinging the chain in a low horizontal sweep from left to right across his body with crackling yellow sparks, then catching the loop back in his brawler stance
 - **death:** lightning surges through his body, he stiffens as sparks burst off him, then topples backward and the chain goes limp and dark
 - **cast** (Thunderfall): whipping the chain overhead and lashing it forward to the right in a long crack, yellow lightning arcing along the links, then reeling it back into his fist. Animated from the pose padded to 256×256 so the lash isn't cut off.
