@@ -15,8 +15,14 @@ const SPRITE_DATA = typeof SPRITES !== 'undefined' ? SPRITES : {};
 const spriteCache = {};
 // Figures are sized to the same height unless listed here. A crouching pose
 // fills its canvas like a standing one, so it is drawn shorter; Morwen is a
-// hunched old woman.
-const FIGURE_HEIGHT = { nightshade: 0.8, ashen: 0.8 };
+// hunched old woman. The big armored brutes (Anvil, Aldric, Mordrek, Bram)
+// hold weapons over their heads, which shrank their bodies, so they are drawn
+// larger; slight fighters that came out oversized are drawn a little smaller.
+const FIGURE_HEIGHT = {
+  nightshade: 0.8, ashen: 0.8,
+  martyr: 1.22, oathcleaver: 1.2, gravespike: 1.12, grove: 1.1,
+  cinder: 0.9, dawnfeather: 0.88, glacia: 0.92, sage: 0.9, runevolt: 0.92, viper: 0.92,
+};
 function spriteSet(charId) {
   const data = SPRITE_DATA[charId];
   if (!data) return null;
@@ -191,6 +197,12 @@ export function createArena(canvas) {
     fx = []; strikes = []; rings = [];
     // Count from where the fight is now: a watched fight may join mid-way.
     dotSeen = units.map((u) => ({ poison: u.enemy.stats.byKind.poison || 0, bleed: u.enemy.stats.byKind.bleed || 0 }));
+    // settled: showing a fight that already ended, so the fallen are drawn
+    // already down rather than playing their death again.
+    for (const [side, a] of anim.entries()) {
+      a.from = null; a.lunge = a.flash = a.cast = a.dodge = a.stutter = 0;
+      if (opts.settled) { a.clip = units[side].dead ? 'death' : 'idle'; a.clipT = units[side].dead ? CLIP.death + 1 : 0; }
+    }
     start();
   }
 
@@ -808,7 +820,7 @@ export function createArena(canvas) {
     // bars
     // With a sprite, the bars sit above the figure's head instead of the medallion.
     const box = spriteBox(p.y, r);
-    const bw = Math.min(220, Math.max(110, baseRadius() * 2.4)), bx = p.x - bw / 2, by = sprites ? box.feet - box.size * 0.86 - 26 : p.y - r - 42;
+    const bw = Math.min(220, Math.max(110, baseRadius() * 2.4)), bx = p.x - bw / 2, by = sprites ? box.feet - box.size * 0.86 * Math.max(1, sprites.figureHeight) - 26 : p.y - r - 42;
     const bh = 10;
     bar(bx, by, bw, bh, u.hp / u.maxHp, (flip ? 1 - u.side : u.side) === 0 ? '#7fca6e' : '#d9505e');
     if (u.shield > 0) {

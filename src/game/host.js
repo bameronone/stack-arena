@@ -62,6 +62,9 @@ export class HostGame {
     const p = m.players[id];
     if (!p || p.isBot) return false;
     let ok = false;
+    // The shop stays open while the round's fights play out; buys made then
+    // are queued until the round ends (see buy in match.js).
+    const shopOpen = m.phase === 'shop' || m.phase === 'fight';
     switch (action) {
       case 'ban':
         if (m.phase === 'ban' && !p.ban && RESOURCES.includes(value)) { submitBan(m, id, value); ok = true; }
@@ -75,13 +78,13 @@ export class HostGame {
         }
         break;
       case 'buy':
-        if (m.phase === 'shop' && p.hp > 0) ok = buy(m, id, Number(value));
+        if (shopOpen && p.hp > 0) ok = buy(m, id, Number(value));
         break;
       case 'reroll':
-        if (m.phase === 'shop' && p.hp > 0) ok = reroll(m, id);
+        if (shopOpen && p.hp > 0) ok = reroll(m, id);
         break;
       case 'lock':
-        if (m.phase === 'shop' && p.hp > 0) { toggleLock(m, id); ok = true; }
+        if (shopOpen && p.hp > 0) { toggleLock(m, id); ok = true; }
         break;
       case 'ready':
         if (m.phase === 'shop' && p.hp > 0) { m.ready[id] = value !== false; ok = true; }
