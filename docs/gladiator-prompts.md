@@ -174,7 +174,7 @@ Done. Character `8afd2730-d671-4c26-914a-22a00cb89dbe`, Low Reaping Stance state
 
 ### Nightshade, *Smoke and Needles*  (`nightshade`)
 
-Done. Character `05a00b1f-9acb-450b-b78e-a5b4be668742`, Kunai Stance state `59c88de7-3a46-440e-ad7e-870a9bd023a2`; every clip below was animated with these prompts. The death clip's last nine frames had her one glowing eye brightened by hand after fetching (a 2px pale-green core with a dim green ring), so a refetch needs that redone.
+Done. Character `05a00b1f-9acb-450b-b78e-a5b4be668742`, Kunai Stance state `59c88de7-3a46-440e-ad7e-870a9bd023a2`; every clip below was animated with these prompts. The death clip's last nine frames had her one glowing eye brightened by hand after fetching (a 2px pale-green core with a dim green ring) and every other non-black pixel in those frames painted black, so a refetch needs that redone.
 
 - **Character:** agile female assassin with her face uncovered, no mask and no hood, sharp features, long black hair tied back in a high ponytail, dark purple fitted bodysuit with a smoke-grey sash and short grey cloak over her shoulders, a bandolier of poison kunai across her chest, a green-tipped kunai in each hand
 - **Pose state:** upright ready stance, standing tall and not crouched: side-on to the right, feet apart, knees only slightly bent, both hands empty and raised in front of her chest like a fighter ready to draw, no sword, a row of small green-tipped kunai sheathed in the bandolier across her chest and on her belt behind her hips, face uncovered, no hood, ponytail hanging behind her
