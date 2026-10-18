@@ -62,17 +62,22 @@ export const LOOKS = {
     attack: "heaving the axe off his shoulder and chopping it straight down in front of him to the right with both hands, then hauling it back up onto his shoulder",
   },
   stormseer: {
-    description: "old male storm wizard, thin bearded man with a white blindfold over his eyes, long storm-grey robe with violet runes on the hem, holding a forked iron lightning-rod staff in both hands",
-    attack: "thrusting the forked staff forward to the right, a jagged yellow lightning bolt crackling from the forks, then pulling the staff back",
-    // PixMiniMax clips on the "Staff Forward" state; idle, both swings and cast return to the pose.
+    description: "old male lightning wizard, thin bearded arcane mage with a white blindfold over his eyes, long storm-grey robe with glowing violet runes on the hem, a leather pouch on his belt, holding a tall wooden staff topped with a glowing crackling blue-white lightning orb in his right hand",
+    attack: "reaching into the belt pouch with his left hand, pulling out a fistful of crackling blue lightning sparks and hurling them forward to the right toward the enemy, then returning to his battle stance",
+    // PixMiniMax clips on the wide-legged "Battle Stance" state; idle, both
+    // attacks and cast return to the pose. The attacks were generated on
+    // bigger canvases (224px, 256px) so the sparks and lightning aren't cut off.
     animations: {
-      idle: 'a37e9b47-8424-4a43-9179-cf0c9656a275',
-      attack: 'cfbf803b-b346-4810-aa98-aa55c524cf06', // forward thrust with a bolt
-      attack2: '601116bc-7249-4199-8666-4d51ab247143', // overhead strike
-      cast: 'dc3d657b-9db0-4c69-a7aa-24830f38958f', // Thunderclap: staff butt to the ground
-      death: '419da81e-f45f-4511-ae10-266d5d5aa840', // struck by lightning, crumples
+      idle: '58297567-7ced-47de-bf70-94b2b0d06ded',
+      attack: 'ff075fb4-55c3-4532-b196-daa7a4456983', // throws sparks from his pouch
+      attack2: '643f2ed0-0333-423a-9789-4a4f38844f6b', // orb blast from the staff
+      cast: 'e2e5e404-dd6f-4c1d-9c4c-db81971bd327', // Thunderclap: staff butt to the ground
+      death: '4f83a92e-d118-4296-adcc-6728ca61fc0d', // lightning flash, pile of ash
     },
+    // Death frames 3, 6, 8 and 10 came back with a flat grey block over the flash.
+    frames: { death: [0, 1, 2, 4, 5, 7, 9, 11, 12, 13, 14, 15] },
   },
+
   ashen: {
     description: "hunched old female witch in layered soot-black rags, glowing ember-orange eyes, long tangled grey hair, a smoking brass censer on a chain held in her right hand leaking green fumes",
     attack: "swinging the censer forward to the right on its chain in an underhand arc, a burst of green smoke and orange embers spilling out, then letting it swing back",
