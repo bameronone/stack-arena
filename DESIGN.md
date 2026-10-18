@@ -88,7 +88,7 @@ Hand-written card scoring did no better than random buying. Measuring each card'
 
 These are 1500-match results between Gladiator-level bots:
 
-- **Characters:** every gladiator wins 47–54% (base HP tuned with `tools/autotune.mjs`, which is why base HP now ranges from 260 to 1065).
+- **Characters:** base HP follows body type (`HP_BANDS` in `characters.js`): brawny 2200–3000 (Anvil, Brakka, Aldric, Bram, Mordrek), medium 1750–2150, slight 1300–1700, so the big armored gladiators are the toughest. Kits are balanced around that: `tools/autotune.mjs` moves HP only inside the band and puts the rest into ability power (`stats.ap`, 50–150%, shown on the pick screen), and outliers got kit changes by hand. Every gladiator wins 46–55% over 4000 bot matches.
 - **Resources:** 48–53%. Toxin loses a third of its stacks every 2s so it levels off instead of snowballing.
 - **Average match:** about 11 rounds, with fights of about 15s that stay that long into the late game.
 

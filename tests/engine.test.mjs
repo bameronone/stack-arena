@@ -296,3 +296,12 @@ test('round HP scaling is the same for every fighter, whoever owns it', async ()
     assert.equal(u5.maxHp, Math.round(u1.maxHp * hpScale(5)));
   }
 });
+
+test('base HP follows body type: every brawny gladiator outlasts every medium one, and medium outlasts slight', async () => {
+  const { HP_BANDS } = await import('../src/data/characters.js');
+  for (const c of CHARACTERS) {
+    const [lo, hi] = HP_BANDS[c.body];
+    assert.ok(c.stats.hp >= lo && c.stats.hp <= hi, `${c.name} ${c.stats.hp} outside ${c.body} band`);
+  }
+  assert.ok(HP_BANDS.brawny[0] > HP_BANDS.medium[1] && HP_BANDS.medium[0] > HP_BANDS.slight[1]);
+});

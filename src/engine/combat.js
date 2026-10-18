@@ -75,7 +75,7 @@ export function buildUnit(loadout, side) {
     m: {
       poisonDmg: 1, bleedDmg: 1, bleedDecay: 1, frostDecay: 1, shieldGain: 1, shieldCap: 1, vsShield: 1,
       poisonTaken: 1, frostTaken: 1, bleedTaken: 1, abilityTaken: 1, enemyHealCut: 0,
-      abilityPower: 1, castCost: 1, frozenBonus: 0, reflect: 0, manaWard: 0, armorPierce: 0,
+      abilityPower: s.ap ?? 1, castCost: 1, frozenBonus: 0, reflect: 0, manaWard: 0, armorPierce: 0,
       focusDrain: 0, trueSight: 0, critMissing: 0, castRefund: 0, berserk: 0, bleedLeech: 0,
       pandemic: 0, secondWind: 0, healGain: 1, boltDmg: 1, boltTaken: 1, afterburnTaken: 1,
     },
