@@ -4,7 +4,7 @@ import { CHARACTERS, CHAR_BY_ID, characterStatus } from '../data/characters.js';
 import { tagCounts, cardCost, REROLL_COST, SHOP_SIZE } from '../engine/shop.js';
 import {
   visibleCharacters, makeFight, loadout, income, interest, INTEREST_STEP, INTEREST_MAX, START_HP, SIGNATURE_ROUND,
-  opponentOf, standings, MAX_PLAYERS, BAN_COUNT,
+  opponentOf, standings, ownedCount, MAX_PLAYERS, BAN_COUNT,
 } from '../engine/match.js';
 import { SHOP_TIMES, ROUND_PACE } from '../game/host.js';
 import { soloSession, hostSession, clientSession, BOT_NAMES, cleanName } from '../game/session.js';
@@ -76,6 +76,10 @@ function foeLoadout() {
   return loadout(f ? f.p : M().players.find((p) => p.id !== ME()), M().round);
 }
 const myLoadout = () => loadout(M().players[ME()], M().round);
+// You can shop while the round's fights play out too; those cards are queued
+// and join your build when the round ends.
+const shopOpen = () => (M().phase === 'shop' || M().phase === 'fight') && M().players[ME()].hp > 0;
+const queuedList = (p) => Object.entries(p.queued || {}).filter(([, n]) => n > 0);
 
 // ---------------------------------------------------------------- card text
 
@@ -193,7 +197,7 @@ function toast(msg) {
 function useSession(session) {
   S?.close?.();
   S = session;
-  ui.fightStats = null; ui.animRound = null; ui.fighting = false; ui.watching = null; ui.error = null;
+  ui.fightStats = null; ui.animRound = null; ui.lastFight = null; ui.fighting = false; ui.watching = null; ui.error = null;
   lastCounts = null;
   S.onChange(onSessionChange);
   render();
@@ -247,6 +251,7 @@ function onSessionChange() {
     }
     lastCounts = counts;
     if (m.phase !== 'fight' && (ui.fighting || ui.watching)) arena?.skip();
+    if (m.phase !== 'fight' && ui.watching) { ui.watching = null; ui.fightStats = ui.savedStats; }
   }
   render();
   if (m && S.stage === 'game' && m.phase === 'fight' && ui.animRound !== m.fightRound) {
@@ -579,8 +584,9 @@ function renderGame() {
     </div>`;
     arena = createArena(root.querySelector('#arena'));
     arena.setSpeed(ui.speed);
+    if (holding()) showHeld();
   }
-  if (!ui.fighting && !ui.watching) showPreview();
+  if (!ui.fighting && !ui.watching && !holding()) showPreview();
   updateGame();
 }
 
@@ -713,6 +719,7 @@ function renderSide(id, p, mine, watchLabel = null) {
     </div>
     <div class="sub"><b style="color:var(--bronze)">${esc(c.ability.name)}</b>: ${esc(c.ability.desc())}<br><b style="color:var(--bronze)">Innate</b>: ${esc(c.innate.desc)}${sig ? `<br><b style="color:var(--bronze)">${esc(sig.name)}</b>: ${esc(sig.desc)}` : ''}</div>
     <div><div class="eyebrow" style="margin-bottom:6px">Tag progress</div><div class="progress">${tierProgress(counts)}</div></div>
+    ${mine && queuedList(p).length ? `<div class="sub"><b style="color:var(--bronze)">Queued</b> (joins after this round): ${queuedList(p).map(([cid, n]) => esc(CARD_BY_ID[cid].name) + (n > 1 ? ` x${n}` : '')).join(', ')}</div>` : ''}
     ${hybrids.length ? `<div class="sub">Close to a Hybrid: ${hybrids.map((h) => `${esc(h.name)} (${h.tags.map((t) => `${TAGS[t].name} ${counts[t] || 0}/${HYBRID_REQ}`).join(', ')})`).join('; ')}</div>` : ''}
     <div class="stats-panel" id="stats-${id}">${statsPanel(mine ? 0 : 1)}</div>`;
 }
@@ -764,7 +771,8 @@ function renderTray() {
   const p = m.players[ME()];
   const el = root.querySelector('#tray');
   const out = p.hp <= 0 && !ui.fighting;
-  const locked = m.phase !== 'shop' || ui.fighting || p.hp <= 0;
+  const locked = !shopOpen();
+  const queued = queuedList(p);
   const ready = !!m.ready?.[p.id];
   const others = humansAlive().filter((h) => h.id !== ME());
   const notReady = others.filter((h) => !m.ready?.[h.id]).length;
@@ -786,7 +794,7 @@ function renderTray() {
         if (cid) shopGhost[i] = cid;
         if (!cid) return shopGhost[i] ? `<div class="card sold t-${CARD_BY_ID[shopGhost[i]].tier}" aria-hidden="true">${cardBody(CARD_BY_ID[shopGhost[i]], 0)}</div>` : '<div class="card sold t-1" aria-hidden="true"></div>';
         const card = CARD_BY_ID[cid];
-        const have = p.cards[cid] || 0;
+        const have = ownedCount(p, cid);
         const cost = cardCost(card);
         const poor = cost > p.gold;
         return `<button class="card t-${card.tier} ${poor ? 'poor' : ''}" role="listitem" data-slot="${i}" ${locked || poor || have >= card.max ? 'disabled' : ''} title="Buy (${i + 1})">
@@ -795,8 +803,8 @@ function renderTray() {
       }).join('')}
     </div>
     <div class="go">
-      <button class="btn primary ${ready ? 'is-ready' : ''}" id="fight" ${locked ? 'disabled' : ''} aria-pressed="${ready}">${goLabel}</button>
-      <div class="hint">${m.phase !== 'shop' ? 'Fight in progress' : others.length && ready ? `Waiting for ${plural(notReady, 'player')}` : others.length ? 'The fight starts when everyone is ready' : 'Keys: 1-5 buy · R reroll · F fight'}</div>
+      <button class="btn primary ${ready ? 'is-ready' : ''}" id="fight" ${m.phase !== 'shop' || locked ? 'disabled' : ''} aria-pressed="${ready}">${goLabel}</button>
+      <div class="hint">${m.phase !== 'shop' ? (queued.length ? `Queued for next round: ${queued.map(([id, n]) => esc(CARD_BY_ID[id].name) + (n > 1 ? ` x${n}` : '')).join(', ')}` : 'Fight in progress. Cards you buy now join your build after the round.') : others.length && ready ? `Waiting for ${plural(notReady, 'player')}` : others.length ? 'The fight starts when everyone is ready' : 'Keys: 1-5 buy · R reroll · F fight'}</div>
     </div>`;
   el.querySelectorAll('[data-slot]').forEach((b) => b.onclick = () => doBuy(Number(b.dataset.slot)));
   el.querySelector('#reroll').onclick = () => S.act('reroll');
@@ -811,7 +819,7 @@ function purseHtml(p, m) {
   const next = bonus < INTEREST_MAX ? (bonus + 1) * INTEREST_STEP : null;
   const hint = next ? `Keep ${next - p.gold} more for +${bonus + 1} interest` : `Max interest. Gold over ${cap} earns nothing more`;
   const rule = `1 per ${INTEREST_STEP} kept, max ${INTEREST_MAX}`;
-  const tip = `<b>Next round you get ${inc + bonus} gold</b><div class="tip-rows" style="grid-template-columns:1fr"><span>Income (4 + round, max 10)<b class="num">+${inc}</b></span><span>Interest (${rule})<b class="num">+${bonus}</b></span></div>Interest counts the gold you have left when the fight starts.`;
+  const tip = `<b>Next round you get ${inc + bonus} gold</b><div class="tip-rows" style="grid-template-columns:1fr"><span>Income (4 + round, max 10)<b class="num">+${inc}</b></span><span>Interest (${rule})<b class="num">+${bonus}</b></span></div>Interest counts the gold you have left when the next round starts.`;
   const marks = Array.from({ length: INTEREST_MAX - 1 }, (_, k) => `<em style="left:${((k + 1) / INTEREST_MAX) * 100}%"></em>`).join('');
   return `<div class="gold"><b class="num">${p.gold}</b><span>gold</span></div>
     <div class="eco" data-tip="${esc(tip)}" tabindex="0">
@@ -832,7 +840,7 @@ function cardBody(card, have) {
 
 function doBuy(slot) {
   const m = M();
-  if (m.phase !== 'shop' || ui.fighting) return;
+  if (!shopOpen()) return;
   const p = m.players[ME()];
   const card = CARD_BY_ID[p.shop[slot]];
   if (!card) return;
@@ -884,7 +892,7 @@ function renderSpeed() {
   el.innerHTML = [1, 2, 4].map((s) => `<button class="btn ${ui.speed === s ? 'on' : ''}" data-speed="${s}">${s}x</button>`).join('') +
     (ui.fighting || ui.watching ? `<button class="btn" id="skip">${ui.watching ? 'Stop watching' : 'Skip'}</button>` : '');
   el.querySelectorAll('[data-speed]').forEach((b) => b.onclick = () => { ui.speed = Number(b.dataset.speed); arena.setSpeed(ui.speed); renderSpeed(); });
-  el.querySelector('#skip')?.addEventListener('click', () => arena.skip());
+  el.querySelector('#skip')?.addEventListener('click', () => { const w = ui.watching; arena.skip(); if (w) stopWatching(); });
 }
 
 const fighterName = (p, ghost = false) => (ghost ? `Ghost of ${p.name}` : p.id === ME() ? (S.mode === 'solo' ? 'You' : `${p.name} (you)`) : p.name);
@@ -892,6 +900,14 @@ function showPreview() {
   const f = foe();
   const other = f ? f.p : M().players.find((p) => p.id !== ME());
   arena.setPreview(myLoadout(), foeLoadout(), [fighterName(M().players[ME()]), fighterName(other, f?.ghost)], { mystery: !foeRevealed() });
+}
+
+// After your fight the arena keeps its last moment (the loser lying where they
+// fell) until the round ends, instead of standing both gladiators back up.
+const holding = () => M().phase === 'fight' && ui.lastFight?.round === M().fightRound;
+function showHeld() {
+  const h = ui.lastFight;
+  arena.play(h.fight, () => {}, h.labels, { flip: h.flip, settled: true });
 }
 
 // Your fight replays locally from the shared seed; the host has already
@@ -917,8 +933,9 @@ function startFightAnimation() {
     ui.fightStats = { live: false, round, stats: JSON.parse(JSON.stringify(result.stats)) };
     // No results popup: say you're done, and the round moves on by itself
     // once every other fight has played out too.
+    ui.lastFight = { round, fight: f, labels: mine(labels), flip: second };
     if (M()?.phase === 'fight' && M().fightRound === round && !M().watched?.[ME()]) S.act('watched');
-    if (screenFor() === 'game' && arena) { showPreview(); updateGame(); }
+    if (screenFor() === 'game' && arena) { if (!holding()) showPreview(); updateGame(); }
   }, mine(labels), { flip: second });
   updateGame();
 }
@@ -940,8 +957,9 @@ function watchFight(i) {
   ui.fightStats = { live: true, round, watched: true, stats: [f.units[0].stats, f.units[1].stats] };
   const statsTimer = setInterval(refreshStats, 250);
   arena.play(f, () => {
+    // Stay on the end of the fight until "Stop watching" or the round ends.
     clearInterval(statsTimer);
-    stopWatching();
+    refreshStats();
   }, [fighterName(m.players[r.a]), fighterName(m.players[r.b], r.ghost)]);
   updateGame();
 }
@@ -949,7 +967,7 @@ function stopWatching() {
   if (!ui.watching) return;
   ui.watching = null;
   ui.fightStats = ui.savedStats;
-  if (screenFor() === 'game' && arena) { showPreview(); updateGame(); }
+  if (screenFor() === 'game' && arena) { if (holding()) showHeld(); else showPreview(); updateGame(); }
 }
 
 function renderModal() {
@@ -1073,11 +1091,10 @@ document.addEventListener('click', hideTip);
 document.addEventListener('keydown', (e) => {
   if (screenFor() !== 'game' || e.target.closest?.('input,textarea') || e.metaKey || e.ctrlKey || e.altKey) return;
   if (e.key === 'Escape' && ui.modal) { ui.modal = null; renderModal(); return; }
-  const m = M();
-  if (m.phase !== 'shop' || ui.fighting) return;
+  if (!shopOpen()) return;
   if (e.key >= '1' && e.key <= '5') doBuy(Number(e.key) - 1);
   else if (e.key === 'r' || e.key === 'R') S.act('reroll');
-  else if (e.key === 'f' || e.key === 'F') toggleReady();
+  else if ((e.key === 'f' || e.key === 'F') && !ui.fighting) toggleReady();
 });
 
 window.addEventListener('beforeunload', (e) => {

@@ -8,7 +8,7 @@
 3. **Timers** (online always, solo optional): ban 20s, pick 30s, signature 20s, shop 20/30/45s. Running out picks at random or starts the fight. In multiplayer the fight starts early once every living player has pressed Ready.
 4. **Rounds:**
    - Gold arrives: `min(10, 4 + round)` plus interest of 1 per 5 banked (max 3, at 15 gold). It was 1 per 10 (max 2), which made saving feel pointless.
-   - The shop shows 5 cards. Reroll costs 1 gold and you can lock the shop. There is no selling: every purchase is permanent.
+   - The shop shows 5 cards. Reroll costs 1 gold and you can lock the shop. There is no selling: every purchase is permanent. The shop stays open while the round's fights play out: cards bought then are queued and join your build when the round ends, so they never change a fight in progress. Interest counts the gold you have left when the next round starts.
    - Then the auto fights. Pairings are random each round, avoiding last round's opponent where possible. With an odd number alive, one player fights a **ghost**: a copy of another living player's build. Losing to a ghost costs HP; beating one doesn't hurt the player it copies.
    - In the browser, your fight is animated. Every other fight of the round plays out on a shared clock at 2x, and you can watch any of them from the standings wall (it replays from the shared seed). There is no results popup: the next round starts by itself once every fight has played out and every player has finished watching their own. Once no human is left alive, the bots finish the match instantly and you see the final standings.
    - The loser takes `1 + ceil(0.8 × round) + 4 × winner's HP%` damage. Each player starts with 60 HP.

@@ -17,7 +17,7 @@ export function createMatch({ seed = Date.now() % 1e9, players }) {
     seed, nonce: 0, round: 0, phase: 'ban', bans: [], history: [], pairs: [],
     players: players.map((p, i) => ({
       id: i, name: p.name, isBot: !!p.isBot, level: p.level || null, charId: null, hp: START_HP, gold: START_GOLD,
-      cards: {}, shop: [], locked: false, sig: null, ban: null, wins: 0, placement: null, lastOpp: null,
+      cards: {}, queued: {}, shop: [], locked: false, sig: null, ban: null, wins: 0, placement: null, lastOpp: null,
     })),
   };
 }
@@ -97,17 +97,34 @@ export function alive(m) {
   return m.players.filter((p) => p.hp > 0);
 }
 
+// Cards owned, counting ones bought during a fight that haven't landed yet.
+export function ownedCount(p, id) {
+  return (p.cards[id] || 0) + (p.queued?.[id] || 0);
+}
+
+// Buying while the round's fights play out is allowed, but the card waits in
+// p.queued until the round ends: fights replay from the builds they started
+// with, so a card can't join one halfway.
 export function buy(m, playerId, slot) {
   const p = m.players[playerId];
   const id = p.shop[slot];
   const card = id && CARD_BY_ID[id];
   if (!card) return false;
   const cost = cardCost(card);
-  if (p.gold < cost || (p.cards[id] || 0) >= card.max) return false;
+  if (p.gold < cost || ownedCount(p, id) >= card.max) return false;
   p.gold -= cost;
-  p.cards[id] = (p.cards[id] || 0) + 1;
+  const into = m.phase === 'fight' ? (p.queued ??= {}) : p.cards;
+  into[id] = (into[id] || 0) + 1;
   p.shop[slot] = null;
   return true;
+}
+
+// Cards bought during the fight join the build once the round is over.
+export function applyQueued(m) {
+  for (const p of m.players) {
+    for (const [id, n] of Object.entries(p.queued || {})) p.cards[id] = (p.cards[id] || 0) + n;
+    p.queued = {};
+  }
 }
 
 export function reroll(m, playerId) {
@@ -199,6 +216,7 @@ export function resolveOtherFights(m, skip = []) {
 // ends the match. Players knocked out in the same round are ranked by HP left
 // (most negative is worse), then by fights won.
 export function finishRound(m) {
+  applyQueued(m);
   const out = m.players.filter((p) => p.hp <= 0 && p.placement === null)
     .sort((a, b) => b.hp - a.hp || b.wins - a.wins);
   let place = alive(m).length + out.length;

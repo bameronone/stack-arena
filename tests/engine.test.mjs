@@ -286,3 +286,13 @@ test('a player who left gets their gladiator back from the bot', async () => {
   assert.ok(!g.M.players[1].isBot);
   assert.equal(g.M.players[1].name, 'B');
 });
+
+test('round HP scaling is the same for every fighter, whoever owns it', async () => {
+  const { buildUnit, hpScale } = await import('../src/engine/combat.js');
+  const { CHARACTERS } = await import('../src/data/characters.js');
+  for (const c of CHARACTERS) {
+    const u1 = buildUnit({ charId: c.id, cards: {}, round: 1 }, 0);
+    const u5 = buildUnit({ charId: c.id, cards: {}, round: 5 }, 1);
+    assert.equal(u5.maxHp, Math.round(u1.maxHp * hpScale(5)));
+  }
+});

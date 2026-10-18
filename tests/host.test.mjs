@@ -91,3 +91,27 @@ test('a disconnected player is replaced by a bot and does not stall the round', 
   g.act(0, 'ready');
   assert.equal(g.M.phase, 'fight');
 });
+
+test('cards bought during the fight are queued and only join the build when the round ends', () => {
+  let t = 0;
+  const g = new HostGame({ players: players(2), seed: 11, shopTime: 0, now: () => t });
+  g.act(0, 'ban', 'fire');
+  g.act(0, 'pick', visibleCharacters(g.M.bans)[0].char.id);
+  const me = g.M.players[0];
+  me.gold = 50;
+  g.act(0, 'ready');
+  assert.equal(g.M.phase, 'fight');
+  const before = JSON.stringify(me.cards);
+  const slot = me.shop.findIndex(Boolean);
+  const id = me.shop[slot];
+  assert.ok(g.act(0, 'buy', slot), 'buying during the fight is allowed');
+  assert.equal(JSON.stringify(me.cards), before, 'the fight build is unchanged');
+  assert.equal(me.queued[id], 1);
+  g.act(0, 'watched');
+  t = g.M.fightsEndAt; g.poll();
+  if (me.hp > 0) {
+    assert.equal(g.M.phase, 'shop');
+    assert.ok(me.cards[id] >= 1, 'the queued card joined the build');
+    assert.deepEqual(me.queued, {});
+  }
+});
