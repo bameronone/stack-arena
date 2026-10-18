@@ -13,12 +13,17 @@ const SELF_STACKS = ['fire', 'shield', 'regen', 'arcane', 'lightning', 'armor'];
 // tools/pixellab.mjs). Gladiators without sprites are drawn as medallions.
 const SPRITE_DATA = typeof SPRITES !== 'undefined' ? SPRITES : {};
 const spriteCache = {};
+// Figures are sized to the same height unless listed here. A crouching pose
+// fills its canvas like a standing one, so it is drawn shorter; Morwen is a
+// hunched old woman.
+const FIGURE_HEIGHT = { nightshade: 0.7, ashen: 0.8 };
 function spriteSet(charId) {
   const data = SPRITE_DATA[charId];
   if (!data) return null;
   if (!spriteCache[charId]) {
     const load = (src) => { const img = new Image(); img.src = src; return img; };
     spriteCache[charId] = Object.fromEntries(Object.entries(data).map(([k, v]) => [k, (Array.isArray(v) ? v : [v]).map(load)]));
+    spriteCache[charId].figureHeight = FIGURE_HEIGHT[charId] || 1;
   }
   const set = spriteCache[charId];
   return set.base?.[0]?.complete && set.base[0].naturalWidth ? set : null;
@@ -664,7 +669,7 @@ export function createArena(canvas) {
     // frame is drawn at the base image's scale around the same centre point.
     const { size, feet } = spriteBox(y, r);
     const fit = spriteFit(set);
-    const scale = (size * 0.88) / fit.height;
+    const scale = (size * 0.88 * set.figureHeight) / fit.height;
     const cy = feet - fit.feet * scale;
     const dw = img.naturalWidth * scale, dh = img.naturalHeight * scale;
     ctx.save();
