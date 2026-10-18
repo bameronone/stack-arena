@@ -18,12 +18,11 @@ const spriteCache = {};
 // none taller than Bram, who holds his weapon overhead so is drawn larger.
 // Medium: everyone else, matched to Haze (her canvas also holds the fan she
 // raises overhead, so she is the 1). Small: Morwen, a hunched old woman.
-// Nightshade's crouch is drawn shorter until her sprite is redone.
 const FIGURE_HEIGHT = {
   grove: 1.1, martyr: 1.1, oathcleaver: 1.09, gravespike: 1.09,
   cinder: 0.82, glacia: 0.81, viper: 0.79, stormseer: 0.82, reaver: 0.79, sage: 0.79,
   duelist: 0.82, snowthorn: 0.81, runevolt: 0.79, dawnfeather: 0.83,
-  ashen: 0.66, nightshade: 0.8,
+  ashen: 0.66, nightshade: 0.85,
 };
 function spriteSet(charId) {
   const data = SPRITE_DATA[charId];
@@ -679,6 +678,12 @@ export function createArena(canvas) {
     const n = frames.length;
     // Idle loops from its first frame each time it comes back, so it picks up
     // from the ready pose the other clips start and end on.
+    // A gladiator with a 'dead' clip loops it at the idle rate once the
+    // death clip ends, instead of holding the death's last frame.
+    if (a.clip === 'death' && set.dead && a.clipT > CLIP.death) {
+      const loop = set.dead[Math.floor((a.clipT - CLIP.death) * 8) % set.dead.length];
+      if (loop?.complete && loop.naturalWidth) return loop;
+    }
     const i = a.clip === 'idle' ? Math.floor(a.clipT * 8) % n
       : Math.min(n - 1, Math.floor((a.clipT / (CLIP[a.clip] || 0.4)) * n));
     return frames[i]?.complete && frames[i].naturalWidth ? frames[i] : set.base[0];
@@ -699,7 +704,7 @@ export function createArena(canvas) {
     const dw = img.naturalWidth * scale, dh = img.naturalHeight * scale;
     ctx.save();
     ctx.imageSmoothingEnabled = false;
-    ctx.globalAlpha = alpha * (u.dead && a.clip === 'death' && a.clipT > CLIP.death ? 0.55 : 1);
+    ctx.globalAlpha = alpha * (u.dead && a.clip === 'death' && a.clipT > CLIP.death && !set.dead ? 0.55 : 1);
     ctx.translate(x, 0);
     if ((flip ? 1 - u.side : u.side) === 1) ctx.scale(-1, 1);
     ctx.drawImage(src, -dw / 2, cy - dh / 2, dw, dh);

@@ -179,15 +179,16 @@ export const LOOKS = {
     frames: { cast: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] },
   },
   nightshade: {
-    description: "masked female assassin in a dark purple bodysuit and a hooded smoke-grey cloak, a needle bandolier across her chest, a fan of long green-tipped needles held between the fingers of her right hand",
-    attack: "flicking her right hand forward to the right and throwing a spread of green-tipped needles, then drawing a new set from her bandolier",
-    // v3 character in its Crouched Throw state, clips animated back to that pose.
+    description: "agile female assassin with her face uncovered, no mask and no hood, sharp features, long black hair tied back in a high ponytail, dark purple fitted bodysuit with a smoke-grey sash and short grey cloak over her shoulders, a bandolier of poison kunai across her chest, a green-tipped kunai in each hand",
+    attack: "reaching back over her shoulder with her left hand to grab a green-tipped kunai from her bandolier, then whipping her left arm forward and throwing the poison kunai to the right so it flies far away to the right across the frame trailing green, then returning to her upright ready stance with empty hands",
+    // v3 character in its Kunai Stance state; PixMiniMax clips from the 176px pose.
     animations: {
-      idle: '5ba01edd-1eac-4874-9760-7aba5f918e52',
-      attack: 'b31a00fa-5f29-4a5f-ba8c-bed9882ad0ce', // right-hand needle flick
-      attack2: 'b298056f-6dc3-4895-a553-fbfe657180c2', // low spin, both hands, smoke puff
-      cast: '8ac92f59-a0c2-4505-b542-fcce20dd5f81', // Smoke Veil
-      death: '1a4fd62a-6f5b-4460-9de5-5b4135113c47', // bursts into smoke, cloak falls
+      idle: '8121f26c-454d-440e-b634-a9a91a9dfe49',
+      attack: '228bfd12-a075-440f-adcb-58468ffd55ab', // left-hand kunai throw, 256px canvas
+      attack2: '6147329c-36c9-4b43-8cf9-5c06120906a5', // right-hand kunai throw, 256px canvas
+      cast: '1e473de5-9fb0-4ca5-a77d-61839bcbe2c2', // Smoke Veil: smoke bomb on the floor
+      death: '92d73f32-efce-4baa-8d96-c87b49271e63', // drops to one knee, fades into a black silhouette
+      dead: '3bd26b29-dda5-473a-92cc-361fd5858d81', // the kneeling silhouette breathing
     },
   },
   dawnfeather: {
