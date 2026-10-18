@@ -70,9 +70,27 @@ export const LOOKS = {
     attack: "heaving the axe off his shoulder and chopping it straight down in front of him to the right with both hands, then hauling it back up onto his shoulder",
   },
   stormseer: {
-    description: "old male storm wizard, thin bearded man with a white blindfold over his eyes, long storm-grey robe with violet runes on the hem, holding a forked iron lightning-rod staff in both hands",
-    attack: "thrusting the forked staff forward to the right, a jagged yellow lightning bolt crackling from the forks, then pulling the staff back",
+    description: "old male lightning wizard, thin bearded arcane mage with a white blindfold over his eyes, long storm-grey robe with glowing violet runes on the hem, a leather pouch on his belt, holding a tall wooden staff topped with a glowing crackling blue-white lightning orb in his right hand",
+    attack: "keeping the staff in his staff hand, he reaches down with his empty free hand into the leather pouch on his belt, pulls out a fistful of crackling blue lightning sparks and hurls them forward to the right at the enemy with that same free hand, then returns to his battle stance",
+    // PixMiniMax clips on the wide-legged "Battle Stance" state (staff upright,
+    // free hand sparking); idle, both attacks and cast return to the pose. The
+    // attacks were generated on 256px canvases (PixelLab's limit) so the sparks
+    // and lightning aren't cut off. attack2 also had the figure 70px left of
+    // centre to give the bolt room, so after `fetch` its frames are padded 140px
+    // on the left to put him back in the centre like the other clips:
+    //   python3 -c "from PIL import Image;import glob
+    //   for f in glob.glob('assets/sprites/stormseer/attack2_*.png'):
+    //     i=Image.open(f);c=Image.new('RGBA',(i.width+140,i.height));c.paste(i,(140,0));c.save(f)"
+    animations: {
+      idle: '895797df-c4f6-479b-8351-76e3c072bbab',
+      attack: 'fa30fedd-fee6-45e1-aa8c-5e29a3840f8e', // right hand to the pouch, sparks thrown
+      attack2: 'f3275ce2-175f-43f9-a7bf-42edd80efed7', // orb blast from the staff
+      cast: '7da81604-78a1-455e-b0be-4a72248ed736', // Thunderclap: staff butt to the ground
+      death: '2e5cbe60-f134-4226-8828-a66cb8bc2b90', // lightning flash, pile of ash
+    },
   },
+
+
   ashen: {
     // v3 character in its Hunched Casting Stance state; PixMiniMax clips from the
     // pose padded to 176px, all but death animated back to that pose.
