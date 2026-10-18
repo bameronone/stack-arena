@@ -24,6 +24,10 @@ const FIGURE_HEIGHT = {
   duelist: 0.82, snowthorn: 0.81, runevolt: 0.79, dawnfeather: 0.83,
   ashen: 0.66, nightshade: 0.85,
 };
+// Deaths that keep moving once the clip ends: from this frame to the last,
+// played back and forth at the idle rate, at full opacity. Nightshade's
+// silhouette sways instead of freezing.
+const DEATH_LOOP = { nightshade: 7 };
 function spriteSet(charId) {
   const data = SPRITE_DATA[charId];
   if (!data) return null;
@@ -31,6 +35,7 @@ function spriteSet(charId) {
     const load = (src) => { const img = new Image(); img.src = src; return img; };
     spriteCache[charId] = Object.fromEntries(Object.entries(data).map(([k, v]) => [k, (Array.isArray(v) ? v : [v]).map(load)]));
     spriteCache[charId].figureHeight = FIGURE_HEIGHT[charId] || 1;
+    spriteCache[charId].deathLoop = DEATH_LOOP[charId];
   }
   const set = spriteCache[charId];
   return set.base?.[0]?.complete && set.base[0].naturalWidth ? set : null;
@@ -678,8 +683,13 @@ export function createArena(canvas) {
     const n = frames.length;
     // Idle loops from its first frame each time it comes back, so it picks up
     // from the ready pose the other clips start and end on.
-    const i = a.clip === 'idle' ? Math.floor(a.clipT * 8) % n
+    let i = a.clip === 'idle' ? Math.floor(a.clipT * 8) % n
       : Math.min(n - 1, Math.floor((a.clipT / (CLIP[a.clip] || 0.4)) * n));
+    const from = a.clip === 'death' ? set.deathLoop : undefined;
+    if (from != null && a.clipT > CLIP.death) {
+      const span = n - 1 - from, step = Math.floor((a.clipT - CLIP.death) * 8) % (2 * span);
+      i = n - 1 - (step <= span ? step : 2 * span - step);
+    }
     return frames[i]?.complete && frames[i].naturalWidth ? frames[i] : set.base[0];
   }
 
@@ -698,7 +708,7 @@ export function createArena(canvas) {
     const dw = img.naturalWidth * scale, dh = img.naturalHeight * scale;
     ctx.save();
     ctx.imageSmoothingEnabled = false;
-    ctx.globalAlpha = alpha * (u.dead && a.clip === 'death' && a.clipT > CLIP.death ? 0.55 : 1);
+    ctx.globalAlpha = alpha * (u.dead && a.clip === 'death' && a.clipT > CLIP.death && set.deathLoop == null ? 0.55 : 1);
     ctx.translate(x, 0);
     if ((flip ? 1 - u.side : u.side) === 1) ctx.scale(-1, 1);
     ctx.drawImage(src, -dw / 2, cy - dh / 2, dw, dh);
