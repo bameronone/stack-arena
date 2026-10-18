@@ -97,6 +97,14 @@ export const LOOKS = {
   duelist: {
     description: "proud female fencer, lean woman in a dark steel half-cuirass over a white shirt, short cropped hair, a thin rapier in her right hand with a glowing white-hot tip",
     attack: "lunging far forward to the right with a long straight rapier thrust, front knee bent deep, leaving a streak of heat and sparks, then recovering back en garde",
+    // PixMiniMax clips on the En Garde state, animated from and back to its pose.
+    animations: {
+      idle: '165a112a-e9a7-46a7-ac70-968ce7325b9d',
+      attack: 'e5c9974f-c236-4cf6-9053-a87b8cd95eaf', // long lunge
+      attack2: '1d7ba908-f885-41bb-a490-0e027e7feebe', // two diagonal slashes
+      cast: 'd0185d21-fb94-4ccd-9cfa-c4ce9f65c382', // Lunge, from the pose padded to 256x256 so the fire trail isn't cut off
+      death: 'e8368b9c-ea34-46d8-a795-53480fe51a04', // rapier snaps, falls sideways
+    },
   },
   snowthorn: {
     // Sigrun: v3 character in its Archer's Stance state, clips animated with
@@ -131,6 +139,14 @@ export const LOOKS = {
   nightshade: {
     description: "masked female assassin in a dark purple bodysuit and a hooded smoke-grey cloak, a needle bandolier across her chest, a fan of long green-tipped needles held between the fingers of her right hand",
     attack: "flicking her right hand forward to the right and throwing a spread of green-tipped needles, then drawing a new set from her bandolier",
+    // v3 character in its Crouched Throw state, clips animated back to that pose.
+    animations: {
+      idle: '5ba01edd-1eac-4874-9760-7aba5f918e52',
+      attack: 'b31a00fa-5f29-4a5f-ba8c-bed9882ad0ce', // right-hand needle flick
+      attack2: 'b298056f-6dc3-4895-a553-fbfe657180c2', // low spin, both hands, smoke puff
+      cast: '8ac92f59-a0c2-4505-b542-fcce20dd5f81', // Smoke Veil
+      death: '1a4fd62a-6f5b-4460-9de5-5b4135113c47', // bursts into smoke, cloak falls
+    },
   },
   dawnfeather: {
     description: "graceful female dancer with a long cape of gold and flame-coloured feathers, golden skin, barefoot, flowing red-gold hair, a curved golden sickle in each hand",
