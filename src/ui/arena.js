@@ -14,8 +14,9 @@ const SELF_STACKS = ['fire', 'shield', 'regen', 'arcane', 'lightning', 'armor'];
 const SPRITE_DATA = typeof SPRITES !== 'undefined' ? SPRITES : {};
 const spriteCache = {};
 // Figures are sized to the same height unless listed here. A crouching pose
-// fills its canvas like a standing one, so it is drawn shorter.
-const FIGURE_HEIGHT = { nightshade: 0.8 };
+// fills its canvas like a standing one, so it is drawn shorter; Morwen is a
+// hunched old woman.
+const FIGURE_HEIGHT = { nightshade: 0.8, ashen: 0.8 };
 function spriteSet(charId) {
   const data = SPRITE_DATA[charId];
   if (!data) return null;

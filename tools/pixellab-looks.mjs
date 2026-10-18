@@ -66,8 +66,17 @@ export const LOOKS = {
     attack: "thrusting the forked staff forward to the right, a jagged yellow lightning bolt crackling from the forks, then pulling the staff back",
   },
   ashen: {
+    // v3 character in its Hunched Casting Stance state; PixMiniMax clips from the
+    // pose padded to 176px, all but death animated back to that pose.
     description: "hunched old female witch in layered soot-black rags, glowing ember-orange eyes, long tangled grey hair, a smoking brass censer on a chain held in her right hand leaking green fumes",
     attack: "swinging the censer forward to the right on its chain in an underhand arc, a burst of green smoke and orange embers spilling out, then letting it swing back",
+    animations: {
+      idle: '7f527579-8343-417e-8873-32b86d083b02',
+      attack: '4eb50ec7-2cd2-40a8-85f9-b885982ce862', // underhand censer swing
+      attack2: 'fa356cfe-5a82-435e-ae1a-97ff12cde419', // whirl and fling green ash
+      cast: '544bc293-5dfd-41ff-9a3b-7481b8ab354b', // Cinderplague
+      death: '37aafc09-76b5-4391-bdc8-842a7e72d0fe', // crumbles into ash
+    },
   },
   sage: {
     description: "broad-shouldered female battle-mage in a violet long coat with gold trim, short dark hair, a glowing gold hexagonal shield on her left forearm and a short rune-carved rod in her right hand",
