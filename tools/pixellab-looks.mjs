@@ -130,6 +130,14 @@ export const LOOKS = {
   runevolt: {
     description: "young male swordsman, lean man in a dark sleeveless tunic, glowing violet runes along his bare right arm, short spiky hair, a straight longsword etched with glowing glyphs in his right hand",
     attack: "slashing the sword in a fast diagonal arc from high down to the right, the blade trailing violet and yellow lightning, then returning to guard",
+    // v3 character in its One-Handed Guard state; PixMiniMax clips from the 176px pose.
+    animations: {
+      idle: 'f7fe0807-65cd-4343-8181-1c671cfdc348',
+      attack: '68f15840-1d3d-4370-98b1-b1213af4efd1', // diagonal lightning slash
+      attack2: '69146099-2c55-4267-a9ad-4115fc248077', // thrust that fires a bolt
+      cast: 'e253486e-877a-4785-92f0-1a02754425cf', // Runic Discharge
+      death: '59059cba-9e93-4606-8662-89089918a35a', // runes flare, falls backward still holding the sword
+    },
   },
   wisp: {
     description: "slight female dancer in flowing pale blue and orange scarves, barefoot, long white hair, a folded war fan in each hand, one frost-blue and one ember-orange",
