@@ -204,5 +204,13 @@ export const LOOKS = {
   gravespike: {
     description: "grim male gravedigger-knight in black iron armor, bone spikes jutting from his shoulders, pale gaunt face, a long spiked shovel-spear held in both hands",
     attack: "driving the shovel-spear forward to the right in a hard two-handed thrust, then yanking it back into his guard",
+    // PixMiniMax clips on his Low Guard state, made per docs/sprites.md.
+    animations: {
+      idle: '1521048e-3c83-4a86-88c5-065b1ca18e26',
+      attack: '268ea73c-ba78-4360-9ced-4ec4fc1bf5dd', // two-handed thrust
+      attack2: '02bda6a4-2d22-42b5-aeed-64c236129259', // scooping dig
+      cast: '0f566007-9b5f-4716-9733-a6f93cb01817', // Grave Sentence: bone spikes burst up
+      death: '96ef5cb2-ed04-4f84-b0f0-1ba802fb08e9', // crumbles into a mound of earth
+    },
   },
 };
