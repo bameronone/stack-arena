@@ -66,12 +66,29 @@ export const LOOKS = {
     attack: "thrusting the forked staff forward to the right, a jagged yellow lightning bolt crackling from the forks, then pulling the staff back",
   },
   ashen: {
+    // v3 character in its Hunched Casting Stance state; PixMiniMax clips from the
+    // pose padded to 176px, all but death animated back to that pose.
     description: "hunched old female witch in layered soot-black rags, glowing ember-orange eyes, long tangled grey hair, a smoking brass censer on a chain held in her right hand leaking green fumes",
     attack: "swinging the censer forward to the right on its chain in an underhand arc, a burst of green smoke and orange embers spilling out, then letting it swing back",
+    animations: {
+      idle: '7f527579-8343-417e-8873-32b86d083b02',
+      attack: '4eb50ec7-2cd2-40a8-85f9-b885982ce862', // underhand censer swing
+      attack2: 'fa356cfe-5a82-435e-ae1a-97ff12cde419', // whirl and fling green ash
+      cast: '544bc293-5dfd-41ff-9a3b-7481b8ab354b', // Cinderplague
+      death: '37aafc09-76b5-4391-bdc8-842a7e72d0fe', // crumbles into ash
+    },
   },
   sage: {
     description: "broad-shouldered female battle-mage in a violet long coat with gold trim, short dark hair, a glowing gold hexagonal shield on her left forearm and a short rune-carved rod in her right hand",
     attack: "shoving the gold hex shield forward to the right, a wave of golden light bursting from its face, then pulling it back into guard",
+    // v3 character in its Shield Guard state, clips animated from the padded pose (docs/sprites.md).
+    animations: {
+      idle: '98b93fc5-0344-4d01-b1de-09aa44b6707e',
+      attack: '52109a4a-0cf9-441b-af34-d183e8b67829', // shield bash
+      attack2: 'ea5b25ac-c5b3-4c68-8192-891b5cd9263b', // rod bolt
+      cast: '77113191-7e2a-4fc7-bdb3-bbd42f33b414', // Arcane Barrier
+      death: '0dcb95af-02db-424c-ab69-9c45c06b41cd', // shatters into sparks
+    },
   },
   viper: {
     description: "wiry male assassin in tight green and black scaled leather, hood shaped like a snake's head, lower face masked, a curved dagger in each hand, the left blade dripping green and the right dripping red",
@@ -88,6 +105,14 @@ export const LOOKS = {
   duelist: {
     description: "proud female fencer, lean woman in a dark steel half-cuirass over a white shirt, short cropped hair, a thin rapier in her right hand with a glowing white-hot tip",
     attack: "lunging far forward to the right with a long straight rapier thrust, front knee bent deep, leaving a streak of heat and sparks, then recovering back en garde",
+    // PixMiniMax clips on the En Garde state, animated from and back to its pose.
+    animations: {
+      idle: '165a112a-e9a7-46a7-ac70-968ce7325b9d',
+      attack: 'e5c9974f-c236-4cf6-9053-a87b8cd95eaf', // long lunge
+      attack2: '1d7ba908-f885-41bb-a490-0e027e7feebe', // two diagonal slashes
+      cast: 'd0185d21-fb94-4ccd-9cfa-c4ce9f65c382', // Lunge, from the pose padded to 256x256 so the fire trail isn't cut off
+      death: 'e8368b9c-ea34-46d8-a795-53480fe51a04', // rapier snaps, falls sideways
+    },
   },
   snowthorn: {
     // Sigrun: v3 character in its Archer's Stance state, clips animated with
@@ -111,10 +136,8 @@ export const LOOKS = {
       attack: '68f15840-1d3d-4370-98b1-b1213af4efd1', // diagonal lightning slash
       attack2: '69146099-2c55-4267-a9ad-4115fc248077', // thrust that fires a bolt
       cast: 'e253486e-877a-4785-92f0-1a02754425cf', // Runic Discharge
-      death: 'ecf2bb71-9611-4792-aad3-1713e83e3a90', // runes flare, falls backward
+      death: '59059cba-9e93-4606-8662-89089918a35a', // runes flare, falls backward still holding the sword
     },
-    // The last two death frames lose his body and leave only the sword; hold on him lying down.
-    frames: { death: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13] },
   },
   wisp: {
     description: "slight female dancer in flowing pale blue and orange scarves, barefoot, long white hair, a folded war fan in each hand, one frost-blue and one ember-orange",
@@ -132,8 +155,25 @@ export const LOOKS = {
   nightshade: {
     description: "masked female assassin in a dark purple bodysuit and a hooded smoke-grey cloak, a needle bandolier across her chest, a fan of long green-tipped needles held between the fingers of her right hand",
     attack: "flicking her right hand forward to the right and throwing a spread of green-tipped needles, then drawing a new set from her bandolier",
+    // v3 character in its Crouched Throw state, clips animated back to that pose.
+    animations: {
+      idle: '5ba01edd-1eac-4874-9760-7aba5f918e52',
+      attack: 'b31a00fa-5f29-4a5f-ba8c-bed9882ad0ce', // right-hand needle flick
+      attack2: 'b298056f-6dc3-4895-a553-fbfe657180c2', // low spin, both hands, smoke puff
+      cast: '8ac92f59-a0c2-4505-b542-fcce20dd5f81', // Smoke Veil
+      death: '1a4fd62a-6f5b-4460-9de5-5b4135113c47', // bursts into smoke, cloak falls
+    },
   },
   dawnfeather: {
+    // v3 character in its Winged Stance state, clips animated from that pose
+    // padded to 176x176 (docs/sprites.md).
+    animations: {
+      idle: '14b25fda-cedb-4e53-bc0e-c8ee13e2f995',
+      attack: 'e4fc080f-d5d9-4ecf-b8b6-64d1d7c7235f', // spinning slash
+      attack2: '010b6712-52c8-488f-9566-5c269e7a50e3', // diving strike
+      cast: '2142d7a4-bf6c-4e5e-8b16-0e72ca3005d6', // Phoenix Waltz
+      death: 'aa00e3c1-3c56-4876-8e69-688993d357fd', // burns to ash, a sprout rises
+    },
     description: "graceful female dancer with a long cape of gold and flame-coloured feathers, golden skin, barefoot, flowing red-gold hair, a curved golden sickle in each hand",
     attack: "spinning forward to the right with both sickles slashing in a circle, the feather cape whirling out in a ring of fire, ending back in her winged stance",
   },
