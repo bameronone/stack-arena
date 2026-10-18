@@ -88,6 +88,14 @@ export const LOOKS = {
   duelist: {
     description: "proud female fencer, lean woman in a dark steel half-cuirass over a white shirt, short cropped hair, a thin rapier in her right hand with a glowing white-hot tip",
     attack: "lunging far forward to the right with a long straight rapier thrust, front knee bent deep, leaving a streak of heat and sparks, then recovering back en garde",
+    // PixMiniMax clips on the En Garde state, animated from and back to its pose.
+    animations: {
+      idle: '165a112a-e9a7-46a7-ac70-968ce7325b9d',
+      attack: 'e5c9974f-c236-4cf6-9053-a87b8cd95eaf', // long lunge
+      attack2: '1d7ba908-f885-41bb-a490-0e027e7feebe', // two diagonal slashes
+      cast: 'd0185d21-fb94-4ccd-9cfa-c4ce9f65c382', // Lunge, from the pose padded to 256x256 so the fire trail isn't cut off
+      death: 'e8368b9c-ea34-46d8-a795-53480fe51a04', // rapier snaps, falls sideways
+    },
   },
   snowthorn: {
     // Sigrun: v3 character in its Archer's Stance state, clips animated with
@@ -138,6 +146,14 @@ export const LOOKS = {
   martyr: {
     description: "massive male gladiator in dented, patched plate armor with no helmet, scarred bald head, thick beard, a huge tower shield of riveted scrap metal on his left arm and a short iron mace in his right hand",
     attack: "slamming the tower shield forward to the right in a heavy bash with his whole body, then pulling it back and planting it again",
+    // PixMiniMax clips on his Braced Stance state, animated from the 176px pose.
+    animations: {
+      idle: '7e7029ad-45b5-4f8b-b128-4a959c90fbb1',
+      attack: '3bd5214d-f362-4fab-acba-88df1271456f', // shield bash
+      attack2: '76b64f1e-c6fb-4dd6-bb2b-998066e6a172', // mace over the shield
+      death: '01d601fe-6e28-405d-a3fb-adf3a6421e98', // topples onto his shield
+      cast: 'b18f56d4-2339-47c3-88a8-9f1c97f14e0e', // Martyrdom: golden dome
+    },
   },
   grove: {
     description: "towering half-man half-tree warden, body of rough brown bark with mossy green patches, thick moss beard, leafy branches on his shoulders, a gnarled wooden club held in both hands",
