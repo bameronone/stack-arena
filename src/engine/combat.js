@@ -39,9 +39,14 @@ export const GRIT = { at: 0.3, window: 2, dur: 1.5, cut: 0.5, cd: 6 };
 export const BOLT_AT = 10;
 export const BOLT = { base: 40, step: 5, maxSteps: 20, stutter: 0.25, maxDelay: 0.5 };
 // Fire: +FIRE.as attack speed per stack. Reaching your Fire cap sets off
-// Afterburner: all your Fire burns out in a blast of FIRE.blast damage per
-// stack, and you attack FIRE.rush faster for FIRE.rushDur seconds.
-export const FIRE = { cap: 40, as: 0.01, blast: 5, rush: 0.5, rushDur: 3 };
+// Afterburner: all your Fire burns out and for FIRE.rushDur seconds (longer
+// if you burned more than FIRE.cap) you attack FIRE.rush faster and each hit
+// scorches for FIRE.scorch of its damage again.
+export const FIRE = { cap: 40, as: 0.01, rush: 1, rushDur: 3, scorch: 0.3 };
+// Arcane gives ability power for at most this many stacks.
+export const ARCANE_CAP = 25;
+// Attack damage each Strike card gives.
+export const STRIKE_AD = 0.03;
 // Toxin and Bleed lose DOT_DECAY of their stacks every DOT_EVERY seconds.
 export const DOT_DECAY = 1 / 3;
 export const DOT_EVERY = 2;
@@ -103,9 +108,8 @@ export function buildUnit(loadout, side) {
 
   // Trigger tag passives: owning cards of a trigger makes that trigger happen.
   const tc = u.tagCounts;
-  u.asBonus += 0.01 * (tc.strike || 0);
   u.crit += 0.01 * (tc.precision || 0);
-  u.focusGain += 0.03 * (tc.evasion || 0);
+  u.focusGain += 0.05 * (tc.evasion || 0);
   u.painStep -= 0.005 * (tc.pain || 0);
   u.maxHp += HEALTH_PER_CARD * (tc.pain || 0);
   u.manaPerAttack += 0.5 * (tc.spell || 0);
@@ -116,9 +120,10 @@ export function buildUnit(loadout, side) {
     if (src.every) u.timers.push({ interval: src.every[0], fn: src.every[1], n, acc: 0 });
   }
 
-  if (u.flags.titan) { u.maxHp *= 1.6; u.asBase *= 0.8; u.hooks.bonusDamage.push({ fn: (f, x) => x.baseHp * 0.03, n: 1 }); }
+  if (u.flags.titan) { u.maxHp *= 1.6; u.asBase *= 0.8; u.hooks.bonusDamage.push({ fn: (f, x) => x.baseHp * 0.02, n: 1 }); }
   if (u.flags.bullseye) u.crit *= 2;
-  if (u.flags.tempest) u.boltAt = Math.max(3, Math.round(u.boltAt / 2));
+  u.ad *= 1 + STRIKE_AD * (tc.strike || 0);
+  if (u.flags.tempest) u.boltAt = Math.max(3, Math.round(u.boltAt * 2 / 3));
   u.crit = Math.min(u.crit, 0.95);
   // Effects worth "x% of max HP" (bleed, regen, shields...) use baseHp, the
   // HP before round scaling, so they don't grow faster than everything else.
@@ -261,19 +266,16 @@ export class Fight {
     }
   }
 
-  // Afterburner: your Fire hit its cap. It all burns out in one blast, and
-  // you attack much faster for a moment.
+  // Afterburner: your Fire hit its cap. It all burns out at once and you
+  // go into a frenzy of much faster, scorching attacks.
   afterburner(u) {
-    if (u.dead || u.burning) return;
-    u.burning = true;
+    if (u.dead) return;
     const burned = u.fire;
     u.fire = 0;
     u.afterburners++;
     u.stats.afterburners++;
-    u.rush = FIRE.rushDur;
+    u.rush = FIRE.rushDur * Math.max(1, burned / FIRE.cap) * Math.max(0, u.enemy.m.afterburnTaken);
     this.emit('afterburner', u, { burned });
-    this.damage(u, u.enemy, FIRE.blast * burned * Math.max(0, u.enemy.m.afterburnTaken), 'ability', { source: 'Afterburner' });
-    u.burning = false;
   }
 
   antiheal(u) {
@@ -361,7 +363,7 @@ export class Fight {
     this.tally(src, 'dmg', source, amt);
     src.stats.byKind[kind] = (src.stats.byKind[kind] || 0) + amt;
     tgt.stats.taken += amt;
-    if (kind === 'attack' || kind === 'ability' || kind === 'thorns') this.emit('dmg', tgt, { amt, kind, crit: !!info.crit });
+    if (kind === 'attack' || kind === 'ability' || kind === 'thorns') this.emit('dmg', tgt, { amt, kind, crit: !!info.crit, source: info.source });
 
     // Pain triggers
     tgt.painAcc += amt;
@@ -377,7 +379,7 @@ export class Fight {
     }
     if (tgt.flags.lastStand && !tgt.used.lastStand && tgt.hp > 0 && tgt.hp < tgt.maxHp * 0.3) {
       tgt.used.lastStand = true;
-      for (let i = 0; i < 5; i++) this.run(tgt, 'onPain');
+      for (let i = 0; i < 3; i++) this.run(tgt, 'onPain');
       tgt.immune = 1;
       this.emit('immune', tgt);
     }
@@ -454,6 +456,7 @@ export class Fight {
       a.stats.crits++;
     }
     const dealt = this.damage(a, d, dmg, 'attack', { crit });
+    if (a.rush > 0 && !d.dead) this.damage(a, d, dealt * FIRE.scorch, 'ability', { source: 'Afterburner' });
     const hit = { crit, dmg: dealt };
     this.emit('attack', a, { crit });
     this.run(a, 'onHit', hit);
@@ -464,7 +467,7 @@ export class Fight {
   cast(u) {
     u.castCount++;
     u.stats.casts++;
-    const power = u.m.abilityPower * (1 + u.arcane * u.arcaneValue + (u.flags.spellfire ? u.fire * 0.01 : 0));
+    const power = u.m.abilityPower * (1 + Math.min(u.arcane, ARCANE_CAP) * u.arcaneValue + (u.flags.spellfire ? u.fire * 0.01 : 0));
     this.emit('cast', u, { name: u.char.ability.name });
     u.char.ability.cast(this, u, power);
     if (u.flags.spellEcho && u.castCount % 3 === 0) u.char.ability.cast(this, u, power * 0.5);
