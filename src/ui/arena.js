@@ -17,10 +17,11 @@ const spriteCache = {};
 // fills its canvas like a standing one, so it is drawn shorter; Morwen is a
 // hunched old woman. The big armored brutes (Anvil, Aldric, Mordrek, Bram)
 // hold weapons over their heads, which shrank their bodies, so they are drawn
-// larger; slight fighters that came out oversized are drawn a little smaller.
+// larger, but no one stands taller than Bram: the others' idle poses top out
+// at his height. Slight fighters that came out oversized are drawn smaller.
 const FIGURE_HEIGHT = {
   nightshade: 0.8, ashen: 0.8,
-  martyr: 1.22, oathcleaver: 1.2, gravespike: 1.12, grove: 1.1,
+  martyr: 1.1, oathcleaver: 1.09, gravespike: 1.09, grove: 1.1,
   cinder: 0.9, dawnfeather: 0.88, glacia: 0.92, sage: 0.9, runevolt: 0.92, viper: 0.92,
 };
 function spriteSet(charId) {
