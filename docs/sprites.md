@@ -14,8 +14,9 @@ The game needs four clips per gladiator, all facing east (right):
 | `attack` | one swing, ends back in the idle pose | yes |
 | `attack2` | a second swing; the arena alternates `attack` and `attack2` | no |
 | `death` | plays once and holds its last frame | yes |
+| `dead` | loops at the idle rate after `death` ends, instead of holding its last frame, at full opacity | no |
 
-`hurt` and `cast` are optional. A gladiator without them keeps playing its
+`hurt`, `cast` and `dead` are optional. A gladiator without them keeps playing its
 current clip.
 
 ## 1. Make the character (`create_character`, v3)

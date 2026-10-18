@@ -180,14 +180,15 @@ export const LOOKS = {
   },
   nightshade: {
     description: "agile female assassin with her face uncovered, no mask and no hood, sharp features, long black hair tied back in a high ponytail, dark purple fitted bodysuit with a smoke-grey sash and short grey cloak over her shoulders, a bandolier of poison kunai across her chest, a green-tipped kunai in each hand",
-    attack: "reaching back over her shoulder with her left hand to grab a green-tipped kunai from her bandolier, then whipping her left arm forward and throwing the poison kunai to the right so it flies away trailing green, then returning to her upright ready stance with empty hands",
+    attack: "reaching back over her shoulder with her left hand to grab a green-tipped kunai from her bandolier, then whipping her left arm forward and throwing the poison kunai to the right so it flies far away to the right across the frame trailing green, then returning to her upright ready stance with empty hands",
     // v3 character in its Kunai Stance state; PixMiniMax clips from the 176px pose.
     animations: {
       idle: '8121f26c-454d-440e-b634-a9a91a9dfe49',
-      attack: '3252489a-6a5e-41f4-9e63-2ee9e9e93f05', // left-hand kunai throw
-      attack2: 'db46ef9d-b6db-4f1d-94bb-8b54cb4a589d', // right-hand kunai throw
+      attack: '228bfd12-a075-440f-adcb-58468ffd55ab', // left-hand kunai throw, 256px canvas
+      attack2: '6147329c-36c9-4b43-8cf9-5c06120906a5', // right-hand kunai throw, 256px canvas
       cast: '1e473de5-9fb0-4ca5-a77d-61839bcbe2c2', // Smoke Veil: smoke bomb on the floor
-      death: '25455383-6d32-45cf-aa19-f519420f61f8', // fades into a black silhouette with glowing eyes
+      death: '92d73f32-efce-4baa-8d96-c87b49271e63', // drops to one knee, fades into a black silhouette
+      dead: '3bd26b29-dda5-473a-92cc-361fd5858d81', // the kneeling silhouette breathing
     },
   },
   dawnfeather: {
