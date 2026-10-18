@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Fight } from '../src/engine/combat.js';
+import { Fight, attackSpeedOf } from '../src/engine/combat.js';
 import { CARDS } from '../src/data/cards.js';
 import { CHARACTERS, CHAR_BY_ID, characterStatus } from '../src/data/characters.js';
 import { createMatch, submitBan, pickCharacter, buy, reroll, visibleCharacters } from '../src/engine/match.js';
@@ -125,16 +125,21 @@ test('bolts stutter the enemy swing instead of resetting it', () => {
   assert.ok(f.b.attackTimer >= -0.5, 'never more than half a swing behind');
 });
 
-test('Afterburner burns out all Fire at the cap', () => {
-  const f = new Fight({ charId: 'cinder', cards: {} }, { charId: 'martyr', cards: {} }, 1);
+test('Afterburner burns out all Fire at the cap into a frenzy of scorching attacks', () => {
+  const f = new Fight({ charId: 'cinder', cards: {} }, { charId: 'nightshade', cards: {} }, 1);
   const hp = f.b.hp;
+  const as = attackSpeedOf(f.a);
   f.gain(f.a, 'fire', 39);
   assert.equal(f.a.afterburners, 0);
   f.gain(f.a, 'fire', 1);
   assert.equal(f.a.afterburners, 1);
   assert.equal(f.a.fire, 0);
-  assert.ok(f.a.rush > 0);
-  assert.ok(hp - f.b.hp > 100);
+  assert.equal(f.a.rush, 3);
+  assert.equal(f.b.hp, hp, 'no blast');
+  assert.ok(attackSpeedOf(f.a) > as * 1.5, 'much faster even with its Fire gone');
+  f.b.focus = 0;
+  f.attack(f.a);
+  assert.ok(f.a.stats.dmg.Afterburner > 0, 'hits scorch');
 });
 
 test('Toxin and Bleed lose a third of their stacks every 2 seconds', () => {
@@ -295,4 +300,13 @@ test('round HP scaling is the same for every fighter, whoever owns it', async ()
     const u5 = buildUnit({ charId: c.id, cards: {}, round: 5 }, 1);
     assert.equal(u5.maxHp, Math.round(u1.maxHp * hpScale(5)));
   }
+});
+
+test('base HP follows body type: every brawny gladiator outlasts every medium one, and medium outlasts slight', async () => {
+  const { HP_BANDS } = await import('../src/data/characters.js');
+  for (const c of CHARACTERS) {
+    const [lo, hi] = HP_BANDS[c.body];
+    assert.ok(c.stats.hp >= lo && c.stats.hp <= hi, `${c.name} ${c.stats.hp} outside ${c.body} band`);
+  }
+  assert.ok(HP_BANDS.brawny[0] > HP_BANDS.medium[1] && HP_BANDS.medium[0] > HP_BANDS.slight[1]);
 });

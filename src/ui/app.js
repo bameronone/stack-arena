@@ -527,7 +527,7 @@ function renderBan() {
 
 function charStats(c) {
   const s = { hp: 1800, ad: 30, as: 1.0, crit: 0.05, manaMax: 100, ...c.stats };
-  return `${s.hp} HP · ${s.ad} damage · ${s.as.toFixed(2)} attacks/s · ${Math.round(s.crit * 100)}% crit · ${s.manaMax} mana${s.focusGain ? ` · +${+(s.focusGain * 100).toFixed(1)}% Focus per hit taken` : ''}`;
+  return `${s.hp} HP · ${s.ad} damage · ${s.as.toFixed(2)} attacks/s · ${Math.round(s.crit * 100)}% crit · ${s.manaMax} mana${s.ap && s.ap !== 1 ? ` · ${Math.round(s.ap * 100)}% ability power` : ''}${s.focusGain ? ` · +${+(s.focusGain * 100).toFixed(1)}% Focus per hit taken` : ''}`;
 }
 
 function charInfo(c) {

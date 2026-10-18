@@ -148,7 +148,7 @@ export function createArena(canvas) {
       case 'dmg':
         anim[ev.side].flash = 1;
         if (anim[ev.side].clip === 'idle') startClip(anim[ev.side], 'hurt');
-        float(ev.side, Math.round(ev.amt) + (ev.crit ? '!' : ''), ev.crit ? '#f2d16b' : ev.kind === 'ability' ? '#b59cf0' : ev.kind === 'thorns' ? '#a8a39a' : '#e9dcc0', ev.crit ? 22 : ev.kind === 'ability' ? 19 : 15);
+        float(ev.side, Math.round(ev.amt) + (ev.crit ? '!' : ''), ev.crit ? '#f2d16b' : ev.source === 'Afterburner' ? TAGS.fire.color : ev.kind === 'ability' ? '#b59cf0' : ev.kind === 'thorns' ? '#a8a39a' : '#e9dcc0', ev.crit ? 22 : ev.kind === 'ability' ? 19 : 15);
         break;
       case 'dodge': a.dodge = 1; a.dodgeDir = -a.dodgeDir; float(ev.side, 'DODGE', TAGS.evasion.color, 15, -10); break;
       case 'freeze': float(ev.side, 'FROZEN', TAGS.frost.color, 18, -18); shards(ev.side); break;
@@ -252,6 +252,7 @@ export function createArena(canvas) {
       a.dodge = Math.max(0, a.dodge - dt * 2.2 * pace);
       a.stutter = Math.max(0, a.stutter - dt * 3);
       if (u && !u.dead) spawnStatus(u, a, dt);
+      if (u && !u.dead && u.rush > 0) rushFlames(side, dt);
     }
     for (const f of floaters) { f.life -= dt * 0.9; f.y -= dt * 38; }
     floaters = floaters.filter((f) => f.life > 0);
@@ -319,6 +320,16 @@ export function createArena(canvas) {
     }
     rings.push({ side, life: 1 });
     anim[side].flash = 1;
+  }
+  // While Afterburner lasts the fighter is wreathed in fire.
+  function rushFlames(side, dt) {
+    if (reduceMotion) return;
+    const p = pos(side), r = radius(side);
+    const feet = p.y + r * 1.05;
+    for (let n = Math.random() < dt * 60 ? 2 : 1; n > 0; n--) {
+      const rx = (Math.random() - 0.5) * r * 1.3;
+      fx.push({ kind: 'flame', x: p.x + rx, y: feet - Math.random() * r * 2.2, vx: (Math.random() - 0.5) * 20, vy: -60 - Math.random() * 60, size: 3 + Math.random() * 4, ttl: 0.5, life: 1, color: Math.random() < 0.3 ? '#ffd27a' : TAGS.fire.color });
+    }
   }
   function drawRings(dt) {
     for (const g of rings) {
@@ -812,6 +823,7 @@ export function createArena(canvas) {
     let tint = null;
     if (u.frozen > 0) tint = ['#6cc4f0', 0.5];
     else if (a.flash > 0) tint = ['#ff4a5a', a.flash * 0.55];
+    else if (u.rush > 0) tint = [TAGS.fire.color, 0.22 + 0.1 * Math.sin(clock * 18)];
     else if (u.poison >= 1) tint = [TAGS.poison.color, Math.min(0.35, 0.1 + u.poison / 120) * (0.75 + 0.25 * Math.sin(clock * 4))];
     else if (u.frost >= 1) tint = ['#9fdcff', Math.min(0.3, u.frost / 50)];
     figure(x, y, { tint });

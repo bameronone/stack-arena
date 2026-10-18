@@ -20,9 +20,9 @@
 ## Triggers and resources
 
 - **Triggers** (Strike, Precision, Evasion, Health, Spell) decide when stacks are gained. Owning cards with a trigger tag makes that trigger happen more often:
-  - Strike: +1% attack speed per card
+  - Strike: +3% attack damage per card
   - Precision: +1% crit per card
-  - Evasion: +3% Focus per hit taken per card
+  - Evasion: +5% Focus per hit taken per card
   - Health (internally `pain`, formerly Wounded): +5 max HP per card, and "When hurt" fires every 12% of max HP lost, 0.5% sooner per card (min 4%). The max-HP cards (Hearty, Juggernaut, Titan) are Health cards.
   - Spell: +0.5 mana per attack per card
 - **Resources** (Fire, Frost, Toxin, Bleed, Shield, Regen, Arcane, Lightning, Armor) decide what stacks do. Arcane was called Mana; it was renamed so it isn't confused with the mana bar every gladiator fills to cast.
@@ -30,7 +30,7 @@
   - Toxin (internally `poison`, formerly Poison) goes through Armor but Shield blocks it. It no longer cuts healing.
   - Regen heals 0.2% of base max HP per second per stack. Every 5% of base max HP healed, from any source, fires "On heal" (Sap Ward, Bloom Burst, Evergreen).
   - Gaining Fire melts the same number of Frost stacks on you.
-  - Fire: +1% attack speed per stack, up to 40 (your Fire cap). Reaching the cap sets off **Afterburner**: all your Fire burns out in a blast of 5 ability damage per stack, and you attack 50% faster for 3s. Stoke and Wildheart raise the cap (later, bigger Afterburner); Cooling Draught cuts Afterburner damage taken.
+  - Fire: +1% attack speed per stack, up to 40 (your Fire cap). Reaching the cap sets off **Afterburner**: all your Fire burns out and for 3s you attack twice as fast and every hit scorches for another 30% of its damage. Burning more than 40 (Stoke, Wildheart) makes it last longer; Cooling Draught makes the enemy's shorter.
   - Toxin and Bleed lose a third of their stacks every 2 seconds (Deep Cuts and Arterial Strike slow or stop it for Bleed).
 - **Generator cards** pair a trigger with a resource and always fire. There's one for every one of the 40 trigger-resource pairs. Cards with only a resource tag that make stacks fire 30% of the time, or run on a slow timer.
 
@@ -44,7 +44,7 @@
 ## Evasion (Focus)
 
 - Dodge chance starts at 0.
-- Each hit you take adds your Focus gain (10% innate on Haze, 4.5% on Nightshade, +3% per Evasion card, +3% per Light Feet). A dodge resets Focus to 0.
+- Each hit you take adds your Focus gain (18% innate on Haze, 9% on Nightshade, +5% per Evasion card, +3% per Light Feet). A dodge resets Focus to 0.
 - Focus is checked *before* it grows, so you can never dodge twice in a row. At +10% per hit, that comes to about 21.5% of attacks dodged.
 - Focus is capped at 60%.
 - Counterplay:
@@ -88,7 +88,7 @@ Hand-written card scoring did no better than random buying. Measuring each card'
 
 These are 1500-match results between Gladiator-level bots:
 
-- **Characters:** every gladiator wins 47–54% (base HP tuned with `tools/autotune.mjs`, which is why base HP now ranges from 260 to 1065).
+- **Characters:** base HP follows body type (`HP_BANDS` in `characters.js`): brawny 2200–3000 (Anvil, Brakka, Aldric, Bram, Mordrek), medium 1750–2150, slight 1300–1700, so the big armored gladiators are the toughest. Kits are balanced around that: `tools/autotune.mjs` moves HP only inside the band and puts the rest into ability power (`stats.ap`, 50–150%, shown on the pick screen), and outliers got kit changes by hand. Every gladiator wins 46–55% over 4000 bot matches.
 - **Resources:** 48–53%. Toxin loses a third of its stacks every 2s so it levels off instead of snowballing.
 - **Average match:** about 11 rounds, with fights of about 15s that stay that long into the late game.
 
