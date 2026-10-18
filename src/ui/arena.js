@@ -13,16 +13,17 @@ const SELF_STACKS = ['fire', 'shield', 'regen', 'arcane', 'lightning', 'armor'];
 // tools/pixellab.mjs). Gladiators without sprites are drawn as medallions.
 const SPRITE_DATA = typeof SPRITES !== 'undefined' ? SPRITES : {};
 const spriteCache = {};
-// Figures are sized to the same height unless listed here. A crouching pose
-// fills its canvas like a standing one, so it is drawn shorter; Morwen is a
-// hunched old woman. The big armored brutes (Anvil, Aldric, Mordrek, Bram)
-// hold weapons over their heads, which shrank their bodies, so they are drawn
-// larger, but no one stands taller than Bram: the others' idle poses top out
-// at his height. Slight fighters that came out oversized are drawn smaller.
+// Figures come in three heights, measured heel to head with raised weapons
+// left out. Large: the big brawlers (Bram, Anvil, Aldric, Mordrek, Brakka),
+// none taller than Bram, who holds his weapon overhead so is drawn larger.
+// Medium: everyone else, matched to Haze (her canvas also holds the fan she
+// raises overhead, so she is the 1). Small: Morwen, a hunched old woman.
+// Nightshade's crouch is drawn shorter until her sprite is redone.
 const FIGURE_HEIGHT = {
-  nightshade: 0.8, ashen: 0.8,
-  martyr: 1.1, oathcleaver: 1.09, gravespike: 1.09, grove: 1.1,
-  cinder: 0.9, dawnfeather: 0.88, glacia: 0.92, sage: 0.9, runevolt: 0.92, viper: 0.92,
+  grove: 1.1, martyr: 1.1, oathcleaver: 1.09, gravespike: 1.09,
+  cinder: 0.82, glacia: 0.81, viper: 0.79, stormseer: 0.82, reaver: 0.79, sage: 0.79,
+  duelist: 0.82, snowthorn: 0.81, runevolt: 0.79, dawnfeather: 0.83,
+  ashen: 0.66, nightshade: 0.8,
 };
 function spriteSet(charId) {
   const data = SPRITE_DATA[charId];
