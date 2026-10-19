@@ -40,6 +40,17 @@ function spriteSet(charId) {
   const set = spriteCache[charId];
   return set.base?.[0]?.complete && set.base[0].naturalWidth ? set : null;
 }
+// The colosseum backdrop (assets/arena/colosseum.png, embedded by the build).
+// Its sand runs between these rows; the feet stand on BACKDROP_FEET_ROW when
+// the arena's shape allows. Without it the stage is drawn by hand.
+const BACKDROP_SAND = [306, 360];
+const BACKDROP_FEET_ROW = 340;
+let backdropImg = null;
+function backdropImage() {
+  if (typeof BACKDROP === 'undefined' || !BACKDROP) return null;
+  if (!backdropImg) { backdropImg = new Image(); backdropImg.src = BACKDROP; }
+  return backdropImg.complete && backdropImg.naturalWidth ? backdropImg : null;
+}
 // One-shot animations: seconds for the whole clip, however many frames it has.
 const CLIP = { attack: 0.45, attack2: 0.45, cast: 0.7, hurt: 0.35, death: 0.9 };
 // Seconds a new clip takes to fade in over the last frame of the old one.
@@ -111,11 +122,29 @@ export function createArena(canvas) {
   // The stage, seen from the side: a back wall over the top part, then the
   // floor narrowing away from the camera. Both fighters stand on the same
   // line, near the front, as large as the arena allows.
+  // With the colosseum backdrop the feet go where they would anyway, moved
+  // just enough to stand on its sand.
   function stage() {
     const narrow = w < 640;
     const floorTop = h * (narrow ? 0.4 : 0.3);
-    const feet = h * (narrow ? 0.8 : 0.9);
+    let feet = h * (narrow ? 0.8 : 0.9);
+    const bd = backdropFit();
+    if (bd) feet = Math.min(Math.max(feet, bd.y + BACKDROP_SAND[0] * bd.s), bd.y + BACKDROP_SAND[1] * bd.s);
     return { floorTop, feet, narrow };
+  }
+  // Where the backdrop goes: it covers the arena, scaled by whole device
+  // pixels when that crops little more, so its pixels stay square and even.
+  // Sideways it is centred; up and down, its sand sits under the feet.
+  function backdropFit() {
+    const img = backdropImage();
+    if (!img) return null;
+    const iw = img.naturalWidth, ih = img.naturalHeight;
+    let S = Math.max(w / iw, h / ih) * dpr;
+    if (Math.ceil(S) / S < 1.15) S = Math.ceil(S);
+    const s = S / dpr, bw = iw * s, bh = ih * s;
+    const want = h * (w < 640 ? 0.8 : 0.9) - BACKDROP_FEET_ROW * s;
+    const snap = (v) => Math.round(v * dpr) / dpr;
+    return { img, s, x: snap((w - bw) / 2), y: snap(Math.min(0, Math.max(h - bh, want))), w: bw, h: bh };
   }
   function pos(side) {
     const st = stage();
@@ -609,6 +638,14 @@ export function createArena(canvas) {
 
   // ------------------------------------------------------------ the stage
   function drawFloor(dt) {
+    const bd = backdropFit();
+    if (bd) {
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(bd.img, bd.x, bd.y, bd.w, bd.h);
+      ctx.imageSmoothingEnabled = true;
+      drawEmbers(dt);
+      return;
+    }
     const { floorTop } = stage();
     // Back wall with the crowd along its top edge.
     const wall = ctx.createLinearGradient(0, 0, 0, floorTop);
@@ -669,7 +706,9 @@ export function createArena(canvas) {
     ctx.strokeStyle = 'rgba(214,162,78,0.45)';
     ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.moveTo(-w * 0.04, h); ctx.lineTo(inset, floorTop); ctx.lineTo(w - inset, floorTop); ctx.lineTo(w + w * 0.04, h); ctx.stroke();
-
+    drawEmbers(dt);
+  }
+  function drawEmbers(dt) {
     if (!reduceMotion) {
       ctx.fillStyle = 'rgba(240,122,58,0.35)';
       for (const e of embers) {

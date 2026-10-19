@@ -48,10 +48,13 @@ if (existsSync(spriteDir)) {
     }
   }
 }
+// The arena backdrop, drawn behind the fighters (assets/arena/colosseum.png).
+const backdropFile = join(root, 'assets/arena/colosseum.png');
+const backdrop = existsSync(backdropFile) ? `data:image/png;base64,${readFileSync(backdropFile).toString('base64')}` : '';
 const code = order.map((f) => `// ---- ${f}\n${strip(readFileSync(join(root, f), 'utf8'))}`).join('\n');
 // A hash of the game code: online players are refused unless it matches the host's.
 const build = createHash('sha256').update(code).digest('hex').slice(0, 12);
-const js = '(() => {\n"use strict";\n' + `const SPRITES = ${JSON.stringify(sprites)};\nconst BUILD = '${build}';\n` + code + '\n})();';
+const js = '(() => {\n"use strict";\n' + `const SPRITES = ${JSON.stringify(sprites)};\nconst BACKDROP = ${JSON.stringify(backdrop)};\nconst BUILD = '${build}';\n` + code + '\n})();';
 if (/^\s*(import|export)\s/m.test(js)) throw new Error('unstripped import/export left in bundle');
 const css = readFileSync(join(root, 'src/ui/style.css'), 'utf8');
 const icon = `data:image/svg+xml,${encodeURIComponent(readFileSync(join(root, 'assets/icon.svg'), 'utf8').trim())}`;
