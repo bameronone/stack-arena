@@ -197,7 +197,7 @@ function toast(msg) {
 function useSession(session) {
   S?.close?.();
   S = session;
-  ui.fightStats = null; ui.animRound = null; ui.lastFight = null; ui.fighting = false; ui.watching = null; ui.error = null;
+  ui.fightStats = null; ui.animRound = null; ui.lastFight = null; ui.fighting = false; ui.watching = null; ui.error = null; ui.trayH = 0;
   lastCounts = null;
   S.onChange(onSessionChange);
   render();
@@ -260,12 +260,22 @@ function onSessionChange() {
     if ((m.watchers || []).includes(ME()) || (m.players[ME()].hp > 0 && opponentOf(m, ME()))) startFightAnimation();
     else {
       updateGame();
-      // Knocked out (or sitting this round out): watch a fight live instead
-      // of only reading the results. Prefer one with a person in it.
-      const pick = m.lastResults.findIndex((r) => !m.players[r.a].isBot || !m.players[r.b].isBot);
-      if (m.lastResults.length) watchFight(Math.max(0, pick));
+      // Knocked out (or sitting this round out): watch the leader's fight
+      // live. Eyes on the standings switch to another fight.
+      if (m.lastResults.length) watchFight(leaderFight(m));
     }
   }
+}
+
+// The fight of whoever is in first place (most HP going into the round).
+function leaderFight(m) {
+  const hp = (p) => m.hpBefore?.[p.id] ?? p.hp;
+  const order = m.players.filter((p) => p.id !== ME()).sort((a, b) => hp(b) - hp(a) || b.wins - a.wins);
+  for (const p of order) {
+    const i = m.lastResults.findIndex((r) => r.a === p.id || (!r.ghost && r.b === p.id));
+    if (i >= 0) return i;
+  }
+  return 0;
 }
 
 // ---------------------------------------------------------------- screens
@@ -751,12 +761,15 @@ function renderBoard() {
     if (!r.ghost) until[r.b] = Math.max(until[r.b] || 0, end);
   });
   const order = m.players.slice().sort((a, b) => (a.placement ?? 0) - (b.placement ?? 0) || hpOf(b) - hpOf(a) || b.wins - a.wins);
+  const w = ui.watching;
   const list = order.map((p) => ({
     id: p.id, name: nameOf(p), char: CHAR_BY_ID[p.charId].name, glyph: glyphOf(p.charId),
+    tags: [CHAR_BY_ID[p.charId].trigger, ...CHAR_BY_ID[p.charId].resources],
     hp: hpOf(p), max: START_HP, place: p.placement, out: p.hp <= 0 && !ui.fighting,
     me: p.id === ME(), foe: !!(f && foeRevealed() && f.p.id === p.id),
     until: until[p.id] || 0, ready: m.phase === 'shop' && !p.isBot && !!m.ready?.[p.id],
-    watchable: p.id !== ME() && !(f && f.p.id === p.id) && results.some((r) => r.a === p.id || r.b === p.id),
+    watchable: !ui.fighting && p.id !== ME() && !(f && f.p.id === p.id) && results.some((r) => r.a === p.id || r.b === p.id),
+    watched: !!(w && (w.a === p.id || (!w.ghost && w.b === p.id))),
   }));
   arena.setStandings(isDuel() ? [] : list, (id) => {
     const i = M().lastResults.findIndex((r) => r.a === id || (!r.ghost && r.b === id));
@@ -778,7 +791,10 @@ function renderTray() {
   const notReady = others.filter((h) => !m.ready?.[h.id]).length;
   const goLabel = others.length === 0 ? 'Fight' : ready ? 'Ready' : 'Ready up';
   if (out) {
-    el.innerHTML = `<div class="spectate">You're out of the match${p.placement ? ` in ${ordinal(p.placement)} place` : ''}. Watching the others finish...</div>`;
+    el.style.minHeight = '';
+    el.innerHTML = `<div class="spectate">You're out of the match${p.placement ? ` in ${ordinal(p.placement)} place` : ''}. You watch the leader's fight each round. Click a plaque with an eye to watch someone else.</div>
+      <div class="go"><button class="btn" id="skip-rest" ${m.skipped?.[p.id] ? 'disabled' : ''}>${m.skipped?.[p.id] ? 'Waiting for others' : 'Skip to results'}</button></div>`;
+    el.querySelector('#skip-rest').onclick = () => S.act('skip');
     return;
   }
   el.innerHTML = `
@@ -804,8 +820,15 @@ function renderTray() {
     </div>
     <div class="go">
       <button class="btn primary ${ready ? 'is-ready' : ''}" id="fight" ${m.phase !== 'shop' || locked ? 'disabled' : ''} aria-pressed="${ready}">${goLabel}</button>
-      <div class="hint">${m.phase !== 'shop' ? (queued.length ? `Queued for next round: ${queued.map(([id, n]) => esc(CARD_BY_ID[id].name) + (n > 1 ? ` x${n}` : '')).join(', ')}` : 'Fight in progress. Cards you buy now join your build after the round.') : others.length && ready ? `Waiting for ${plural(notReady, 'player')}` : others.length ? 'The fight starts when everyone is ready' : 'Keys: 1-5 buy · R reroll · F fight'}</div>
+      <div class="hint" data-hint>${m.phase !== 'shop' ? (queued.length ? `Queued for next round: ${queued.map(([id, n]) => esc(CARD_BY_ID[id].name) + (n > 1 ? ` x${n}` : '')).join(', ')}` : 'Fight in progress. Cards you buy now join your build after the round.') : others.length && ready ? `Waiting for ${plural(notReady, 'player')}` : others.length ? 'The fight starts when everyone is ready' : 'Keys: 1-5 buy · R reroll · F fight'}</div>
     </div>`;
+  const hint = el.querySelector('[data-hint]');
+  hint.title = hint.textContent;
+  // The tray only ever grows during a match (a card's text can wrap onto
+  // another line once you own a copy), so the arena above it never jumps.
+  el.style.minHeight = '';
+  ui.trayH = Math.max(ui.trayH || 0, el.offsetHeight);
+  el.style.minHeight = `${ui.trayH}px`;
   el.querySelectorAll('[data-slot]').forEach((b) => b.onclick = () => doBuy(Number(b.dataset.slot)));
   el.querySelector('#reroll').onclick = () => S.act('reroll');
   el.querySelector('#lock').onclick = () => S.act('lock');
@@ -881,7 +904,7 @@ function roundWaitHtml() {
     const hp = mine.winner === me ? (mine.ghost ? '' : `, they lost ${mine.damage} HP`) : `, you lost ${mine.winner === null ? Math.ceil(mine.damage) : mine.damage} HP`;
     head = `<span class="eyebrow">Round ${m.fightRound}: ${out}${hp}</span>`;
   }
-  const line = going ? `${plural(going, 'fight')} still going. Click a plaque with crossed swords to watch.` : 'Next round starting...';
+  const line = going ? `${plural(going, 'fight')} still going. Click a plaque with an eye to watch.` : 'Next round starting...';
   return `<div class="preview wait">${head}<span class="slot-note">${line}</span></div>`;
 }
 // Refresh the "still going" count while the round plays out.
@@ -941,11 +964,13 @@ function startFightAnimation() {
 }
 
 // Spectating: replay any other fight of this round from the shared seed.
+let watchTimer = 0;
 function watchFight(i) {
   const m = M();
   const r = m.lastResults[i];
   if (!r || !arena || ui.fighting || m.phase !== 'fight') return;
   const round = m.fightRound;
+  if (!ui.watching) ui.savedStats = ui.fightStats;
   ui.watching = { a: r.a, b: r.b, ghost: r.ghost, round };
   const f = makeFight(m, r.a, r.b);
   // Join in progress: every fight started when the round did, so skip ahead
@@ -953,18 +978,19 @@ function watchFight(i) {
   const elapsed = ((performance.now() - (ui.fightSeenAt || performance.now())) / 1000) * ROUND_PACE;
   const target = Math.min(elapsed, Math.max(0, r.time - 3));
   while (f.t + DT <= target && !f.over) f.step(DT);
-  ui.savedStats = ui.fightStats;
   ui.fightStats = { live: true, round, watched: true, stats: [f.units[0].stats, f.units[1].stats] };
-  const statsTimer = setInterval(refreshStats, 250);
+  clearInterval(watchTimer);
+  watchTimer = setInterval(refreshStats, 250);
   arena.play(f, () => {
     // Stay on the end of the fight until "Stop watching" or the round ends.
-    clearInterval(statsTimer);
+    clearInterval(watchTimer);
     refreshStats();
   }, [fighterName(m.players[r.a]), fighterName(m.players[r.b], r.ghost)]);
   updateGame();
 }
 function stopWatching() {
   if (!ui.watching) return;
+  clearInterval(watchTimer);
   ui.watching = null;
   ui.fightStats = ui.savedStats;
   if (screenFor() === 'game' && arena) { if (holding()) showHeld(); else showPreview(); updateGame(); }
@@ -1096,6 +1122,9 @@ document.addEventListener('keydown', (e) => {
   else if (e.key === 'r' || e.key === 'R') S.act('reroll');
   else if ((e.key === 'f' || e.key === 'F') && !ui.fighting) toggleReady();
 });
+
+window.addEventListener('resize', () => { ui.trayH = 0; });
+document.fonts?.ready.then(() => { ui.trayH = 0; });
 
 window.addEventListener('beforeunload', (e) => {
   if (S && S.mode === 'host' && S.stage !== 'closed') { e.preventDefault(); e.returnValue = ''; }

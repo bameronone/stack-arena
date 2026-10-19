@@ -122,7 +122,37 @@ test('bolts stutter the enemy swing instead of resetting it', () => {
   assert.ok(Math.abs(f.b.attackTimer - 0.65) < 1e-9);
   assert.ok(f.b.swingDelay > 0, 'the swing timer knows how long was added');
   for (let i = 0; i < 6; i++) f.gain(f.a, 'lightning', 10);
-  assert.ok(f.b.attackTimer >= -0.5, 'never more than half a swing behind');
+  assert.ok(Math.abs(f.b.attackTimer - 0.4) < 1e-9, 'a burst of bolts pushes one swing back half a swing at most');
+});
+
+test('a big burst of Lightning pushes the next swing back half a swing at most', () => {
+  const f = new Fight({ charId: 'stormseer', cards: {} }, { charId: 'martyr', cards: {} }, 1);
+  f.b.maxHp = f.b.hp = 1e6;
+  f.b.attackTimer = 0;
+  f.gain(f.a, 'lightning', 200);
+  assert.equal(f.a.bolts, 20);
+  assert.ok(Math.abs(f.b.attackTimer + 0.5) < 1e-9);
+  // After that swing lands, bolts can stutter the next one again.
+  f.b.attackTimer = 1; f.step();
+  f.gain(f.a, 'lightning', 10);
+  assert.ok(f.b.swingStutter > 0);
+});
+
+test('no Frost builds up on a frozen fighter', () => {
+  const f = new Fight({ charId: 'glacia', cards: {} }, { charId: 'cinder', cards: {} }, 1);
+  f.apply(f.a, 'frost', 16);
+  assert.ok(f.b.frozen > 0);
+  f.apply(f.a, 'frost', 30);
+  assert.equal(f.b.frost, 0);
+});
+
+test('Fang Flurry damage is tallied apart from attacks', () => {
+  const f = new Fight({ charId: 'viper', cards: {} }, { charId: 'martyr', cards: {} }, 1);
+  f.b.maxHp = f.b.hp = 1e6;
+  f.cast(f.a);
+  f.step();
+  assert.ok(f.a.stats.dmg['Fang Flurry'] > 0);
+  assert.equal(f.a.stats.byKind.attack, f.a.stats.dmg['Fang Flurry'] + (f.a.stats.dmg.Attacks || 0));
 });
 
 test('Afterburner burns out all Fire at the cap into a frenzy of scorching attacks', () => {
