@@ -47,7 +47,7 @@ export const CHARACTERS = [
     stats: { hp: 2150, ad: 27, crit: 0.15, ap: 1.26 },
     innate: { desc: 'Crits apply 2 Toxin and 1 Bleed.', onCrit: (f, u) => { f.apply(u, 'poison', 2); f.apply(u, 'bleed', 1); } },
     ability: { name: 'Fang Flurry', desc: (u) => `Make 2 quick attacks, plus 1 per 15 Toxin and Bleed on the enemy, up to 5 (${fangs(u)}).`,
-      cast: (f, u, p) => { const k = Math.max(1, Math.min(8, Math.round(fangs(u) * p))); for (let i = 0; i < k; i++) { if (u.sig === 'viper_lacerate') u.forceCrit += 1; f.queueExtraAttack(u); } } },
+      cast: (f, u, p) => { const k = Math.max(1, Math.min(8, Math.round(fangs(u) * p))); for (let i = 0; i < k; i++) { if (u.sig === 'viper_lacerate') u.forceCrit += 1; f.queueExtraAttack(u, 'Fang Flurry'); } } },
     signatures: [
       { id: 'viper_neuro', name: 'Neurotoxin', desc: 'Toxin and Bleed deal +25% damage.', setup: (u) => { u.m.poisonDmg += 0.25; u.m.bleedDmg += 0.25; } },
       { id: 'viper_lacerate', name: 'Lacerate', desc: 'Fang Flurry attacks always crit.' },

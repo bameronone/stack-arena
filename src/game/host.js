@@ -92,6 +92,11 @@ export class HostGame {
       case 'watched':
         if (m.phase === 'fight') { m.watched[id] = true; ok = true; }
         break;
+      case 'skip':
+        // Knocked out and done spectating: once every human has skipped, the
+        // bots play the rest of the match out at once.
+        if (p.hp <= 0 && m.phase !== 'over') { m.skipped = { ...m.skipped, [id]: true }; ok = true; }
+        break;
     }
     if (ok) { this.advance(); this.changed(); }
     return ok;
@@ -149,16 +154,19 @@ export class HostGame {
   poll() {
     const m = this.M;
     if (m.phase !== 'fight') return;
+    const round = m.round;
     this.advance();
-    if (m.phase !== 'fight') this.changed();
+    // With everyone left a spectator, the next round's fights can start
+    // inside advance(), so the phase alone doesn't show the change.
+    if (m.phase !== 'fight' || m.round !== round) this.changed();
   }
 
   // Moves on whenever the current phase's requirements are met. Phase changes
   // made inside the engine (bans resolved, round started) are picked up here.
   advance() {
     const m = this.M;
-    // Each round takes a few passes; with no humans left the bots play the
-    // rest of the match out inside this loop.
+    // Each round takes a few passes; once every human is out and has skipped
+    // spectating, the bots play the rest of the match out inside this loop.
     for (let guard = 0; guard < 5000; guard++) {
       const phase = m.phase;
       if (phase === 'pick' && this.enteredPhase !== 'pick') {
@@ -186,8 +194,10 @@ export class HostGame {
       }
       if (phase === 'fight') {
         const waiting = this.watchers().filter((id) => !m.watched[id]);
-        // With no human left in the match there is nothing to watch.
-        const played = this.humans(true).length === 0 || this.now() >= (m.fightsEndAt ?? 0);
+        // Knocked-out humans spectate, so rounds still play out on the clock,
+        // until every human has skipped to the end.
+        const fastForward = this.humans(true).length === 0 && this.humans().every((p) => m.skipped?.[p.id]);
+        const played = fastForward || this.now() >= (m.fightsEndAt ?? 0);
         if (waiting.length === 0 && played) { this.endRound(); continue; }
       }
       break;

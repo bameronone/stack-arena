@@ -26,7 +26,7 @@
   - Health (internally `pain`, formerly Wounded): +5 max HP per card, and "When hurt" fires every 12% of max HP lost, 0.5% sooner per card (min 4%). The max-HP cards (Hearty, Juggernaut, Titan) are Health cards.
   - Spell: +0.5 mana per attack per card
 - **Resources** (Fire, Frost, Toxin, Bleed, Shield, Regen, Arcane, Lightning, Armor) decide what stacks do. Arcane was called Mana; it was renamed so it isn't confused with the mana bar every gladiator fills to cast.
-  - Lightning stacks on you (so cards say *gain* Lightning); every 10 call a bolt down on the enemy (40 damage, +5 per earlier bolt this fight, up to +100) that ignores Armor and stutters the enemy's attack: their swing is pushed back a quarter of a swing, at most half a swing behind. The swing timer under each fighter's mana bar shows attacks per second, and in red the seconds a bolt added to the current swing.
+  - Lightning stacks on you (so cards say *gain* Lightning); every 10 call a bolt down on the enemy (40 damage, +5 per earlier bolt this fight, up to +100) that ignores Armor and stutters the enemy's attack: their swing is pushed back a quarter of a swing, and one swing is never pushed back more than half a swing in total, however many bolts land at once. The swing timer under each fighter's mana bar shows attacks per second, and in red the seconds a bolt added to the current swing.
   - Toxin (internally `poison`, formerly Poison) goes through Armor but Shield blocks it. It no longer cuts healing.
   - Regen heals 0.2% of base max HP per second per stack. Every 5% of base max HP healed, from any source, fires "On heal" (Sap Ward, Bloom Burst, Evergreen).
   - Gaining Fire melts the same number of Frost stacks on you.
@@ -57,7 +57,7 @@
 ## Fights
 
 - The simulation runs at 20 ticks per second and is seeded, so replays are deterministic.
-- Frost freezes at 16 stacks, and each freeze a gladiator suffers needs 10 more Frost than the last.
+- Frost freezes at 16 stacks, and each freeze a gladiator suffers needs 10 more Frost than the last. Frost can't build up on a frozen gladiator, so a fast Frost build can't chain freezes back to back.
 - Grit (everyone): losing 30% of max HP within 2s halves damage taken for 1.5s, at most once every 6s. Steadfast (counter) makes it stronger.
 - Mana fills continuously at mana-per-attack times attack speed, instead of in chunks on each hit.
 - Every ability scales with something that grows during the fight (stacks on either side, bolts called, Armor, Shield).
@@ -110,4 +110,4 @@ After changing cards, re-run `tools/cardvalue.mjs` (so the AI's card values stay
 - After a match: **Replay** starts the same lobby (solo) or room (host) again straight away; **Back to lobby** returns to the setup or the room to change it.
 - A player who leaves is replaced by a bot; joining the same room code again (same browser, or same name) hands the gladiator back.
 - In a free-for-all your next opponent stays hidden (top bar, side panel and arena preview) until the fight starts.
-- Standings hang on the arena's back wall, best on the left, sliding when places change. Crossed swords mark fights still going; click one to watch it. Knocked-out players watch a live fight automatically.
+- Standings hang on the arena's back wall, best on the left, sliding when places change. Each plaque shows the player's gladiator and its tags. An eye marks a fight you can watch (click it to watch; it lights up while you do); crossed swords mark other fights still going. Knocked-out players keep spectating: rounds still play out in real time, they watch the leader's fight automatically, and Skip to results fast-forwards the rest of the match once every human has skipped.

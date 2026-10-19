@@ -8,7 +8,7 @@ import { MAX_PLAYERS } from '../engine/match.js';
 //   M           match state (read-only for the UI)
 //   me          your player id
 //   remaining() seconds left on the phase clock, or null
-//   act(a, v)   ban | pick | sig | buy | reroll | lock | ready | watched
+//   act(a, v)   ban | pick | sig | buy | reroll | lock | ready | watched | skip
 //   onChange(fn)
 // Hosted rooms also manage lobby slots; joined rooms only mirror the host.
 

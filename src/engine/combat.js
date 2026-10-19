@@ -35,7 +35,8 @@ export const GRIT = { at: 0.3, window: 2, dur: 1.5, cut: 0.5, cd: 6 };
 // Lightning: this many stacks call a bolt. Each bolt deals BOLT.base plus
 // BOLT.step for every bolt already called this fight (up to BOLT.maxSteps),
 // and stutters the enemy's swing: it is pushed back by BOLT.stutter of a
-// swing (never more than BOLT.maxDelay of a swing behind).
+// swing. However many bolts land, one swing is never pushed back by more than
+// BOLT.maxDelay of a swing in total.
 export const BOLT_AT = 10;
 export const BOLT = { base: 40, step: 5, maxSteps: 20, stutter: 0.25, maxDelay: 0.5 };
 // Fire: +FIRE.as attack speed per stack. Reaching your Fire cap sets off
@@ -76,7 +77,7 @@ export function buildUnit(loadout, side) {
     painStep: 0.12, painAcc: 0, healAcc: 0,
     // timers and counters
     frozen: 0, immune: 0, bastionCd: 0, attackTimer: 0, swingDelay: 0, dotTimer: 0, attackCount: 0, castCount: 0, forceCrit: 0,
-    momentumCap: 0, pendingAttacks: 0, bleedApplied: 0,
+    momentumCap: 0, pendingAttacks: [], bleedApplied: 0, swingStutter: 0,
     m: {
       poisonDmg: 1, bleedDmg: 1, bleedDecay: 1, frostDecay: 1, shieldGain: 1, shieldCap: 1, vsShield: 1,
       poisonTaken: 1, frostTaken: 1, bleedTaken: 1, abilityTaken: 1, enemyHealCut: 0,
@@ -199,6 +200,8 @@ export class Fight {
     const tgt = src.enemy;
     if (tgt.dead || !(k > 0)) return;
     if (res === 'frost') {
+      // No Frost builds up while already frozen.
+      if (tgt.frozen > 0) return;
       tgt.frost += k * Math.max(0, tgt.m.frostTaken);
       if (tgt.frost >= this.freezePoint(src, tgt)) this.freeze(src, tgt);
     } else if (res === 'poison') {
@@ -254,13 +257,14 @@ export class Fight {
     return (BOLT.base + BOLT.step * Math.min(BOLT.maxSteps, u.bolts)) * u.m.boltDmg * frozen;
   }
 
-  // Push u's next attack back by `frac` of a swing. swingDelay keeps the
+  // Push u's next attack back by `frac` of a swing, at most BOLT.maxDelay of
+  // a swing per swing however many bolts land at once. swingDelay keeps the
   // seconds added to the current swing for the swing timer.
   stutter(u, frac) {
-    const before = u.attackTimer;
-    u.attackTimer = Math.max(-BOLT.maxDelay, u.attackTimer - frac);
-    const lost = before - u.attackTimer;
+    const lost = Math.min(frac, BOLT.maxDelay - u.swingStutter);
     if (lost > 0) {
+      u.swingStutter += lost;
+      u.attackTimer -= lost;
       u.swingDelay += lost / Math.max(0.05, this.attackSpeed(u));
       this.emit('stutter', u, { delay: u.swingDelay });
     }
@@ -422,11 +426,13 @@ export class Fight {
     return slowOf(u);
   }
 
-  queueExtraAttack(u) {
-    u.pendingAttacks++;
+  // An extra attack made right after this tick's swing. `source` names its
+  // damage in the stats panel (plain attacks count as Attacks).
+  queueExtraAttack(u, source) {
+    u.pendingAttacks.push(source || null);
   }
 
-  attack(a, extra = false) {
+  attack(a, extra = false, source = null) {
     const d = a.enemy;
     if (a.dead || d.dead) return;
     a.attackCount++;
@@ -455,7 +461,7 @@ export class Fight {
       if (a.m.critMissing) dmg += (d.maxHp - d.hp) * a.m.critMissing;
       a.stats.crits++;
     }
-    const dealt = this.damage(a, d, dmg, 'attack', { crit });
+    const dealt = this.damage(a, d, dmg, 'attack', source ? { crit, source } : { crit });
     if (a.rush > 0 && !d.dead) this.damage(a, d, dealt * FIRE.scorch, 'ability', { source: 'Afterburner' });
     const hit = { crit, dmg: dealt };
     this.emit('attack', a, { crit });
@@ -532,17 +538,15 @@ export class Fight {
         while (u.attackTimer >= 1 && guard++ < 4 && !u.dead && !e.dead) {
           u.attackTimer -= 1;
           u.swingDelay = 0;
+          u.swingStutter = 0;
           this.attack(u);
         }
-        while (u.pendingAttacks > 0 && !u.dead && !e.dead) {
-          u.pendingAttacks--;
-          this.attack(u, true);
-        }
+        while (u.pendingAttacks.length && !u.dead && !e.dead) this.attack(u, true, u.pendingAttacks.shift());
         const cost = u.manaMax * u.m.castCost;
         if (u.mana >= cost && !u.dead && !e.dead) {
           u.mana -= cost;
           this.cast(u);
-          while (u.pendingAttacks > 0 && !u.dead && !e.dead) { u.pendingAttacks--; this.attack(u, true); }
+          while (u.pendingAttacks.length && !u.dead && !e.dead) this.attack(u, true, u.pendingAttacks.shift());
         }
       }
       u.mana = Math.min(u.mana, u.manaMax * 1.5);

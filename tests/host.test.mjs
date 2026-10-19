@@ -115,3 +115,25 @@ test('cards bought during the fight are queued and only join the build when the 
     assert.deepEqual(me.queued, {});
   }
 });
+
+test('knocked out: rounds keep playing out on the clock to spectate, until you skip to the end', () => {
+  let t = 0;
+  const g = new HostGame({ players: players(6), seed: 11, shopTime: 0, now: () => t });
+  g.act(0, 'ban', 'fire');
+  g.act(0, 'pick', visibleCharacters(g.M.bans)[0].char.id);
+  g.M.players[0].hp = 0;
+  g.act(0, 'ready', true);
+  g.advance();
+  assert.equal(g.M.phase, 'fight', 'a round with only bots left still plays out');
+  const round = g.M.round;
+  let changes = 0;
+  g.onChange(() => changes++);
+  t = g.M.fightsEndAt; g.poll();
+  assert.equal(g.M.round, round + 1);
+  assert.ok(changes > 0, 'spectators hear about the new round');
+  if (g.M.phase !== 'over') {
+    assert.equal(g.M.phase, 'fight', 'the next round starts straight away');
+    assert.ok(g.act(0, 'skip'));
+    assert.equal(g.M.phase, 'over');
+  }
+});

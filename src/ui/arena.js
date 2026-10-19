@@ -24,6 +24,10 @@ const FIGURE_HEIGHT = {
   duelist: 0.82, snowthorn: 0.81, runevolt: 0.79, dawnfeather: 0.83,
   ashen: 0.66, nightshade: 0.85,
 };
+// Rows (of the base image) the feet stand on, for figures whose lowest pixel
+// isn't a foot. Anvil's tower shield reaches lower than his boots, so lining
+// the shield up with the ground left him floating.
+const GROUND_ROW = { martyr: 112 };
 function spriteSet(charId) {
   const data = SPRITE_DATA[charId];
   if (!data) return null;
@@ -31,6 +35,7 @@ function spriteSet(charId) {
     const load = (src) => { const img = new Image(); img.src = src; return img; };
     spriteCache[charId] = Object.fromEntries(Object.entries(data).map(([k, v]) => [k, (Array.isArray(v) ? v : [v]).map(load)]));
     spriteCache[charId].figureHeight = FIGURE_HEIGHT[charId] || 1;
+    spriteCache[charId].groundRow = GROUND_ROW[charId];
   }
   const set = spriteCache[charId];
   return set.base?.[0]?.complete && set.base[0].naturalWidth ? set : null;
@@ -417,8 +422,9 @@ export function createArena(canvas) {
   }
 
   // The standings, hung on the back wall. Plaques slide to their new place
-  // when the order changes. Swords mark players whose fight is still going;
-  // clicking those watches it.
+  // when the order changes. Under each name, the gladiator and its tags.
+  // An eye marks a fight you can watch (click to watch it; lit while you
+  // are); crossed swords mark other fights still going.
   function drawBoard(dt) {
     plaqueRects = [];
     if (!board.length) return;
@@ -426,8 +432,8 @@ export function createArena(canvas) {
     const n = board.length;
     const margin = narrow ? 8 : 24;
     const slot = (w - margin * 2) / n;
-    const pw = Math.min(160, slot - 6), ph = narrow ? 26 : 40;
-    const compact = pw < 92;
+    const pw = Math.min(160, slot - 6);
+    const compact = pw < 92, ph = compact ? 31 : 50;
     const y = narrow ? 92 : Math.max(58, floorTop - ph - 54);
     const now = performance.now();
     board.forEach((b, i) => {
@@ -453,6 +459,11 @@ export function createArena(canvas) {
         ctx.textAlign = 'center';
         ctx.font = '700 11px "Barlow Semi Condensed", system-ui, sans-serif';
         ctx.fillText(`${b.glyph} ${b.hp}`, x + pw / 2 - (fighting && narrow ? 5 : 0), y + 15);
+        // Tags as colored dots, between the name and the HP bar.
+        (b.tags || []).forEach((t, k, all) => {
+          ctx.fillStyle = TAGS[t].color;
+          ctx.beginPath(); ctx.arc(x + pw / 2 + (k - (all.length - 1) / 2) * 7, y + 19, 2, 0, Math.PI * 2); ctx.fill();
+        });
       } else {
         ctx.textAlign = 'left';
         ctx.font = '700 12px "Barlow Semi Condensed", system-ui, sans-serif';
@@ -462,16 +473,20 @@ export function createArena(canvas) {
         ctx.font = '600 10px "Barlow Semi Condensed", system-ui, sans-serif';
         ctx.fillStyle = '#a99c87';
         ctx.fillText(b.char, x + 6, y + 26);
+        drawTagChips(b.tags || [], x + 6, y + 30, pw - 12);
         ctx.textAlign = 'right';
         ctx.font = '700 12px "Barlow Semi Condensed", system-ui, sans-serif';
         ctx.fillStyle = '#e9dcc0';
         ctx.fillText(String(b.hp), x + pw - 6, y + 14);
         if (b.ready) { ctx.fillStyle = '#7fca6e'; ctx.fillText('✓', x + pw - 6, y + 26); }
       }
-      if (fighting) {
-        // Under the plaque; inside its right edge on narrow screens, where
-        // the fighters' names sit just below.
-        const sx = narrow ? x + pw - 8 : x + pw / 2, sy = narrow ? y + 9 : y + ph + 13, k = narrow ? 4 : 11;
+      // Under the plaque; inside its right edge on narrow screens, where
+      // the fighters' names sit just below.
+      const sx = narrow ? x + pw - 8 : x + pw / 2, sy = narrow ? y + 9 : y + ph + 13, k = narrow ? 4 : 11;
+      if (fighting && b.watchable) {
+        drawEye(sx, sy, k, b.watched, now);
+        plaqueRects.push({ id: b.id, x, y, w: pw, h: ph + (narrow ? 0 : 20) });
+      } else if (fighting) {
         const swing = Math.sin(now / 160) * 0.25;
         ctx.strokeStyle = '#e9dcc0'; ctx.lineWidth = 2; ctx.lineCap = 'round';
         // Two crossed swords: blade, crossguard and grip, clashing gently.
@@ -486,10 +501,46 @@ export function createArena(canvas) {
           ctx.beginPath(); ctx.moveTo(gx - uy * k * 0.35, gy + ux * k * 0.35); ctx.lineTo(gx + uy * k * 0.35, gy - ux * k * 0.35); ctx.stroke();
           ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(gx, gy); ctx.stroke();
         }
-        if (b.watchable) plaqueRects.push({ id: b.id, x, y, w: pw, h: ph + (narrow ? 0 : 20) });
       }
       ctx.restore();
     });
+  }
+  // Small tag chips in a row: each tag's glyph in its color.
+  function drawTagChips(tags, x, y, maxW) {
+    ctx.save();
+    ctx.font = '700 9px "Barlow Semi Condensed", system-ui, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    let cx = x;
+    for (const t of tags) {
+      const tag = TAGS[t];
+      const cw = ctx.measureText(tag.glyph).width + 8;
+      if (cx + cw > x + maxW) break;
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      roundRect(cx, y, cw, 11, 3); ctx.fill();
+      ctx.strokeStyle = tag.color; ctx.lineWidth = 1;
+      if (tag.kind === 'trigger') ctx.setLineDash([2, 2]);
+      ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = tag.color;
+      ctx.fillText(tag.glyph, cx + cw / 2, y + 6);
+      cx += cw + 3;
+    }
+    ctx.restore();
+  }
+  // An eye: a fight you can watch. Lit and wide open while you watch it.
+  function drawEye(x, y, k, lit, now) {
+    const ew = k * 1.25, eh = k * (lit ? 0.75 : 0.55 + 0.1 * Math.sin(now / 300));
+    ctx.save();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = lit ? '#d6a24e' : '#e9dcc0';
+    ctx.fillStyle = lit ? 'rgba(214,162,78,0.25)' : 'rgba(20,17,24,0.6)';
+    ctx.beginPath();
+    ctx.moveTo(x - ew, y);
+    ctx.quadraticCurveTo(x, y - eh * 2, x + ew, y);
+    ctx.quadraticCurveTo(x, y + eh * 2, x - ew, y);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = lit ? '#d6a24e' : '#e9dcc0';
+    ctx.beginPath(); ctx.arc(x, y, Math.max(1.5, eh * 0.75), 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
   }
   function boardHit(ev) {
     const rc = canvas.getBoundingClientRect();
@@ -658,7 +709,7 @@ export function createArena(canvas) {
 
   // Canvas sizes differ between characters, so sprites are scaled by the
   // figure in the base image: its height is 88% of the box, its feet on the
-  // ground line. Measured once per character from the base image's pixels.
+  // ground line (its lowest pixel, unless GROUND_ROW says otherwise). Measured once per character from the base image's pixels.
   function spriteFit(set) {
     if (set.fit) return set.fit;
     const base = set.base[0], w = base.naturalWidth, h = base.naturalHeight;
@@ -670,7 +721,7 @@ export function createArena(canvas) {
     let top = h, bottom = 0;
     for (let i = 3; i < px.length; i += 4) if (px[i] > 20) { const row = (i >> 2) / w | 0; top = Math.min(top, row); bottom = row + 1; }
     if (bottom <= top) { top = 0; bottom = h; }
-    return (set.fit = { height: bottom - top, feet: bottom - h / 2 });
+    return (set.fit = { height: bottom - top, feet: (set.groundRow ?? bottom) - h / 2 });
   }
 
   function spriteFrame(set, a) {
