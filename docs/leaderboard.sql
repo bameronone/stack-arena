@@ -32,8 +32,8 @@ drop policy if exists "profiles are public" on public.profiles;
 create policy "profiles are public" on public.profiles for select using (true);
 drop policy if exists "add your own profile" on public.profiles;
 create policy "add your own profile" on public.profiles for insert to authenticated with check (id = auth.uid());
+-- Names are picked once and can't be changed: there is no update policy.
 drop policy if exists "rename your own profile" on public.profiles;
-create policy "rename your own profile" on public.profiles for update to authenticated using (id = auth.uid()) with check (id = auth.uid());
 
 drop policy if exists "results are public" on public.results;
 create policy "results are public" on public.results for select using (true);
@@ -41,7 +41,8 @@ drop policy if exists "add your own results" on public.results;
 create policy "add your own results" on public.results for insert to authenticated with check (user_id = auth.uid());
 
 grant select on public.profiles, public.results to anon, authenticated;
-grant insert, update (name) on public.profiles to authenticated;
+revoke update on public.profiles from authenticated;
+grant insert on public.profiles to authenticated;
 grant insert (mode, level, players, placement, char_id, seed, rounds) on public.results to authenticated;
 
 -- One row per player and board. "beaten" is how many gladiators they
