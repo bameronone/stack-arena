@@ -12,7 +12,7 @@ create table if not exists public.results (
   id bigint generated always as identity primary key,
   user_id uuid not null default auth.uid() references auth.users on delete cascade,
   mode text not null check (mode in ('bots', 'online')),
-  level text check (level in ('easy', 'normal', 'hard')), -- the hardest bot in the lobby, for bot games
+  level text check (level in ('easy', 'normal', 'hard')), -- the easiest bot in the lobby, for bot games
   players int not null check (players between 2 and 8),
   placement int not null check (placement between 1 and players),
   char_id text not null check (char_length(char_id) <= 30),
