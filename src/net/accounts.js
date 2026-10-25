@@ -82,27 +82,23 @@ export async function loadAccount() {
   try {
     const user = await api('/auth/v1/user', { auth: true });
     const [profile] = await api(`/rest/v1/profiles?id=eq.${user.id}&select=name`, { auth: true });
-    const meta = user.user_metadata || {};
-    account = { id: user.id, name: profile?.name || null, suggested: meta.user_name || (meta.full_name || meta.name || '').split(' ')[0] || 'Gladiator' };
-    // First sign-in: the leaderboard name starts as the account's
-    // username (GitHub) or first name (Google), with a number added if
-    // someone already has it; it can be changed.
-    for (let i = 0; !account.name && i < 5; i++) {
-      const base = account.suggested.slice(0, 15);
-      await setLeaderboardName(i ? `${base}${100 + Math.floor(Math.random() * 9900)}` : base).catch((e) => { if (e.message !== 'taken') throw e; });
-    }
+    account = { id: user.id, name: profile?.name || null };
   } catch { account = null; }
   return account;
 }
 
-// Names are unique, ignoring case (a unique index in the database); a
-// name someone else has fails with the message 'taken'.
+// A new player picks their leaderboard name once; it can't be changed
+// after (the database only allows adding a profile, not renaming it).
+// Names are unique, ignoring case: a name someone else has fails with the
+// message 'taken'.
+export const NAME_RULE = /^[A-Za-z0-9 _\-]{2,20}$/;
 export async function setLeaderboardName(name) {
-  const clean = String(name).trim().slice(0, 20) || 'Gladiator';
+  const clean = String(name).trim().replace(/\s+/g, ' ');
+  if (!NAME_RULE.test(clean)) throw new Error('invalid');
   try {
-    await api('/rest/v1/profiles', { method: 'POST', auth: true, prefer: 'resolution=merge-duplicates,return=minimal', body: { id: account.id, name: clean } });
+    await api('/rest/v1/profiles', { method: 'POST', auth: true, prefer: 'return=minimal', body: { id: account.id, name: clean } });
   } catch (e) {
-    throw e.status === 409 ? new Error('taken') : e;
+    throw e.status === 409 && e.message.includes('profiles_name_unique') ? new Error('taken') : e;
   }
   account.name = clean;
 }

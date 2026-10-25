@@ -117,6 +117,6 @@ After changing cards, re-run `tools/cardvalue.mjs` (so the AI's card values stay
 ## Leaderboard
 
 - Sign-in and the boards run on Supabase (`src/net/accounts.js`, tables and permissions in `docs/leaderboard.sql`), called with plain `fetch`, so the game still has no server of its own. Sign-in is GitHub or Google OAuth and only works on the hosted page (not a local file or the artifact preview).
-- Leaderboard names are unique, ignoring case. The first name is the account's username or first name, with a number added if it is taken; a player can rename themselves to any free name.
+- Right after their first sign-in a player picks a leaderboard name: 2 to 20 letters, numbers, spaces, _ or -, unique ignoring case. It can't be changed later (the database has no update policy on profiles). Results played before picking are kept and show up once the name exists.
 - Each finished match a signed-in player plays is saved once (per seed): mode (bots or online), the hardest bot's level, players, placement, gladiator and rounds. Boards rank by gladiators beaten (players minus placement, summed): Online, and one per bot level.
 - Results are reported by the player's browser, so they can be faked. Fights are deterministic from the seed and purchases, so a server function could replay a match to check it; that is not built yet.

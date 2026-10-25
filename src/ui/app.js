@@ -9,7 +9,7 @@ import {
 import { SHOP_TIMES, ROUND_PACE } from '../game/host.js';
 import { soloSession, hostSession, clientSession, BOT_NAMES, cleanName } from '../game/session.js';
 import { cleanCode } from '../net/transport.js';
-import { accountsAvailable, currentAccount, loadAccount, signIn, signOut, setLeaderboardName, submitResult, leaderboard, PROVIDERS } from '../net/accounts.js';
+import { accountsAvailable, currentAccount, loadAccount, signIn, signOut, setLeaderboardName, submitResult, leaderboard, PROVIDERS, NAME_RULE } from '../net/accounts.js';
 import { createArena } from './arena.js';
 import { DT } from '../engine/combat.js';
 
@@ -43,7 +43,7 @@ let savedResultFor = null;
 const shopGhost = [];
 const ui = {
   tab: params.get('room') ? 'online' : 'solo',
-  speed: 2, mobileTab: null, modal: null, board: { which: 'online', rows: null, error: null }, submitState: null,
+  speed: 2, mobileTab: null, modal: null, board: { which: 'online', rows: null, error: null }, submitState: null, nameError: null,
   lobby: (() => { const l = store.get('lobby', ['normal']); return Array.isArray(l) && l.length && l.every((x) => DIFFICULTY_IDS.includes(x)) ? l.slice(0, MAX_PLAYERS - 1) : ['normal']; })(),
   soloTime: SHOP_TIMES.includes(store.get('solo-time', 30)) ? store.get('solo-time', 30) : 30,
   name: store.get('name', ''),
@@ -442,17 +442,26 @@ function accountBar() {
       ${Object.entries(PROVIDERS).map(([id, name]) => `<button class="btn" data-signin="${id}">Sign in with ${name}</button>`).join('')}
       <a class="slot-note" href="privacy.html" target="_blank" rel="noopener">Privacy</a></div>`;
   }
-  return `<div class="account"><span class="slot-note">Signed in. On the leaderboard as</span>
-    <input id="board-name" maxlength="20" value="${esc(a.name || '')}" aria-label="Leaderboard name">
+  if (!a.name) {
+    return `<form class="account pick" id="pick-name"><span><b>Pick your leaderboard name.</b> It has to be unique, and you can't change it later.</span>
+      <input id="board-name" maxlength="20" required pattern="${NAME_RULE.source.slice(1, -1)}" title="2 to 20 letters, numbers, spaces, _ or -" placeholder="2-20 letters or numbers" value="${esc(ui.nameDraft || '')}" aria-label="Leaderboard name">
+      <button class="btn primary" type="submit">Save name</button>
+      <button class="btn" type="button" id="signout">Sign out</button>
+      ${ui.nameError ? `<span class="slot-note">${esc(ui.nameError)}</span>` : ''}</form>`;
+  }
+  return `<div class="account"><span class="slot-note">Signed in as <b>${esc(a.name)}</b>.</span>
     <button class="btn" id="signout">Sign out</button></div>`;
 }
 function wireAccount() {
   root.querySelectorAll('[data-signin]').forEach((b) => b.onclick = () => signIn(b.dataset.signin));
   root.querySelector('#signout')?.addEventListener('click', () => { signOut(); render(); });
-  root.querySelector('#board-name')?.addEventListener('change', (e) => {
-    setLeaderboardName(e.target.value).then(() => { toast('Leaderboard name saved'); if (ui.tab === 'board') loadBoard(); }, (err) => {
-      toast(err.message === 'taken' ? 'Someone already has that name' : 'Could not save that name');
-      e.target.value = currentAccount()?.name || '';
+  root.querySelector('#pick-name')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const input = root.querySelector('#board-name');
+    ui.nameDraft = input.value;
+    setLeaderboardName(input.value).then(() => { ui.nameError = null; toast('Leaderboard name saved'); if (ui.tab === 'board') loadBoard(); render(); }, (err) => {
+      ui.nameError = err.message === 'taken' ? `Someone already has "${input.value.trim()}".` : err.message === 'invalid' ? 'Use 2 to 20 letters, numbers, spaces, _ or -.' : 'Could not save that name. Try again.';
+      render();
     });
   });
   root.querySelectorAll('[data-board]').forEach((b) => b.onclick = () => { ui.board.which = b.dataset.board; loadBoard(); });

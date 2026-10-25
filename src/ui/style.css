@@ -122,6 +122,7 @@ h1, h2, h3 { font-family: var(--display); font-weight: 400; margin: 0; text-wrap
 .tabs button { background: none; border: 0; border-bottom: 2px solid transparent; padding: 8px 14px; color: var(--dust); font-weight: 600; margin-bottom: -1px; }
 .tabs button.on { color: var(--bronze); border-bottom-color: var(--bronze); }
 .account { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; max-width: 760px; }
+.account.pick { background: var(--pit); border: 1px solid var(--bronze); border-radius: 8px; padding: 10px 12px; }
 .account input { background: var(--pit-2); border: 1px solid var(--line); border-radius: 6px; color: var(--sand); font: inherit; padding: 4px 8px; width: 160px; }
 .notice { background: var(--pit); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; color: var(--dust); }
 .notice b { color: var(--sand); }
