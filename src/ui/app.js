@@ -754,6 +754,12 @@ function renderShroud(id) {
     <div><div class="eyebrow" style="margin-bottom:6px">Tag progress</div><div class="progress shroud">${Array.from({ length: 5 }, () => '<div class="prog"><span class="chip">??</span><span class="pips"></span><span class="next"></span></div>').join('')}</div></div>`;
 }
 
+// "Bram the Thornroot" once a signature is chosen.
+function sigTitle(p) {
+  const ch = CHAR_BY_ID[p.charId], sig = p.sig && ch.signatures.find((s) => s.id === p.sig);
+  return sig ? `${ch.name} the ${sig.name}` : ch.name;
+}
+
 // The standings plaques on the arena's back wall.
 function renderBoard() {
   if (!arena) return;
@@ -773,7 +779,7 @@ function renderBoard() {
   const order = m.players.slice().sort((a, b) => (a.placement ?? 0) - (b.placement ?? 0) || hpOf(b) - hpOf(a) || b.wins - a.wins);
   const w = ui.watching;
   const list = order.map((p) => ({
-    id: p.id, name: nameOf(p), char: CHAR_BY_ID[p.charId].name, glyph: glyphOf(p.charId),
+    id: p.id, name: nameOf(p), char: sigTitle(p), glyph: glyphOf(p.charId),
     tags: [CHAR_BY_ID[p.charId].trigger, ...CHAR_BY_ID[p.charId].resources],
     hp: hpOf(p), max: START_HP, place: p.placement, out: p.hp <= 0 && !ui.fighting,
     me: p.id === ME(), foe: !!(f && foeRevealed() && f.p.id === p.id),

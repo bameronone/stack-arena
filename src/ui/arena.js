@@ -828,7 +828,14 @@ export function createArena(canvas) {
     ctx.globalAlpha = alpha * (u.dead && a.clip === 'death' && a.clipT > CLIP.death && !set.dead ? 0.55 : 1);
     ctx.translate(x, 0);
     if ((flip ? 1 - u.side : u.side) === 1) ctx.scale(-1, 1);
+    // A gladiator who took a signature glows in its main resource's color.
+    if (u.sig && !u.dead && alpha === 1) {
+      ctx.shadowColor = TAGS[u.char.resources[0]].color;
+      ctx.shadowBlur = (16 + 6 * Math.sin(clock * 3)) * dpr;
+      ctx.drawImage(src, -dw / 2, cy - dh / 2, dw, dh); // a second pass makes the glow read
+    }
     ctx.drawImage(src, -dw / 2, cy - dh / 2, dw, dh);
+    ctx.shadowBlur = 0;
     // The old clip's frame fades out on top while the new clip comes in.
     if (a.from) {
       const old = spriteFrame(set, { clip: a.from.clip, clipT: Math.min(a.from.clipT, CLIP[a.from.clip] || Infinity) });
@@ -895,6 +902,12 @@ export function createArena(canvas) {
     ctx.restore();
   }
 
+  // "Bram the Thornroot" once a signature is chosen.
+  function sigTitle(u) {
+    const sig = u.sig && u.char.signatures.find((s) => s.id === u.sig);
+    return sig ? `${u.char.name} the ${sig.name}` : u.char.name;
+  }
+
   function drawUnit(u) {
     const p = pos(u.side);
     const r = radius(u.side);
@@ -909,6 +922,17 @@ export function createArena(canvas) {
     // shadow
     ctx.fillStyle = 'rgba(0,0,0,0.4)';
     ctx.beginPath(); ctx.ellipse(x, p.y + r * 1.05, r * 0.9, r * 0.24, 0, 0, Math.PI * 2); ctx.fill();
+    // A signature's sigil: a ring on the floor in the main resource's color.
+    if (u.sig && !u.dead) {
+      ctx.save();
+      ctx.strokeStyle = TAGS[u.char.resources[0]].color;
+      ctx.globalAlpha = 0.55 + 0.2 * Math.sin(clock * 3);
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.ellipse(p.x, p.y + r * 1.05, r * 1.05, r * 0.3, 0, 0, Math.PI * 2); ctx.stroke();
+      ctx.globalAlpha *= 0.5;
+      ctx.beginPath(); ctx.ellipse(p.x, p.y + r * 1.05, r * 0.8, r * 0.22, 0, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
+    }
     // frost creeping over the floor under a chilled fighter
     if (u.frost >= 1 || u.frozen > 0) {
       ctx.fillStyle = `rgba(160,220,250,${u.frozen > 0 ? 0.35 : Math.min(0.25, u.frost / 60)})`;
@@ -989,7 +1013,7 @@ export function createArena(canvas) {
     if (names[u.side]) {
       ctx.font = '600 11px "Barlow Semi Condensed", system-ui, sans-serif';
       ctx.fillStyle = '#a99c87';
-      ctx.fillText(u.char.name, bx, by - 5);
+      ctx.fillText(sigTitle(u), bx, by - 5);
     }
     ctx.textAlign = 'right';
     ctx.font = '700 12px "Barlow Semi Condensed", system-ui, sans-serif';
