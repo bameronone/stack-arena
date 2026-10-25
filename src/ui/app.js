@@ -35,6 +35,7 @@ let S = null; // the session: solo game, hosted room or joined room
 let arena = null;
 let toastTimer = 0;
 let lastCounts = null;
+let shownSeed = null; // the match whose fights the UI is showing
 let savedResultFor = null;
 // Cards you bought stay in the tray as invisible copies, so the row keeps its
 // height instead of shrinking when the tallest card is bought.
@@ -197,8 +198,9 @@ function toast(msg) {
 function useSession(session) {
   S?.close?.();
   S = session;
-  ui.fightStats = null; ui.animRound = null; ui.lastFight = null; ui.fighting = false; ui.watching = null; ui.error = null; ui.trayH = 0;
-  lastCounts = null;
+  resetFightState();
+  ui.error = null; ui.trayH = 0;
+  lastCounts = null; shownSeed = null;
   S.onChange(onSessionChange);
   render();
 }
@@ -235,8 +237,16 @@ async function startOnline(kind) {
   render();
 }
 
+// Fight state that belongs to one match. A new match (Replay, or a room
+// that went back to its lobby and started again) must not show the last
+// one's fight stats or held fight.
+function resetFightState() {
+  ui.fightStats = null; ui.savedStats = null; ui.animRound = null; ui.lastFight = null; ui.fighting = false; ui.watching = null;
+}
+
 function onSessionChange() {
   const m = M();
+  if (m && m.seed !== shownSeed) { shownSeed = m.seed; resetFightState(); }
   if (m && S.stage === 'game') {
     // Toast tier and hybrid unlocks after your purchases land.
     const me = m.players[ME()];

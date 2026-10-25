@@ -5,7 +5,7 @@ import { rollShop, cardCost, REROLL_COST } from './shop.js';
 import { Fight } from './combat.js';
 
 export const START_HP = 60;
-export const START_GOLD = 6; // on top of round 1's income
+export const START_GOLD = 3; // on top of round 1's income
 export const SIGNATURE_ROUND = 7;
 export const BAN_COUNT = 2; // resources banned per match, by vote
 export const MAX_PLAYERS = 8;
@@ -58,12 +58,12 @@ export function pickCharacter(m, playerId, charId) {
 }
 
 export function income(round) {
-  return Math.min(10, 4 + round);
+  return Math.min(6, 2 + Math.ceil(round / 2));
 }
 
 // Interest: +1 gold per INTEREST_STEP kept at the start of a round, up to INTEREST_MAX.
-export const INTEREST_STEP = 5;
-export const INTEREST_MAX = 3;
+export const INTEREST_STEP = 4;
+export const INTEREST_MAX = 2;
 export function interest(gold) {
   return Math.min(INTEREST_MAX, Math.floor(gold / INTEREST_STEP));
 }

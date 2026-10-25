@@ -450,23 +450,49 @@ export function createArena(canvas) {
     ctx.fillText('Revealed when the fight starts', p.x, p.y - r - 11);
   }
 
-  // The standings, hung on the back wall. Plaques slide to their new place
-  // when the order changes. Under each name, the gladiator and its tags.
-  // An eye marks a fight you can watch (click to watch it; lit while you
-  // are); crossed swords mark other fights still going.
-  function drawBoard(dt) {
-    plaqueRects = [];
-    if (!board.length) return;
-    const { floorTop, narrow } = stage();
+  // The grey bar along the top of the arena: the speed buttons (HTML, laid
+  // over the canvas) on the right and the standings beside them. On narrow
+  // screens the buttons get a row of their own above the standings.
+  const SPEED_ROW = 40;
+  let bandShown = '';
+  function band() {
+    const narrow = w < 640;
+    const speedW = (canvas.parentElement?.querySelector('.speed')?.offsetWidth || 150) + 20;
+    const margin = narrow ? 8 : 12;
+    const left = margin, right = narrow ? w - margin : w - speedW;
     const n = board.length;
-    const margin = narrow ? 8 : 24;
-    const slot = (w - margin * 2) / n;
+    const slot = n ? (right - left) / n : 0;
     const pw = Math.min(160, slot - 6);
     const compact = pw < 92, ph = compact ? 31 : 50;
-    const y = narrow ? 92 : Math.max(58, floorTop - ph - 54);
+    const top = narrow ? SPEED_ROW : 8;
+    const hh = n ? top + ph + 8 : narrow ? SPEED_ROW : 44;
+    return { narrow, left, slot, pw, compact, ph, y: top, h: hh, speedW };
+  }
+  function drawBand(bd) {
+    ctx.fillStyle = '#1f1b24';
+    ctx.fillRect(0, 0, w, bd.h);
+    ctx.fillStyle = '#3b3442';
+    ctx.fillRect(0, bd.h - 1, w, 1);
+    const key = `${bd.h}${bd.narrow}`;
+    if (key !== bandShown) {
+      bandShown = key;
+      const wrap = canvas.parentElement?.style;
+      wrap?.setProperty('--band', `${bd.h}px`);
+      wrap?.setProperty('--speed-top', `${bd.narrow ? 6 : Math.round((bd.h - 28) / 2)}px`);
+    }
+  }
+
+  // The standings, in the bar along the top. Plaques slide to their new
+  // place when the order changes. Under each name, the gladiator and its
+  // tags. An eye marks a fight you can watch (click to watch it; lit while
+  // you are); crossed swords mark other fights still going.
+  function drawBoard(dt, bd) {
+    plaqueRects = [];
+    if (!board.length) return;
+    const { narrow, left, slot, pw, compact, ph, y } = bd;
     const now = performance.now();
     board.forEach((b, i) => {
-      const target = margin + slot * i + slot / 2;
+      const target = left + slot * i + slot / 2;
       const cur = plaqueX[b.id] ?? target;
       plaqueX[b.id] = cur + (target - cur) * Math.min(1, dt * 6);
       const x = plaqueX[b.id] - pw / 2;
@@ -487,7 +513,7 @@ export function createArena(canvas) {
       if (compact) {
         ctx.textAlign = 'center';
         ctx.font = '700 11px "Barlow Semi Condensed", system-ui, sans-serif';
-        ctx.fillText(`${b.glyph} ${b.hp}`, x + pw / 2 - (fighting && narrow ? 5 : 0), y + 15);
+        ctx.fillText(`${b.glyph} ${b.hp}`, x + pw / 2 - (fighting ? 5 : 0), y + 15);
         // Tags as colored dots, between the name and the HP bar.
         (b.tags || []).forEach((t, k, all) => {
           ctx.fillStyle = TAGS[t].color;
@@ -502,19 +528,18 @@ export function createArena(canvas) {
         ctx.font = '600 10px "Barlow Semi Condensed", system-ui, sans-serif';
         ctx.fillStyle = '#a99c87';
         ctx.fillText(b.char, x + 6, y + 26);
-        drawTagChips(b.tags || [], x + 6, y + 30, pw - 12);
+        drawTagChips(b.tags || [], x + 6, y + 30, pw - (fighting ? 30 : 12));
         ctx.textAlign = 'right';
         ctx.font = '700 12px "Barlow Semi Condensed", system-ui, sans-serif';
         ctx.fillStyle = '#e9dcc0';
         ctx.fillText(String(b.hp), x + pw - 6, y + 14);
         if (b.ready) { ctx.fillStyle = '#7fca6e'; ctx.fillText('✓', x + pw - 6, y + 26); }
       }
-      // Under the plaque; inside its right edge on narrow screens, where
-      // the fighters' names sit just below.
-      const sx = narrow ? x + pw - 8 : x + pw / 2, sy = narrow ? y + 9 : y + ph + 13, k = narrow ? 4 : 11;
+      // Inside the plaque's right edge, by the HP (under it on wide ones).
+      const sx = compact ? x + pw - 8 : x + pw - 14, sy = compact ? y + 9 : y + 31, k = compact ? 4 : 7;
       if (fighting && b.watchable) {
         drawEye(sx, sy, k, b.watched, now);
-        plaqueRects.push({ id: b.id, x, y, w: pw, h: ph + (narrow ? 0 : 20) });
+        plaqueRects.push({ id: b.id, x, y, w: pw, h: ph });
       } else if (fighting) {
         const swing = Math.sin(now / 160) * 0.25;
         ctx.strokeStyle = '#e9dcc0'; ctx.lineWidth = 2; ctx.lineCap = 'round';
@@ -640,9 +665,14 @@ export function createArena(canvas) {
   function drawFloor(dt) {
     const bd = backdropFit();
     if (bd) {
+      // Muted (less saturated, a little darker) so the fighters stand out.
       ctx.imageSmoothingEnabled = false;
+      ctx.filter = 'saturate(0.6) brightness(0.8)';
       ctx.drawImage(bd.img, bd.x, bd.y, bd.w, bd.h);
+      ctx.filter = 'none';
       ctx.imageSmoothingEnabled = true;
+      ctx.fillStyle = 'rgba(21,19,26,0.25)';
+      ctx.fillRect(0, 0, w, h);
       drawEmbers(dt);
       return;
     }
@@ -972,14 +1002,25 @@ export function createArena(canvas) {
     const chips = own.map((k) => (k === 'evasion'
       ? { k, v: Math.round(u.focus * 100) + '%', mine: true, zero: u.focus <= 0 }
       : { k, v: u[k], mine: !ON_ME.includes(k), zero: !(u[k] >= 1) }));
-    const cw = 46, ch = 20, gap = 4;
-    const perRow = Math.max(2, Math.floor((w * 0.4) / (cw + gap)));
+    // Your own stacks on the left, then a gap, then what the enemy put on
+    // you. Each group wraps inside its own column when the row runs out.
+    const good = chips.filter((c) => c.mine), bad = chips.filter((c) => !c.mine);
+    const narrow = w < 640;
+    const cw = narrow ? 40 : 46, ch = narrow ? 18 : 20, gap = 4, split = good.length && bad.length ? (narrow ? 8 : 14) : 0;
+    const avail = Math.max(2 * (cw + gap), Math.min(w * (narrow ? 0.46 : 0.36), 2 * Math.min(p.x, w - p.x)) - 8);
+    const fits = (k) => k * (cw + gap) - gap;
+    let badCols = Math.min(bad.length, Math.max(1, Math.floor((avail - split - fits(2) + gap) / (cw + gap))));
+    let goodCols = Math.min(good.length, Math.max(2, Math.floor((avail - split - (bad.length ? fits(badCols) : 0) + gap) / (cw + gap))));
+    if (!bad.length) badCols = 0;
+    if (!good.length) goodCols = 0;
+    const rowW = (goodCols ? fits(goodCols) : 0) + split + (badCols ? fits(badCols) : 0);
+    const x0 = p.x - rowW / 2, y0 = p.y + r * 1.05 + (narrow ? 8 : 14);
+    const placed = [
+      ...good.map((c, i) => ({ c, cx: x0 + (i % goodCols) * (cw + gap), cy: y0 + Math.floor(i / goodCols) * (ch + gap) })),
+      ...bad.map((c, i) => ({ c, cx: x0 + (goodCols ? fits(goodCols) + split : 0) + (i % badCols) * (cw + gap), cy: y0 + Math.floor(i / badCols) * (ch + gap) })),
+    ];
     ctx.textBaseline = 'middle';
-    chips.forEach((c, i) => {
-      const row = Math.floor(i / perRow), col = i % perRow;
-      const n = Math.min(perRow, chips.length - row * perRow);
-      const cx = p.x - (n * (cw + gap) - gap) / 2 + col * (cw + gap);
-      const cy = p.y + r * 1.05 + 14 + row * (ch + gap);
+    placed.forEach(({ c, cx, cy }) => {
       const color = TAGS[c.k].color;
       ctx.globalAlpha = c.zero ? 0.45 : 1;
       ctx.fillStyle = '#15131acc';
@@ -1033,9 +1074,10 @@ export function createArena(canvas) {
 
   // The fight clock: elapsed time, with a bar that fills toward overtime
   // (30s) and then the arena burn (60s).
-  function drawClock(t) {
+  function drawClock(t, bd) {
     const o = overtime(t);
-    const top = w < 640 ? 36 : 0; // below the speed buttons on narrow screens
+    if (bd.narrow) return drawClockSmall(t, o, bd);
+    const top = bd.h + 2; // just under the top bar
     const bw = Math.min(360, w * 0.5), bx = w / 2 - bw / 2, by = top + 32, bh = 6;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -1079,11 +1121,34 @@ export function createArena(canvas) {
     ctx.fillText('0s', bx, by + bh + 10);
   }
 
+  // Narrow screens: the clock sits in the top bar, left of the speed
+  // buttons, as the seconds over a slim track.
+  function drawClockSmall(t, o, bd) {
+    const bx = 8, bw = Math.max(60, w - bd.speedW - 16), by = 27, bh = 4;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.font = '600 13px "Barlow Semi Condensed", system-ui, sans-serif';
+    ctx.fillStyle = t > SUDDEN_DEATH_AT ? '#d9505e' : '#e9dcc0';
+    const label = t > BURN_AT ? `${t.toFixed(1)}s · BURN` : t > SUDDEN_DEATH_AT ? `${t.toFixed(1)}s · OVERTIME +${Math.round((o.damage - 1) * 100)}%` : `${t.toFixed(1)}s`;
+    ctx.fillText(label, bx, 14);
+    const ot = bx + bw * (SUDDEN_DEATH_AT / BURN_AT);
+    ctx.fillStyle = '#0e0c11';
+    roundRect(bx, by, bw, bh, 2); ctx.fill();
+    ctx.fillStyle = 'rgba(217,80,94,0.22)';
+    ctx.fillRect(ot, by, bx + bw - ot, bh);
+    const fillW = bw * Math.min(1, t / BURN_AT);
+    ctx.fillStyle = '#a99c87';
+    ctx.fillRect(bx, by, Math.min(fillW, ot - bx), bh);
+    if (fillW > ot - bx) { ctx.fillStyle = t > BURN_AT ? '#f0a43a' : '#d9505e'; ctx.fillRect(ot, by, fillW - (ot - bx), bh); }
+    ctx.fillStyle = '#e9dcc0';
+    ctx.fillRect(ot - 1, by - 2, 2, bh + 4);
+  }
+
   function draw(dt) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     drawFloor(dt);
-    drawBoard(dt);
-    if (!units) return;
+    const bd = band();
+    if (!units) { drawBand(bd); drawBoard(dt, bd); return; }
     drawFx(true);
     for (const u of units) drawUnit(u);
     drawFx(false);
@@ -1091,7 +1156,7 @@ export function createArena(canvas) {
     drawRings(dt);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    if (fight) drawClock(fight.t);
+    if (fight && !bd.narrow) drawClock(fight.t, bd);
     const mid = { x: w / 2, y: pos(0).y };
     ctx.font = `${Math.round(baseRadius() * 0.6)}px "Grenze Gotisch", Georgia, serif`;
     ctx.fillStyle = 'rgba(214,162,78,0.55)';
@@ -1105,12 +1170,17 @@ export function createArena(canvas) {
       ctx.fillText(f.text, f.x, f.y);
     }
     ctx.globalAlpha = 1;
+    // The bar goes on last so lightning and floating numbers pass behind it.
+    drawBand(bd);
+    drawBoard(dt, bd);
+    if (fight && bd.narrow) drawClock(fight.t, bd);
   }
 
   function destroy() {
     cancelAnimationFrame(raf);
     raf = 0;
     ro?.disconnect();
+    onDone = null; // a fight from a match that is gone reports nothing
     if (fight) fight.onEvent = null;
   }
 

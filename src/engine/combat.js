@@ -48,9 +48,11 @@ export const FIRE = { cap: 40, as: 0.01, rush: 1, rushDur: 3, scorch: 0.3 };
 export const ARCANE_CAP = 25;
 // Attack damage each Strike card gives.
 export const STRIKE_AD = 0.03;
-// Toxin and Bleed lose DOT_DECAY of their stacks every DOT_EVERY seconds.
+// Toxin, Bleed and Regen lose DOT_DECAY of their stacks every DOT_EVERY seconds.
 export const DOT_DECAY = 1 / 3;
 export const DOT_EVERY = 2;
+// Each Regen stack heals this share of base max HP per second.
+export const REGEN_RATE = 0.0025;
 const BASE = { hp: 1800, ad: 30, as: 1.0, crit: 0.05, critMult: 1.75, manaMax: 100, manaPerAttack: 10, focusGain: 0 };
 
 // Build a combat unit from a loadout: { charId, cards: {id: copies}, sig, round }.
@@ -216,7 +218,7 @@ export class Fight {
       if (src.flags.septic) this.apply(src, 'poison', k / 2);
       if (src.flags.bloodRite) {
         src.bleedApplied += k;
-        while (src.bleedApplied >= 8) { src.bleedApplied -= 8; this.gain(src, 'regen', 1); }
+        while (src.bleedApplied >= 6) { src.bleedApplied -= 6; this.gain(src, 'regen', 1); }
       }
     }
   }
@@ -505,19 +507,20 @@ export class Fight {
         const d = this.damage(e, u, u.bleed * 0.0025 * u.baseHp * e.m.bleedDmg * dt, 'bleed');
         if (e.m.bleedLeech) this.heal(e, d * e.m.bleedLeech, 'Bleed lifesteal');
       }
-      // Toxin and Bleed lose a third of their stacks every 2 seconds.
+      if (u.regen > 0) this.heal(u, u.regen * REGEN_RATE * u.baseHp * dt, 'Regen');
+      // Toxin, Bleed and Regen lose a third of their stacks every 2 seconds.
       u.dotTimer += dt;
       if (u.dotTimer >= DOT_EVERY - 1e-9) {
         u.dotTimer -= DOT_EVERY;
         u.poison *= 1 - DOT_DECAY;
         u.bleed *= 1 - DOT_DECAY * Math.max(0, e.m.bleedDecay);
+        u.regen *= 1 - DOT_DECAY;
         if (u.poison < 1) u.poison = 0;
         if (u.bleed < 1) u.bleed = 0;
+        if (u.regen < 1) u.regen = 0;
       }
       if (u.dead) continue;
       u.frost = Math.max(0, u.frost - 0.6 * e.m.frostDecay * dt);
-
-      if (u.regen > 0) this.heal(u, u.regen * 0.002 * u.baseHp * dt, 'Regen');
       const burn = overtime(this.t).burn;
       if (burn > 0) this.damage(e, u, u.maxHp * burn * dt, 'true', { source: 'Arena burn' });
       if (u.dead) continue;
