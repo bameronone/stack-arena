@@ -439,7 +439,8 @@ function accountBar() {
   const a = currentAccount();
   if (!a) {
     return `<div class="account"><span class="slot-note">Sign in to put your wins on the leaderboard.</span>
-      ${Object.entries(PROVIDERS).map(([id, name]) => `<button class="btn" data-signin="${id}">Sign in with ${name}</button>`).join('')}</div>`;
+      ${Object.entries(PROVIDERS).map(([id, name]) => `<button class="btn" data-signin="${id}">Sign in with ${name}</button>`).join('')}
+      <a class="slot-note" href="privacy.html" target="_blank" rel="noopener">Privacy</a></div>`;
   }
   return `<div class="account"><span class="slot-note">Signed in. On the leaderboard as</span>
     <input id="board-name" maxlength="20" value="${esc(a.name || '')}" aria-label="Leaderboard name">
