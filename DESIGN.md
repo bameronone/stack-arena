@@ -113,3 +113,9 @@ After changing cards, re-run `tools/cardvalue.mjs` (so the AI's card values stay
 - A player who leaves is replaced by a bot; joining the same room code again (same browser, or same name) hands the gladiator back.
 - In a free-for-all your next opponent stays hidden (top bar, side panel and arena preview) until the fight starts.
 - Standings sit in a grey bar along the top of the arena, next to the speed buttons, best on the left, sliding when places change. Each plaque shows the player's gladiator and its tags. An eye marks a fight you can watch (click it to watch; it lights up while you do); crossed swords mark other fights still going. Knocked-out players keep spectating: rounds still play out in real time, they watch the leader's fight automatically, and Skip to results fast-forwards the rest of the match once every human has skipped.
+
+## Leaderboard
+
+- Sign-in and the boards run on Supabase (`src/net/accounts.js`, tables and permissions in `docs/leaderboard.sql`), called with plain `fetch`, so the game still has no server of its own. Sign-in is GitHub or Google OAuth and only works on the hosted page (not a local file or the artifact preview).
+- Each finished match a signed-in player plays is saved once (per seed): mode (bots or online), the hardest bot's level, players, placement, gladiator and rounds. Boards rank by gladiators beaten (players minus placement, summed): Online, and one per bot level.
+- Results are reported by the player's browser, so they can be faked. Fights are deterministic from the seed and purchases, so a server function could replay a match to check it; that is not built yet.

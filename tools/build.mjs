@@ -10,7 +10,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const order = [
   'src/rng.js', 'src/data/tags.js', 'src/data/cards.js', 'src/data/characters.js',
   'src/engine/combat.js', 'src/engine/shop.js', 'src/engine/match.js', 'src/ai/cardValues.js', 'src/ai/bot.js',
-  'src/game/host.js', 'src/net/transport.js', 'src/game/session.js',
+  'src/game/host.js', 'src/net/transport.js', 'src/game/session.js', 'src/net/accounts.js',
   'src/ui/arena.js', 'src/ui/app.js',
 ];
 // Every relative import must be bundled, and before the file that imports it.

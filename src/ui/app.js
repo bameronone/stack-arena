@@ -9,6 +9,7 @@ import {
 import { SHOP_TIMES, ROUND_PACE } from '../game/host.js';
 import { soloSession, hostSession, clientSession, BOT_NAMES, cleanName } from '../game/session.js';
 import { cleanCode } from '../net/transport.js';
+import { accountsAvailable, currentAccount, loadAccount, signIn, signOut, setLeaderboardName, submitResult, leaderboard, PROVIDERS } from '../net/accounts.js';
 import { createArena } from './arena.js';
 import { DT } from '../engine/combat.js';
 
@@ -42,7 +43,7 @@ let savedResultFor = null;
 const shopGhost = [];
 const ui = {
   tab: params.get('room') ? 'online' : 'solo',
-  speed: 2, mobileTab: null, modal: null,
+  speed: 2, mobileTab: null, modal: null, board: { which: 'online', rows: null, error: null }, submitState: null,
   lobby: (() => { const l = store.get('lobby', ['normal']); return Array.isArray(l) && l.length && l.every((x) => DIFFICULTY_IDS.includes(x)) ? l.slice(0, MAX_PLAYERS - 1) : ['normal']; })(),
   soloTime: SHOP_TIMES.includes(store.get('solo-time', 30)) ? store.get('solo-time', 30) : 30,
   name: store.get('name', ''),
@@ -182,6 +183,20 @@ function saveResult() {
     r.games++; r.places += me.placement; if (me.placement === 1) r.wins++;
     store.set('ffa', r);
   }
+}
+
+// Signed in: every finished match goes to the leaderboard once.
+let submittedSeed = null;
+function submitToLeaderboard() {
+  const m = M(), me = m.players[ME()];
+  if (!currentAccount() || submittedSeed === m.seed || !me.placement) return;
+  submittedSeed = m.seed;
+  const levels = m.players.filter((p) => p.isBot).map((p) => DIFFICULTY_IDS.indexOf(p.level || 'normal'));
+  const level = S.mode === 'solo' ? DIFFICULTY_IDS[Math.max(0, ...levels)] : null;
+  ui.submitState = 'saving';
+  submitResult({ mode: S.mode === 'solo' ? 'bots' : 'online', level, players: m.players.length, placement: me.placement, charId: me.charId, seed: m.seed, rounds: m.round })
+    .then(() => { ui.submitState = 'saved'; }, () => { ui.submitState = 'failed'; })
+    .then(() => { if (screenFor() === 'over') render(); });
 }
 
 function toast(msg) {
@@ -362,15 +377,18 @@ function renderTitle() {
     <div class="tabs" role="tablist">
       <button role="tab" aria-selected="${ui.tab === 'solo'}" class="${ui.tab === 'solo' ? 'on' : ''}" data-tab="solo">Play against bots</button>
       <button role="tab" aria-selected="${ui.tab === 'online'}" class="${ui.tab === 'online' ? 'on' : ''}" data-tab="online">Play online</button>
+      ${accountsAvailable() ? `<button role="tab" aria-selected="${ui.tab === 'board'}" class="${ui.tab === 'board' ? 'on' : ''}" data-tab="board">Leaderboard</button>` : ''}
     </div>
-    ${ui.tab === 'solo' ? soloLobby() : onlineLobby()}
+    ${accountBar()}
+    ${ui.tab === 'solo' ? soloLobby() : ui.tab === 'board' ? leaderboardView() : onlineLobby()}
     ${RULES()}
     <div>
       <div class="eyebrow" style="margin-bottom:10px">The ${CHARACTERS.length} gladiators</div>
       <div class="char-grid">${CHARACTERS.map((c) => `<div class="char">${charInfo(c)}</div>`).join('')}</div>
     </div>
   </div></div>`;
-  root.querySelectorAll('[data-tab]').forEach((b) => b.onclick = () => { ui.tab = b.dataset.tab; ui.error = null; render(); });
+  root.querySelectorAll('[data-tab]').forEach((b) => b.onclick = () => { ui.tab = b.dataset.tab; ui.error = null; if (ui.tab === 'board') loadBoard(); render(); });
+  wireAccount();
   if (ui.tab === 'solo') {
     root.querySelectorAll('[data-slot-level]').forEach((b) => b.onclick = () => { ui.lobby[Number(b.dataset.slot)] = b.dataset.slotLevel; render(); });
     root.querySelectorAll('[data-remove]').forEach((b) => b.onclick = () => { ui.lobby.splice(Number(b.dataset.remove), 1); render(); });
@@ -410,6 +428,51 @@ function soloLobby() {
     <div class="row"><span class="eyebrow">Shop timer</span>${timeSeg('solo-time', ui.soloTime, SHOP_TIMES)}
       <span class="slot-note">${ui.soloTime ? 'When time runs out, the fight starts.' : 'No time limits. The fight starts when you press Fight.'}</span></div>
     <div class="row"><button class="btn primary big" id="start">Enter the arena</button></div>
+  </div>`;
+}
+
+// ---------------------------------------------------------------- leaderboard
+
+const BOARDS = { online: 'Online', hard: 'vs Champion', normal: 'vs Gladiator', easy: 'vs Squire' };
+function accountBar() {
+  if (!accountsAvailable()) return '';
+  const a = currentAccount();
+  if (!a) {
+    return `<div class="account"><span class="slot-note">Sign in to put your wins on the leaderboard.</span>
+      ${Object.entries(PROVIDERS).map(([id, name]) => `<button class="btn" data-signin="${id}">Sign in with ${name}</button>`).join('')}</div>`;
+  }
+  return `<div class="account"><span class="slot-note">Signed in. On the leaderboard as</span>
+    <input id="board-name" maxlength="20" value="${esc(a.name || '')}" aria-label="Leaderboard name">
+    <button class="btn" id="signout">Sign out</button></div>`;
+}
+function wireAccount() {
+  root.querySelectorAll('[data-signin]').forEach((b) => b.onclick = () => signIn(b.dataset.signin));
+  root.querySelector('#signout')?.addEventListener('click', () => { signOut(); render(); });
+  root.querySelector('#board-name')?.addEventListener('change', (e) => {
+    setLeaderboardName(e.target.value).then(() => { toast('Leaderboard name saved'); if (ui.tab === 'board') loadBoard(); }, () => toast('Could not save that name'));
+  });
+  root.querySelectorAll('[data-board]').forEach((b) => b.onclick = () => { ui.board.which = b.dataset.board; loadBoard(); });
+}
+function loadBoard() {
+  const which = ui.board.which;
+  ui.board = { which, rows: null, error: null };
+  leaderboard(which === 'online' ? 'online' : 'bots', which)
+    .then((rows) => { if (ui.board.which === which) ui.board.rows = rows; }, () => { ui.board.error = 'The leaderboard could not be loaded.'; })
+    .then(() => { if (screenFor() === 'title') render(); });
+  render();
+}
+function leaderboardView() {
+  const b = ui.board;
+  const me = currentAccount()?.name;
+  const rows = b.rows || [];
+  return `<div class="lobby">
+    <div class="seg" role="radiogroup" aria-label="Board">${Object.entries(BOARDS).map(([id, name]) => `<button class="${b.which === id ? 'on' : ''}" role="radio" aria-checked="${b.which === id}" data-board="${id}">${name}</button>`).join('')}</div>
+    <p class="slot-note">Ranked by gladiators beaten: finishing ahead of 3 players in a match counts 3, and a 1v1 win counts 1.${b.which === 'online' ? '' : ' Bot games count on the board of the hardest bot in the lobby.'}</p>
+    ${b.error ? `<p class="warn" role="alert">${esc(b.error)}</p>` : !b.rows ? '<p class="slot-note waiting">Loading...</p>' : !rows.length ? '<p class="empty">No results on this board yet.</p>' : `
+    <table class="final">
+      <thead><tr><th>Rank</th><th>Player</th><th class="num">Beaten</th><th class="num">Wins</th><th class="num">Games</th><th class="num">Avg place</th></tr></thead>
+      <tbody>${rows.map((r, i) => `<tr class="${r.name === me ? 'me' : ''}"><td class="num">${i + 1}</td><td>${esc(r.name)}</td><td class="num">${r.beaten}</td><td class="num">${r.wins}</td><td class="num">${r.games}</td><td class="num">${Number(r.avg_place).toFixed(1)}</td></tr>`).join('')}</tbody>
+    </table>`}
   </div>`;
 }
 
@@ -1066,6 +1129,7 @@ function renderTabs() {
 
 function renderOver() {
   saveResult();
+  submitToLeaderboard();
   const m = M();
   const me = m.players[ME()];
   const won = me.placement === 1;
@@ -1085,6 +1149,8 @@ function renderOver() {
       <h1 class="brand" style="color:${won ? 'var(--bronze)' : 'var(--blood)'}">${won ? 'Champion' : isDuel() ? 'Fallen' : `${ordinal(me.placement)} of ${m.players.length}`}</h1>
     </div>
     <div class="row">${actions}</div>
+    ${accountsAvailable() ? `<p class="slot-note">${!currentAccount() ? 'Sign in on the title screen to put your results on the leaderboard.'
+      : ui.submitState === 'saved' ? 'Saved to the leaderboard.' : ui.submitState === 'failed' ? 'This result could not be saved to the leaderboard.' : 'Saving to the leaderboard...'}</p>` : ''}
     <table class="final">
       <thead><tr><th>Place</th><th>Gladiator</th><th>Player</th><th class="num">Fights won</th></tr></thead>
       <tbody>${standings(m).map((p) => `<tr class="${p.id === ME() ? 'me' : ''}"><td class="num">${ordinal(p.placement)}</td><td>${esc(CHAR_BY_ID[p.charId].name)}</td><td>${esc(playerLabel(p))}</td><td class="num">${p.wins}</td></tr>`).join('')}</tbody>
@@ -1147,3 +1213,5 @@ window.addEventListener('beforeunload', (e) => {
 });
 
 render();
+// Who is signed in, if anyone; the title screen shows it once known.
+if (accountsAvailable()) loadAccount().then(() => { if (screenFor() === 'title') render(); });

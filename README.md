@@ -58,6 +58,7 @@ src/
   ai/cardValues.js      generated: measured value of each card
   game/host.js          authoritative game loop: phases, timers, bots, fights (solo games use it too)
   game/session.js       what the UI talks to: solo game, hosted room or joined room
+  net/accounts.js       sign-in (GitHub, Google) and the leaderboard, on Supabase (tables: docs/leaderboard.sql)
   net/transport.js      PeerJS (WebRTC) and same-browser transports
   ui/arena.js           canvas renderer for fights (sprites when present, medallions otherwise)
   ui/app.js             screens and shop UI
