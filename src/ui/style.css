@@ -295,8 +295,12 @@ input:focus-visible { outline: 2px solid var(--bronze); outline-offset: 1px; }
 .countdown .timer { font-size: 58px; color: var(--bronze); }
 .countdown .timer.urgent { color: var(--blood); animation: live 0.5s ease-in-out infinite alternate; }
 .hp-note { font-size: 12px; color: var(--dust); }
-/* After your fight, while the rest of the round plays out: a quiet line at the top, no popup */
-.preview.wait { top: 12px; bottom: auto; padding: 6px 16px 8px; max-width: min(440px, calc(100% - 180px)); }
+/* After your fight, while the rest of the round plays out: your result in
+   large type just under the standings bar, above the fighters; no popup */
+.preview.wait { top: calc(var(--band, 44px) + 14px); bottom: auto; padding: 8px 22px 10px; max-width: min(480px, calc(100% - 24px)); }
+.preview.wait .result { font-family: var(--display); font-size: 34px; line-height: 1.1; color: var(--sand); }
+.preview.wait .result.won { color: #7fca6e; }
+.preview.wait .result.lost { color: var(--blood); }
 .banner {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-align: center;
   background: color-mix(in srgb, var(--night) 88%, transparent); border: 1px solid var(--line);
@@ -405,6 +409,8 @@ input:focus-visible { outline: 2px solid var(--bronze); outline-offset: 1px; }
   .speed { right: 8px; }
   .preview { left: 8px; top: calc(var(--band, 40px) + 8px); bottom: auto; transform: none; max-width: calc(100% - 150px); padding: 4px 10px 6px; align-items: flex-start; text-align: left; }
   .preview .eyebrow { font-size: 9px; }
+  .preview.wait { left: 50%; transform: translateX(-50%); align-items: center; text-align: center; max-width: calc(100% - 16px); }
+  .preview.wait .result { font-size: 24px; }
   .countdown { font-size: 18px; gap: 6px; white-space: nowrap; }
   .countdown .timer { font-size: 34px; }
   .hp-note { font-size: 11px; }
