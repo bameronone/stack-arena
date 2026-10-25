@@ -9,7 +9,7 @@ import {
 import { SHOP_TIMES, ROUND_PACE } from '../game/host.js';
 import { soloSession, hostSession, clientSession, BOT_NAMES, cleanName } from '../game/session.js';
 import { cleanCode } from '../net/transport.js';
-import { accountsAvailable, currentAccount, loadAccount, signIn, signOut, setLeaderboardName, submitResult, leaderboard, PROVIDERS, NAME_RULE } from '../net/accounts.js';
+import { accountsAvailable, currentAccount, loadAccount, signIn, signOut, setLeaderboardName, submitResult, leaderboard, PROVIDERS, NAME_RULE, nameTaken } from '../net/accounts.js';
 import { createArena } from './arena.js';
 import { DT } from '../engine/combat.js';
 
@@ -238,6 +238,8 @@ async function startOnline(kind) {
   if (!currentAccount()?.name) { ui.name = name; store.set('name', name); }
   ui.busy = true; ui.error = null; render();
   try {
+    // A guest can't use a name a signed-in player has.
+    if (!currentAccount()?.name && accountsAvailable() && await nameTaken(name)) throw new Error(`"${name}" belongs to a player on the leaderboard. Pick another name, or sign in.`);
     if (kind === 'host') useSession(await hostSession({ name, kind: NET_KIND }));
     else {
       const code = cleanCode(root.querySelector('#code')?.value || ui.joinCode);

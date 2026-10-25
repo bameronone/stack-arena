@@ -103,6 +103,19 @@ export async function setLeaderboardName(name) {
   account.name = clean;
 }
 
+// Whether a leaderboard player already has this name (ignoring case), so a
+// guest can't play online under it. If the check can't be made, the name
+// is allowed.
+export async function nameTaken(name) {
+  const clean = String(name).trim();
+  if (!NAME_RULE.test(clean)) return false; // leaderboard names never look like this
+  const pattern = clean.replace(/_/g, '\\_');
+  try {
+    const rows = await api(`/rest/v1/profiles?name=ilike.${encodeURIComponent(pattern)}&select=name&limit=1`);
+    return rows.length > 0;
+  } catch { return false; }
+}
+
 // One finished match. The same match (seed) is only counted once.
 // result: { mode: 'bots'|'online', level, players, placement, charId, seed, rounds }
 export async function submitResult(r) {
