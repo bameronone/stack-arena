@@ -22,6 +22,9 @@ create table if not exists public.results (
   unique (user_id, seed)
 );
 
+-- One player per name, ignoring case.
+create unique index if not exists profiles_name_unique on public.profiles (lower(name));
+
 alter table public.profiles enable row level security;
 alter table public.results enable row level security;
 

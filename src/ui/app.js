@@ -450,7 +450,10 @@ function wireAccount() {
   root.querySelectorAll('[data-signin]').forEach((b) => b.onclick = () => signIn(b.dataset.signin));
   root.querySelector('#signout')?.addEventListener('click', () => { signOut(); render(); });
   root.querySelector('#board-name')?.addEventListener('change', (e) => {
-    setLeaderboardName(e.target.value).then(() => { toast('Leaderboard name saved'); if (ui.tab === 'board') loadBoard(); }, () => toast('Could not save that name'));
+    setLeaderboardName(e.target.value).then(() => { toast('Leaderboard name saved'); if (ui.tab === 'board') loadBoard(); }, (err) => {
+      toast(err.message === 'taken' ? 'Someone already has that name' : 'Could not save that name');
+      e.target.value = currentAccount()?.name || '';
+    });
   });
   root.querySelectorAll('[data-board]').forEach((b) => b.onclick = () => { ui.board.which = b.dataset.board; loadBoard(); });
 }
