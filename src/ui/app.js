@@ -229,13 +229,13 @@ function leave() {
 function startSolo() {
   store.set('lobby', ui.lobby);
   store.set('solo-time', ui.soloTime);
-  useSession(soloSession({ bots: ui.lobby, shopTime: ui.soloTime }));
+  useSession(soloSession({ bots: ui.lobby, shopTime: ui.soloTime, name: currentAccount()?.name }));
 }
 
 async function startOnline(kind) {
-  const name = cleanName(root.querySelector('#name')?.value || ui.name);
-  ui.name = name;
-  store.set('name', name);
+  // Signed in, you play under your leaderboard name.
+  const name = currentAccount()?.name || cleanName(root.querySelector('#name')?.value || ui.name);
+  if (!currentAccount()?.name) { ui.name = name; store.set('name', name); }
   ui.busy = true; ui.error = null; render();
   try {
     if (kind === 'host') useSession(await hostSession({ name, kind: NET_KIND }));
@@ -503,8 +503,8 @@ function onlineLobby() {
     </div></div>`;
   }
   return `<div class="lobby">
-    <label class="field"><span class="eyebrow">Your name</span>
-      <input id="name" maxlength="16" autocomplete="nickname" value="${esc(ui.name)}" placeholder="Gladiator"></label>
+    ${currentAccount()?.name ? `<p class="slot-note">Playing as <b>${esc(currentAccount().name)}</b>.</p>` : `<label class="field"><span class="eyebrow">Your name</span>
+      <input id="name" maxlength="20" autocomplete="nickname" value="${esc(ui.name)}" placeholder="Gladiator"></label>`}
     <div class="online-grid">
       <div class="rule"><h3>Host a room</h3><p>You get a 5-letter code to share. Fill the other slots with friends or bots, then start.</p>
         <div><button class="btn primary" id="host" ${ui.busy ? 'disabled' : ''}>${ui.busy ? 'Opening...' : 'Create a room'}</button></div></div>
@@ -1010,7 +1010,7 @@ function renderSpeed() {
   el.querySelector('#skip')?.addEventListener('click', () => { const w = ui.watching; arena.skip(); if (w) stopWatching(); });
 }
 
-const fighterName = (p, ghost = false) => (ghost ? `Ghost of ${p.name}` : p.id === ME() ? (S.mode === 'solo' ? 'You' : `${p.name} (you)`) : p.name);
+const fighterName = (p, ghost = false) => (ghost ? `Ghost of ${p.name}` : p.id === ME() ? (p.name === 'You' ? 'You' : `${p.name} (you)`) : p.name);
 function showPreview() {
   const f = foe();
   const other = f ? f.p : M().players.find((p) => p.id !== ME());

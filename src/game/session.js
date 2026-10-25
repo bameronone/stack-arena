@@ -33,12 +33,12 @@ export function playerToken() {
   } catch { return Math.random().toString(36).slice(2); }
 }
 
-export const cleanName = (s) => String(s || '').replace(/[<>&"]/g, '').trim().slice(0, 16) || 'Gladiator';
+export const cleanName = (s) => String(s || '').replace(/[<>&"]/g, '').trim().slice(0, 20) || 'Gladiator';
 
-export function soloSession({ bots, shopTime }) {
+export function soloSession({ bots, shopTime, name }) {
   const ev = changeEmitter();
   const host = new HostGame({
-    players: [{ name: 'You' }, ...bots.map((level, i) => ({ name: BOT_NAMES[i], isBot: true, level }))],
+    players: [{ name: name || 'You' }, ...bots.map((level, i) => ({ name: BOT_NAMES[i], isBot: true, level }))],
     shopTime,
   });
   host.onChange(ev.emit);
