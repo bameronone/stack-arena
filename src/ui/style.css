@@ -121,6 +121,8 @@ h1, h2, h3 { font-family: var(--display); font-weight: 400; margin: 0; text-wrap
 .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); max-width: 760px; }
 .tabs button { background: none; border: 0; border-bottom: 2px solid transparent; padding: 8px 14px; color: var(--dust); font-weight: 600; margin-bottom: -1px; }
 .tabs button.on { color: var(--bronze); border-bottom-color: var(--bronze); }
+.account { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; max-width: 760px; }
+.account input { background: var(--pit-2); border: 1px solid var(--line); border-radius: 6px; color: var(--sand); font: inherit; padding: 4px 8px; width: 160px; }
 .notice { background: var(--pit); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; color: var(--dust); }
 .notice b { color: var(--sand); }
 .notice a { color: var(--bronze); }
@@ -278,7 +280,9 @@ input:focus-visible { outline: 2px solid var(--bronze); outline-offset: 1px; }
 
 .arena-wrap { position: relative; min-height: 0; min-width: 0; }
 #arena { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.speed { position: absolute; top: 10px; right: 10px; display: flex; gap: 4px; }
+/* In the grey bar the arena draws along its top (--band tall; the arena
+   sets both variables). */
+.speed { position: absolute; top: var(--speed-top, 8px); right: 12px; display: flex; gap: 4px; align-items: center; }
 .speed .btn { padding: 4px 9px; font-size: 13px; }
 .preview {
   position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); text-align: center; pointer-events: none;
@@ -397,7 +401,8 @@ input:focus-visible { outline: 2px solid var(--bronze); outline-offset: 1px; }
   .purse { width: auto; }
   .eco { min-width: 130px; flex: 1; }
   .rounds { overflow-x: auto; align-items: safe center; }
-  .preview { left: 8px; top: 8px; bottom: auto; transform: none; max-width: calc(100% - 150px); padding: 4px 10px 6px; align-items: flex-start; text-align: left; }
+  .speed { right: 8px; }
+  .preview { left: 8px; top: calc(var(--band, 40px) + 8px); bottom: auto; transform: none; max-width: calc(100% - 150px); padding: 4px 10px 6px; align-items: flex-start; text-align: left; }
   .preview .eyebrow { font-size: 9px; }
   .countdown { font-size: 18px; gap: 6px; white-space: nowrap; }
   .countdown .timer { font-size: 34px; }

@@ -48,9 +48,15 @@ export const FIRE = { cap: 40, as: 0.01, rush: 1, rushDur: 3, scorch: 0.3 };
 export const ARCANE_CAP = 25;
 // Attack damage each Strike card gives.
 export const STRIKE_AD = 0.03;
-// Toxin and Bleed lose DOT_DECAY of their stacks every DOT_EVERY seconds.
+// Toxin, Bleed and Regen lose DOT_DECAY of their stacks every DOT_EVERY seconds.
 export const DOT_DECAY = 1 / 3;
 export const DOT_EVERY = 2;
+// Bleed ticks lightly (BLEED.tick of the target's base max HP per stack per
+// second). Reaching BLEED.at stacks (the source's bleedAt) bleeds them out: every stack is used up
+// for BLEED.burst of the target's missing HP.
+export const BLEED = { tick: 0.0015, at: 30, burst: 0.3 };
+// Each Regen stack heals this share of base max HP per second.
+export const REGEN_RATE = 0.003;
 const BASE = { hp: 1800, ad: 30, as: 1.0, crit: 0.05, critMult: 1.75, manaMax: 100, manaPerAttack: 10, focusGain: 0 };
 
 // Build a combat unit from a loadout: { charId, cards: {id: copies}, sig, round }.
@@ -64,7 +70,7 @@ export function buildUnit(loadout, side) {
     // stacks on self
     fire: 0, fireCap: FIRE.cap, fireStart: 0, fireIdle: 0, fireLinger: 3, rush: 0, afterburners: 0,
     shield: 0, regen: 0, arcane: 0, arcaneValue: 0.04, armor: 0,
-    lightning: 0, boltAt: BOLT_AT, bolts: 0, galv: 0,
+    lightning: 0, boltAt: BOLT_AT, bleedAt: BLEED.at, bolts: 0, galv: 0,
     // stacks the enemy put on you
     frost: 0, poison: 0, bleed: 0,
     // freeze settings you impose on the enemy
@@ -213,12 +219,22 @@ export class Fight {
       }
     } else if (res === 'bleed') {
       tgt.bleed += k;
+      if (tgt.bleed >= src.bleedAt) this.bleedOut(src, tgt);
       if (src.flags.septic) this.apply(src, 'poison', k / 2);
       if (src.flags.bloodRite) {
         src.bleedApplied += k;
-        while (src.bleedApplied >= 8) { src.bleedApplied -= 8; this.gain(src, 'regen', 1); }
+        while (src.bleedApplied >= 6) { src.bleedApplied -= 6; this.gain(src, 'regen', 1); }
       }
     }
+  }
+
+  // Bleed out: the stacks are used up in one burst that hits harder the more
+  // HP the target is already missing.
+  bleedOut(src, tgt) {
+    tgt.bleed = 0;
+    src.stats.bleedOuts = (src.stats.bleedOuts || 0) + 1;
+    this.emit('bleedout', tgt);
+    return this.damage(src, tgt, (tgt.maxHp - tgt.hp) * BLEED.burst * src.m.bleedDmg, 'bleed', { source: 'Bleed out' });
   }
 
   // Frost needed to freeze tgt: rises by FREEZE_STEP with every freeze it suffered.
@@ -502,22 +518,23 @@ export class Fight {
         if (e.flags.plague) this.heal(e, d * 0.2, 'Plague Lord');
       }
       if (u.bleed > 0.05 && !u.dead) {
-        const d = this.damage(e, u, u.bleed * 0.0025 * u.baseHp * e.m.bleedDmg * dt, 'bleed');
+        const d = this.damage(e, u, u.bleed * BLEED.tick * u.baseHp * e.m.bleedDmg * dt, 'bleed');
         if (e.m.bleedLeech) this.heal(e, d * e.m.bleedLeech, 'Bleed lifesteal');
       }
-      // Toxin and Bleed lose a third of their stacks every 2 seconds.
+      if (u.regen > 0) this.heal(u, u.regen * REGEN_RATE * u.baseHp * dt, 'Regen');
+      // Toxin, Bleed and Regen lose a third of their stacks every 2 seconds.
       u.dotTimer += dt;
       if (u.dotTimer >= DOT_EVERY - 1e-9) {
         u.dotTimer -= DOT_EVERY;
         u.poison *= 1 - DOT_DECAY;
         u.bleed *= 1 - DOT_DECAY * Math.max(0, e.m.bleedDecay);
+        u.regen *= 1 - DOT_DECAY;
         if (u.poison < 1) u.poison = 0;
         if (u.bleed < 1) u.bleed = 0;
+        if (u.regen < 1) u.regen = 0;
       }
       if (u.dead) continue;
       u.frost = Math.max(0, u.frost - 0.6 * e.m.frostDecay * dt);
-
-      if (u.regen > 0) this.heal(u, u.regen * 0.002 * u.baseHp * dt, 'Regen');
       const burn = overtime(this.t).burn;
       if (burn > 0) this.damage(e, u, u.maxHp * burn * dt, 'true', { source: 'Arena burn' });
       if (u.dead) continue;

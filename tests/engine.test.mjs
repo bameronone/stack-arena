@@ -182,6 +182,37 @@ test('Toxin and Bleed lose a third of their stacks every 2 seconds', () => {
   assert.ok(Math.abs(f.b.poison - 20) < 1e-9 && Math.abs(f.b.bleed - 20) < 1e-9);
 });
 
+test('Regen heals while it lasts and loses a third of its stacks every 2 seconds', () => {
+  const f = new Fight({ charId: 'martyr', cards: {} }, { charId: 'martyr', cards: {} }, 1);
+  f.a.maxHp = f.a.hp = f.b.maxHp = f.b.hp = 1e9;
+  f.a.hp = 1; f.a.regen = 30;
+  for (let i = 0; i < 40; i++) f.step();
+  assert.ok(Math.abs(f.a.regen - 20) < 1e-9);
+  assert.ok(f.a.stats.heal.Regen > 0);
+  for (let i = 0; i < 400; i++) f.step();
+  assert.equal(f.a.regen, 0);
+});
+
+test('card and gladiator texts show tidy numbers', () => {
+  const long = /\d\.\d{3,}/;
+  for (const c of CARDS) for (let n = 1; n <= c.max; n++) assert.ok(!long.test(c.desc(n)), `${c.id} x${n}: ${c.desc(n)}`);
+  for (const ch of CHARACTERS) for (const x of [ch.innate, ch.ability, ...ch.signatures]) {
+    const d = typeof x.desc === 'function' ? x.desc() : x.desc;
+    assert.ok(!long.test(d), `${ch.id}: ${d}`);
+  }
+});
+
+test('30 Bleed bleeds out for 30% of the missing HP and clears the stacks', () => {
+  const f = new Fight({ charId: 'martyr', cards: {} }, { charId: 'martyr', cards: {} }, 1);
+  f.b.maxHp = 10000; f.b.hp = 6000;
+  f.apply(f.a, 'bleed', 29);
+  assert.equal(f.b.bleed, 29);
+  f.apply(f.a, 'bleed', 1);
+  assert.equal(f.b.bleed, 0);
+  assert.ok(Math.abs(f.b.hp - (6000 - 4000 * 0.3)) < 1e-6);
+  assert.ok(f.a.stats.dmg['Bleed out'] > 0);
+});
+
 test('mana fills smoothly between attacks', () => {
   const f = new Fight({ charId: 'cinder', cards: {} }, { charId: 'martyr', cards: {} }, 1);
   f.step(); f.step();
