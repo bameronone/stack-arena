@@ -194,7 +194,9 @@ function submitToLeaderboard() {
   submittedSeed = m.seed;
   if (m.players.some((p) => p.isBot && p.level === 'easy')) { ui.submitState = 'squire'; return; }
   const levels = m.players.filter((p) => p.isBot).map((p) => DIFFICULTY_IDS.indexOf(p.level || 'normal'));
-  const level = S.mode === 'solo' ? DIFFICULTY_IDS[Math.max(0, ...levels)] : null;
+  // A bot game counts on the board of the easiest bot in it, so one
+  // Champion among Gladiators doesn't make it a Champion game.
+  const level = S.mode === 'solo' ? DIFFICULTY_IDS[Math.min(...levels)] : null;
   ui.submitState = 'saving';
   submitResult({ mode: S.mode === 'solo' ? 'bots' : 'online', level, players: m.players.length, placement: me.placement, charId: me.charId, seed: m.seed, rounds: m.round })
     .then(() => { ui.submitState = 'saved'; }, () => { ui.submitState = 'failed'; })
@@ -484,7 +486,7 @@ function leaderboardView() {
   const rows = b.rows || [];
   return `<div class="lobby">
     <div class="seg" role="radiogroup" aria-label="Board">${Object.entries(BOARDS).map(([id, name]) => `<button class="${b.which === id ? 'on' : ''}" role="radio" aria-checked="${b.which === id}" data-board="${id}">${name}</button>`).join('')}</div>
-    <p class="slot-note">Ranked by wins (finishing 1st). Ties go to the better average place. Matches with a Squire bot don't count.${b.which === 'online' ? '' : ' Bot games count on the board of the hardest bot in the lobby.'}</p>
+    <p class="slot-note">Ranked by wins (finishing 1st). Ties go to the better average place. Matches with a Squire bot don't count.${b.which === 'online' ? '' : ' Bot games count on the board of the easiest bot in the lobby.'}</p>
     ${b.error ? `<p class="warn" role="alert">${esc(b.error)}</p>` : !b.rows ? '<p class="slot-note waiting">Loading...</p>' : !rows.length ? '<p class="empty">No results on this board yet.</p>' : `
     <table class="final">
       <thead><tr><th>Rank</th><th>Player</th><th class="num">Wins</th><th class="num">Games</th><th class="num">Win %</th><th class="num">Avg place</th></tr></thead>
