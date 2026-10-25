@@ -419,7 +419,9 @@ input:focus-visible { outline: 2px solid var(--bronze); outline-offset: 1px; }
   .speed { right: 8px; }
   .preview { left: 8px; top: calc(var(--band, 40px) + 8px); bottom: auto; transform: none; max-width: calc(100% - 150px); padding: 4px 10px 6px; align-items: flex-start; text-align: left; }
   .preview .eyebrow { font-size: 9px; }
-  .preview.wait { left: 50%; transform: translateX(-50%); align-items: center; text-align: center; max-width: calc(100% - 16px); }
+  /* Phones: too little room above the fighters, so the result sits low,
+     over the finished fight's stack chips */
+  .preview.wait { top: auto; bottom: 8px; left: 50%; transform: translateX(-50%); align-items: center; text-align: center; max-width: calc(100% - 16px); }
   .preview.wait .result { font-size: 24px; }
   .countdown { font-size: 18px; gap: 6px; white-space: nowrap; }
   .countdown .timer { font-size: 34px; }
