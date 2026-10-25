@@ -455,6 +455,7 @@ export function createArena(canvas) {
   // over the canvas) on the right and the standings beside them. On narrow
   // screens the buttons get a row of their own above the standings.
   const SPEED_ROW = 40;
+  const ICON_ROW = 18; // under the plaques: the eye or crossed swords
   let bandShown = '';
   function band() {
     const narrow = w < 640;
@@ -466,7 +467,7 @@ export function createArena(canvas) {
     const pw = Math.min(160, slot - 6);
     const compact = pw < 92, ph = compact ? 31 : 50;
     const top = narrow ? SPEED_ROW : 8;
-    const hh = n ? top + ph + 8 : narrow ? SPEED_ROW : 44;
+    const hh = n ? top + ph + ICON_ROW + 4 : narrow ? SPEED_ROW : 44;
     return { narrow, left, slot, pw, compact, ph, y: top, h: hh, speedW };
   }
   function drawBand(bd) {
@@ -485,8 +486,9 @@ export function createArena(canvas) {
 
   // The standings, in the bar along the top. Plaques slide to their new
   // place when the order changes. Under each name, the gladiator and its
-  // tags. An eye marks a fight you can watch (click to watch it; lit while
-  // you are); crossed swords mark other fights still going.
+  // tags. Under the plaque, an eye marks a fight you can watch (click the
+  // plaque or the eye to watch it; lit while you are); crossed swords mark
+  // other fights still going.
   function drawBoard(dt, bd) {
     plaqueRects = [];
     if (!board.length) return;
@@ -514,7 +516,7 @@ export function createArena(canvas) {
       if (compact) {
         ctx.textAlign = 'center';
         ctx.font = '700 11px "Barlow Semi Condensed", system-ui, sans-serif';
-        ctx.fillText(`${b.glyph} ${b.hp}`, x + pw / 2 - (fighting ? 5 : 0), y + 15);
+        ctx.fillText(`${b.glyph} ${b.hp}`, x + pw / 2, y + 15);
         // Tags as colored dots, between the name and the HP bar.
         (b.tags || []).forEach((t, k, all) => {
           ctx.fillStyle = TAGS[t].color;
@@ -529,18 +531,18 @@ export function createArena(canvas) {
         ctx.font = '600 10px "Barlow Semi Condensed", system-ui, sans-serif';
         ctx.fillStyle = '#a99c87';
         ctx.fillText(b.char, x + 6, y + 26);
-        drawTagChips(b.tags || [], x + 6, y + 30, pw - (fighting ? 30 : 12));
+        drawTagChips(b.tags || [], x + 6, y + 30, pw - 12);
         ctx.textAlign = 'right';
         ctx.font = '700 12px "Barlow Semi Condensed", system-ui, sans-serif';
         ctx.fillStyle = '#e9dcc0';
         ctx.fillText(String(b.hp), x + pw - 6, y + 14);
         if (b.ready) { ctx.fillStyle = '#7fca6e'; ctx.fillText('✓', x + pw - 6, y + 26); }
       }
-      // Inside the plaque's right edge, by the HP (under it on wide ones).
-      const sx = compact ? x + pw - 8 : x + pw - 14, sy = compact ? y + 9 : y + 31, k = compact ? 4 : 7;
+      // Centred under the plaque, in the band's bottom row.
+      const sx = x + pw / 2, sy = y + ph + ICON_ROW / 2 + 1, k = 6;
       if (fighting && b.watchable) {
         drawEye(sx, sy, k, b.watched, now);
-        plaqueRects.push({ id: b.id, x, y, w: pw, h: ph });
+        plaqueRects.push({ id: b.id, x, y, w: pw, h: ph + ICON_ROW });
       } else if (fighting) {
         const swing = Math.sin(now / 160) * 0.25;
         ctx.strokeStyle = '#e9dcc0'; ctx.lineWidth = 2; ctx.lineCap = 'round';
@@ -1181,7 +1183,8 @@ export function createArena(canvas) {
     drawRings(dt);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    if (fight && !bd.narrow) drawClock(fight.t, bd);
+    // The clock goes once the fight ends; the round result shows there.
+    if (fight && !fight.over && !bd.narrow) drawClock(fight.t, bd);
     const mid = { x: w / 2, y: pos(0).y };
     ctx.font = `${Math.round(baseRadius() * 0.6)}px "Grenze Gotisch", Georgia, serif`;
     ctx.fillStyle = 'rgba(214,162,78,0.55)';
@@ -1198,7 +1201,7 @@ export function createArena(canvas) {
     // The bar goes on last so lightning and floating numbers pass behind it.
     drawBand(bd);
     drawBoard(dt, bd);
-    if (fight && bd.narrow) drawClock(fight.t, bd);
+    if (fight && !fight.over && bd.narrow) drawClock(fight.t, bd);
   }
 
   function destroy() {

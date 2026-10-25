@@ -130,5 +130,5 @@ export async function submitResult(r) {
 // Top players for a board: mode 'online', or 'bots' with a level.
 export async function leaderboard(mode, level) {
   const filter = mode === 'online' ? 'mode=eq.online' : `mode=eq.bots&level=eq.${level}`;
-  return api(`/rest/v1/leaderboard?${filter}&select=name,games,wins,beaten,avg_place&order=beaten.desc,wins.desc&limit=25`);
+  return api(`/rest/v1/leaderboard?${filter}&select=name,games,wins,avg_place&order=wins.desc,avg_place.asc,games.desc&limit=25`);
 }

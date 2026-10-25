@@ -185,14 +185,18 @@ function saveResult() {
   }
 }
 
-// Signed in: every finished match goes to the leaderboard once.
+// Signed in: every finished match goes to the leaderboard once, except
+// matches with a Squire bot in them (Squires are for learning the cards).
 let submittedSeed = null;
 function submitToLeaderboard() {
   const m = M(), me = m.players[ME()];
   if (!currentAccount() || submittedSeed === m.seed || !me.placement) return;
   submittedSeed = m.seed;
+  if (m.players.some((p) => p.isBot && p.level === 'easy')) { ui.submitState = 'squire'; return; }
   const levels = m.players.filter((p) => p.isBot).map((p) => DIFFICULTY_IDS.indexOf(p.level || 'normal'));
-  const level = S.mode === 'solo' ? DIFFICULTY_IDS[Math.max(0, ...levels)] : null;
+  // A bot game counts on the board of the easiest bot in it, so one
+  // Champion among Gladiators doesn't make it a Champion game.
+  const level = S.mode === 'solo' ? DIFFICULTY_IDS[Math.min(...levels)] : null;
   ui.submitState = 'saving';
   submitResult({ mode: S.mode === 'solo' ? 'bots' : 'online', level, players: m.players.length, placement: me.placement, charId: me.charId, seed: m.seed, rounds: m.round })
     .then(() => { ui.submitState = 'saved'; }, () => { ui.submitState = 'failed'; })
@@ -435,7 +439,7 @@ function soloLobby() {
 
 // ---------------------------------------------------------------- leaderboard
 
-const BOARDS = { online: 'Online', hard: 'vs Champion', normal: 'vs Gladiator', easy: 'vs Squire' };
+const BOARDS = { online: 'Online', hard: 'vs Champion', normal: 'vs Gladiator' };
 function accountBar() {
   if (!accountsAvailable()) return '';
   const a = currentAccount();
@@ -482,11 +486,11 @@ function leaderboardView() {
   const rows = b.rows || [];
   return `<div class="lobby">
     <div class="seg" role="radiogroup" aria-label="Board">${Object.entries(BOARDS).map(([id, name]) => `<button class="${b.which === id ? 'on' : ''}" role="radio" aria-checked="${b.which === id}" data-board="${id}">${name}</button>`).join('')}</div>
-    <p class="slot-note">Ranked by gladiators beaten: finishing ahead of 3 players in a match counts 3, and a 1v1 win counts 1.${b.which === 'online' ? '' : ' Bot games count on the board of the hardest bot in the lobby.'}</p>
+    <p class="slot-note">Ranked by wins (finishing 1st). Ties go to the better average place. Matches with a Squire bot don't count.${b.which === 'online' ? '' : ' Bot games count on the board of the easiest bot in the lobby.'}</p>
     ${b.error ? `<p class="warn" role="alert">${esc(b.error)}</p>` : !b.rows ? '<p class="slot-note waiting">Loading...</p>' : !rows.length ? '<p class="empty">No results on this board yet.</p>' : `
     <table class="final">
-      <thead><tr><th>Rank</th><th>Player</th><th class="num">Beaten</th><th class="num">Wins</th><th class="num">Games</th><th class="num">Avg place</th></tr></thead>
-      <tbody>${rows.map((r, i) => `<tr class="${r.name === me ? 'me' : ''}"><td class="num">${i + 1}</td><td>${esc(r.name)}</td><td class="num">${r.beaten}</td><td class="num">${r.wins}</td><td class="num">${r.games}</td><td class="num">${Number(r.avg_place).toFixed(1)}</td></tr>`).join('')}</tbody>
+      <thead><tr><th>Rank</th><th>Player</th><th class="num">Wins</th><th class="num">Games</th><th class="num">Win %</th><th class="num">Avg place</th></tr></thead>
+      <tbody>${rows.map((r, i) => `<tr class="${r.name === me ? 'me' : ''}"><td class="num">${i + 1}</td><td>${esc(r.name)}</td><td class="num">${r.wins}</td><td class="num">${r.games}</td><td class="num">${Math.round(100 * r.wins / r.games)}%</td><td class="num">${Number(r.avg_place).toFixed(1)}</td></tr>`).join('')}</tbody>
     </table>`}
   </div>`;
 }
@@ -996,7 +1000,7 @@ function roundWaitHtml() {
   if (mine) {
     const out = mine.winner === null ? 'Draw' : mine.winner === me ? 'Won' : 'Lost';
     const hp = mine.winner === me ? (mine.ghost ? '' : `, they lost ${mine.damage} HP`) : `, you lost ${mine.winner === null ? Math.ceil(mine.damage) : mine.damage} HP`;
-    head = `<span class="eyebrow">Round ${m.fightRound}: ${out}${hp}</span>`;
+    head = `<span class="result ${out.toLowerCase()}">Round ${m.fightRound}: ${out}</span><span class="hp-note">${hp.slice(2)}</span>`;
   }
   const line = going ? `${plural(going, 'fight')} still going. Click a plaque with an eye to watch.` : 'Next round starting...';
   return `<div class="preview wait">${head}<span class="slot-note">${line}</span></div>`;
@@ -1165,6 +1169,7 @@ function renderOver() {
     </div>
     <div class="row">${actions}</div>
     ${accountsAvailable() ? `<p class="slot-note">${!currentAccount() ? 'Sign in on the title screen to put your results on the leaderboard.'
+      : ui.submitState === 'squire' ? 'Matches with Squire bots don\'t count for the leaderboard.'
       : ui.submitState === 'saved' ? 'Saved to the leaderboard.' : ui.submitState === 'failed' ? 'This result could not be saved to the leaderboard.' : 'Saving to the leaderboard...'}</p>` : ''}
     <table class="final">
       <thead><tr><th>Place</th><th>Gladiator</th><th>Player</th><th class="num">Fights won</th></tr></thead>
