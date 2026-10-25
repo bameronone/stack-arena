@@ -505,7 +505,7 @@ function onlineLobby() {
     </div></div>`;
   }
   return `<div class="lobby">
-    ${currentAccount()?.name ? `<p class="slot-note">Playing as <b>${esc(currentAccount().name)}</b>.</p>` : `<label class="field"><span class="eyebrow">Your name</span>
+    ${currentAccount()?.name ? '' : `<label class="field"><span class="eyebrow">Your name</span>
       <input id="name" maxlength="20" autocomplete="nickname" value="${esc(ui.name)}" placeholder="Gladiator"></label>`}
     <div class="online-grid">
       <div class="rule"><h3>Host a room</h3><p>You get a 5-letter code to share. Fill the other slots with friends or bots, then start.</p>
