@@ -192,6 +192,7 @@ export function createArena(canvas) {
       case 'resist': float(ev.side, 'RESISTED', '#a8a39a', 14, -18); break;
       case 'immune': float(ev.side, 'IMMUNE', '#e9eef5', 14, -18); break;
       case 'burst': float(ev.side, 'PANDEMIC', TAGS.poison.color, 18, -18); break;
+      case 'bleedout': float(ev.side, 'BLEED OUT', TAGS.bleed.color, 20, -22); anim[ev.side].flash = 1; break;
       case 'bolt': strikes.push(makeStrike(ev.side)); anim[ev.side].flash = 1; break;
       case 'grit': float(ev.side, 'GRIT', '#d6a24e', 18, -26); break;
       case 'stutter': a.stutter = 1; break;

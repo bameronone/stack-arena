@@ -136,7 +136,7 @@ function cardTags(card) {
 const SOURCE_COLOR = {
   Attacks: '#c9b79c', Toxin: TAGS.poison.color, 'Bloom Burst': TAGS.regen.color, Bleed: TAGS.bleed.color, Thorns: TAGS.armor.color, 'Molten Armor': TAGS.fire.color,
   Shatter: TAGS.frost.color, Pandemic: TAGS.poison.color, 'Reflective Plating': TAGS.shield.color, 'Undying Spite': TAGS.pain.color,
-  Regen: TAGS.regen.color, 'Bleed lifesteal': TAGS.bleed.color, 'Plague Lord': TAGS.poison.color, 'Phoenix Core': TAGS.fire.color,
+  Regen: TAGS.regen.color, 'Bleed lifesteal': TAGS.bleed.color, 'Bleed out': TAGS.bleed.color, 'Plague Lord': TAGS.poison.color, 'Phoenix Core': TAGS.fire.color,
   Armor: TAGS.armor.color, Shield: TAGS.shield.color, Dodge: TAGS.evasion.color, Resistances: '#b9b2a6', Immunity: '#e9dcc0',
   'Living Mountain': TAGS.armor.color, 'Mana Shield': TAGS.arcane.color, 'Arena burn': '#d6a24e',
   Lightning: TAGS.lightning.color, 'Chain Lightning': TAGS.lightning.color, Tempest: TAGS.lightning.color, Grit: '#d6a24e',

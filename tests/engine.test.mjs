@@ -202,6 +202,17 @@ test('card and gladiator texts show tidy numbers', () => {
   }
 });
 
+test('30 Bleed bleeds out for 30% of the missing HP and clears the stacks', () => {
+  const f = new Fight({ charId: 'martyr', cards: {} }, { charId: 'martyr', cards: {} }, 1);
+  f.b.maxHp = 10000; f.b.hp = 6000;
+  f.apply(f.a, 'bleed', 29);
+  assert.equal(f.b.bleed, 29);
+  f.apply(f.a, 'bleed', 1);
+  assert.equal(f.b.bleed, 0);
+  assert.ok(Math.abs(f.b.hp - (6000 - 4000 * 0.3)) < 1e-6);
+  assert.ok(f.a.stats.dmg['Bleed out'] > 0);
+});
+
 test('mana fills smoothly between attacks', () => {
   const f = new Fight({ charId: 'cinder', cards: {} }, { charId: 'martyr', cards: {} }, 1);
   f.step(); f.step();

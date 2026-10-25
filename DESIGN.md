@@ -29,10 +29,11 @@
 - **Resources** (Fire, Frost, Toxin, Bleed, Shield, Regen, Arcane, Lightning, Armor) decide what stacks do. Arcane was called Mana; it was renamed so it isn't confused with the mana bar every gladiator fills to cast.
   - Lightning stacks on you (so cards say *gain* Lightning); every 10 call a bolt down on the enemy (40 damage, +5 per earlier bolt this fight, up to +100) that ignores Armor and stutters the enemy's attack: their swing is pushed back a quarter of a swing, and one swing is never pushed back more than half a swing in total, however many bolts land at once. The swing timer under each fighter's mana bar shows attacks per second, and in red the seconds a bolt added to the current swing.
   - Toxin (internally `poison`, formerly Poison) goes through Armor but Shield blocks it. It no longer cuts healing.
-  - Regen heals 0.25% of base max HP per second per stack and, like Toxin and Bleed, loses a third of its stacks every 2s (it used to last the whole fight at 0.2%, so cards now give about 2.5x as much). Every 5% of base max HP healed, from any source, fires "On heal" (Sap Ward, Bloom Burst, Evergreen).
+  - Regen heals 0.3% of base max HP per second per stack and, like Toxin and Bleed, loses a third of its stacks every 2s (it used to last the whole fight at 0.2%, so cards now give about 2.5x as much). Every 5% of base max HP healed, from any source, fires "On heal" (Sap Ward, Bloom Burst, Evergreen).
   - Gaining Fire melts the same number of Frost stacks on you.
   - Fire: +1% attack speed per stack, up to 40 (your Fire cap). Reaching the cap sets off **Afterburner**: all your Fire burns out and for 3s you attack twice as fast and every hit scorches for another 30% of its damage. Burning more than 40 (Stoke, Wildheart) makes it last longer; Cooling Draught makes the enemy's shorter.
   - Toxin and Bleed lose a third of their stacks every 2 seconds (Deep Cuts and Arterial Strike slow or stop it for Bleed).
+  - Bleed ticks for 0.15% of the target's base max HP per stack per second (it was 0.25%, and did 38% of all damage, most of all against Health stackers). At 30 stacks it **bleeds out**: every stack is used up to deal 30% of the HP the target is already missing, so it works as an execute. Kael's Rupture bleeds the enemy out early, whatever their stacks.
 - **Generator cards** pair a trigger with a resource and always fire. There's one for every one of the 40 trigger-resource pairs. Cards with only a resource tag that make stacks fire 30% of the time, or run on a slow timer.
 
 ## Tiers
